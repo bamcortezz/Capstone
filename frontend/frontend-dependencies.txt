@@ -1,0 +1,29 @@
+Frontend Dependencies List
+=======================
+
+Main Dependencies:
+----------------
+react@19.1.0
+react-dom@19.1.0
+react-router-dom@7.6.0
+chart.js@4.4.9
+react-chartjs-2@5.3.0
+date-fns@4.1.0
+socket.io-client@4.8.1
+sweetalert2@11.21.2
+tailwindcss@4.1.7
+@tailwindcss/vite@4.1.7
+
+Development Dependencies:
+-----------------------
+@eslint/js@9.27.0
+@types/react@19.1.4
+@types/react-dom@19.1.5
+@vitejs/plugin-react@4.4.1
+eslint@9.27.0
+eslint-plugin-react-hooks@5.2.0
+eslint-plugin-react-refresh@0.4.20
+globals@16.1.0
+
+Note: This list was generated from the project's package.json and npm list command. 
+To install these dependencies, use the package.json file and run 'npm install' in the frontend directory. 
