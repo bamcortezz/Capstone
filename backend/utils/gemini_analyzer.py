@@ -18,24 +18,27 @@ def generate_analysis_summary(analysis_data):
 
         # Create the analysis content
         content = f"""
-        Analyze this Twitch chat data:
+        Generate a concise summary of the following Twitch chat analysis:
 
         Channel: {analysis_data['streamer_name']}
         Total Messages: {analysis_data['total_chats']}
 
-        Sentiment Distribution:
+        Sentiment Breakdown:
         - Positive: {analysis_data['sentiment_count']['positive']}
         - Neutral: {analysis_data['sentiment_count']['neutral']}
         - Negative: {analysis_data['sentiment_count']['negative']}
 
-        Top Contributors:
-        - Most Positive: {', '.join([f"{c['username']}" for c in analysis_data['top_positive'][:5]])}
-        - Most Neutral: {', '.join([f"{c['username']}" for c in analysis_data['top_neutral'][:5]])}
-        - Most Negative: {', '.join([f"{c['username']}" for c in analysis_data['top_negative'][:5]])}
+        Top Chatters:
+        - Most Positive: {', '.join([c['username'] for c in analysis_data['top_positive'][:5]])}
+        - Most Neutral: {', '.join([c['username'] for c in analysis_data['top_neutral'][:5]])}
+        - Most Negative: {', '.join([c['username'] for c in analysis_data['top_negative'][:5]])}
 
-        Create a summary of the chat analysis based on the data provided. Create a simple one
-
-        Keep the analysis concise but insightful.
+        Instructions:
+        1. Calculate and include the percentage distribution of positive, neutral, and negative messages.
+        2. Provide a brief insight or takeaway for the streamer based on this sentiment data.
+        3. Keep the tone informative and the summary short and clear.
+        4. Make an insight of the chat, what the streamer is doing well and what they could improve on.
+        5. Include the names of the Most Positive, Most Neutral and Most Negative chatters.
         """
 
         print("Creating Gemini model...")

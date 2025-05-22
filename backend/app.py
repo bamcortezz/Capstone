@@ -2,8 +2,12 @@ from flask import Flask, request, jsonify, session, make_response
 from flask_pymongo import PyMongo
 import os
 from flask_cors import CORS
-from models.user import create_user_schema, create_user, verify_otp, activate_user, verify_password, get_user_by_email
-from models.history import create_history_schema, save_analysis, get_user_history, get_history_by_id
+from models.user import (
+    create_user_schema, create_user, verify_otp, activate_user, 
+    verify_password, get_user_by_email, get_user_by_id,
+    update_profile, update_profile_image, remove_profile_image
+)
+from models.history import create_history_schema, save_analysis, get_user_history, get_history_by_id, delete_history
 from werkzeug.security import generate_password_hash
 from utils.email_sender import send_otp_email
 from utils.twitch_chat import TwitchChatBot, extract_channel_name
@@ -12,6 +16,11 @@ from dotenv import load_dotenv
 from datetime import timedelta
 import threading
 import secrets
+from pymongo import MongoClient
+from bson import ObjectId
+import bcrypt
+import base64
+from datetime import datetime
 
 load_dotenv()
 
@@ -39,6 +48,10 @@ socketio = SocketIO(app,
 
 # Store active bots
 active_bots = {}
+
+# MongoDB connection
+client = MongoClient('mongodb://localhost:27017/')
+db = client['twitch_sentiment']
 
 def broadcast_message(message_data):
     """Broadcast a chat message to all connected clients"""
@@ -132,7 +145,8 @@ def login():
                 'email': user['email'],
                 'first_name': user['first_name'],
                 'last_name': user['last_name'],
-                'role': user['role']
+                'role': user['role'],
+                'profile_image': user.get('profile_image')
             }
         }), 200
 
@@ -145,13 +159,19 @@ def authenticate():
         if 'user_id' not in session:
             return jsonify({'error': 'Not authenticated'}), 401
             
+        # Get user data to include profile image
+        user = get_user_by_id(mongo, session['user_id'])
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+            
         return jsonify({
             'user': {
-                'id': session['user_id'],
-                'email': session['email'],
-                'first_name': session['first_name'],
-                'last_name': session['last_name'],
-                'role': session['role']
+                'id': str(user['_id']),
+                'email': user['email'],
+                'first_name': user['first_name'],
+                'last_name': user['last_name'],
+                'role': user['role'],
+                'profile_image': user.get('profile_image')
             }
         }), 200
     except Exception as e:
@@ -288,20 +308,34 @@ def get_user_analysis_history():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@app.route('/api/history/<history_id>', methods=['GET'])
-def get_analysis_history_by_id(history_id):
+@app.route('/api/history/<history_id>', methods=['GET', 'DELETE'])
+def handle_history_by_id(history_id):
     try:
-        history = get_history_by_id(mongo, history_id)
-        
-        if not history:
-            return jsonify({'error': 'History not found'}), 404
+        if request.method == 'GET':
+            history = get_history_by_id(mongo, history_id)
             
-        # Convert ObjectId to string for JSON serialization
-        history['_id'] = str(history['_id'])
-        history['user_id'] = str(history['user_id'])
+            if not history:
+                return jsonify({'error': 'History not found'}), 404
+                
+            # Convert ObjectId to string for JSON serialization
+            history['_id'] = str(history['_id'])
+            history['user_id'] = str(history['user_id'])
+            
+            return jsonify(history), 200
         
-        return jsonify(history), 200
-        
+        elif request.method == 'DELETE':
+            # Ensure user is authenticated
+            if 'user_id' not in session:
+                return jsonify({'error': 'Unauthorized'}), 401
+            
+            # Delete the history item
+            success = delete_history(mongo, history_id, session['user_id'])
+            
+            if not success:
+                return jsonify({'error': 'Failed to delete history or history not found'}), 404
+                
+            return jsonify({'message': 'History deleted successfully'}), 200
+            
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -334,6 +368,108 @@ def verify_otp_route():
             
     except Exception as e:
         print(f"Error in verify_otp_route: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/user/profile', methods=['PUT'])
+def update_user_profile():
+    try:
+        if 'user_id' not in session:
+            return jsonify({'error': 'Not authenticated'}), 401
+            
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+            
+        # Update profile
+        try:
+            success = update_profile(mongo, session['user_id'], data)
+            if not success:
+                return jsonify({'error': 'Failed to update profile'}), 500
+        except ValueError as e:
+            return jsonify({'error': str(e)}), 400
+            
+        # Get updated user data
+        user = get_user_by_id(mongo, session['user_id'])
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+            
+        # Update session data
+        session['first_name'] = user['first_name']
+        session['last_name'] = user['last_name']
+        session['email'] = user['email']
+        
+        return jsonify({
+            'message': 'Profile updated successfully',
+            'user': {
+                'id': str(user['_id']),
+                'email': user['email'],
+                'first_name': user['first_name'],
+                'last_name': user['last_name'],
+                'role': user['role'],
+                'profile_image': user.get('profile_image')
+            }
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/user/profile-image', methods=['PUT', 'DELETE'])
+def handle_profile_image():
+    try:
+        if 'user_id' not in session:
+            return jsonify({'error': 'Not authenticated'}), 401
+            
+        if request.method == 'DELETE':
+            # Remove profile image
+            success = remove_profile_image(mongo, session['user_id'])
+            if not success:
+                return jsonify({'error': 'Failed to remove profile image'}), 500
+                
+            # Get updated user data
+            user = get_user_by_id(mongo, session['user_id'])
+            if not user:
+                return jsonify({'error': 'User not found'}), 404
+                
+            return jsonify({
+                'message': 'Profile image removed successfully',
+                'user': {
+                    'id': str(user['_id']),
+                    'email': user['email'],
+                    'first_name': user['first_name'],
+                    'last_name': user['last_name'],
+                    'role': user['role'],
+                    'profile_image': user.get('profile_image')
+                }
+            }), 200
+        
+        # Handle PUT request (existing image update logic)
+        data = request.get_json()
+        if not data or 'image' not in data:
+            return jsonify({'error': 'No image data provided'}), 400
+            
+        # Update profile image
+        success = update_profile_image(mongo, session['user_id'], data['image'])
+        if not success:
+            return jsonify({'error': 'Failed to update profile image'}), 500
+            
+        # Get updated user data
+        user = get_user_by_id(mongo, session['user_id'])
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+            
+        return jsonify({
+            'message': 'Profile image updated successfully',
+            'user': {
+                'id': str(user['_id']),
+                'email': user['email'],
+                'first_name': user['first_name'],
+                'last_name': user['last_name'],
+                'role': user['role'],
+                'profile_image': user.get('profile_image')
+            }
+        }), 200
+        
+    except Exception as e:
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':

@@ -30,6 +30,7 @@ const Analyze = () => {
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [autoScroll, setAutoScroll] = useState(true);
   const chatContainerRef = useRef(null);
+  const processedMessages = useRef(new Set());
 
   // Scroll to bottom whenever messages update
   useEffect(() => {
@@ -65,21 +66,35 @@ const Analyze = () => {
     });
 
     socketRef.current.on('chat_message', (data) => {
-      setMessages((prev) => [...prev, data]);
-      // Update sentiment counts
-      setSentimentCounts((prev) => ({
-        ...prev,
-        [data.sentiment]: prev[data.sentiment] + 1
-      }));
-      // Update user sentiments
-      setUserSentiments((prev) => {
-        const newCounts = { ...prev };
-        if (!newCounts[data.sentiment][data.username]) {
-          newCounts[data.sentiment][data.username] = 0;
-        }
-        newCounts[data.sentiment][data.username]++;
-        return newCounts;
-      });
+      // Create a unique identifier for the message based on content and username only
+      const messageId = `${data.username}-${data.message}`;
+
+      // Check if we've already processed this message
+      if (!processedMessages.current.has(messageId)) {
+        processedMessages.current.add(messageId);
+
+        setMessages((prev) => [...prev, { ...data, id: messageId }]);
+
+        // Update sentiment counts
+        setSentimentCounts((prev) => ({
+          ...prev,
+          [data.sentiment]: prev[data.sentiment] + 1
+        }));
+
+        // Update user sentiments - increment count for each message from a user
+        setUserSentiments((prev) => {
+          // Create deep copy to avoid state issues
+          const newCounts = JSON.parse(JSON.stringify(prev));
+          if (!newCounts[data.sentiment][data.username]) {
+            // First time user with this sentiment - set to 1
+            newCounts[data.sentiment][data.username] = 1;
+          } else {
+            // Increment the count for existing users
+            newCounts[data.sentiment][data.username] += 1;
+          }
+          return newCounts;
+        });
+      }
     });
 
     socketRef.current.on('disconnect', () => {
@@ -87,6 +102,20 @@ const Analyze = () => {
       setIsConnected(false);
       setCurrentChannel(null);
       setMessages([]);
+      // Reset sentiment counts
+      setSentimentCounts({
+        positive: 0,
+        neutral: 0,
+        negative: 0
+      });
+      // Reset user sentiments
+      setUserSentiments({
+        positive: {},
+        neutral: {},
+        negative: {}
+      });
+      // Clear processed messages
+      processedMessages.current.clear();
     });
 
     socketRef.current.on('disconnect_notification', (data) => {
@@ -95,6 +124,20 @@ const Analyze = () => {
         setCurrentChannel(null);
         setMessages([]);
         setStreamUrl('');
+        // Reset sentiment counts
+        setSentimentCounts({
+          positive: 0,
+          neutral: 0,
+          negative: 0
+        });
+        // Reset user sentiments
+        setUserSentiments({
+          positive: {},
+          neutral: {},
+          negative: {}
+        });
+        // Clear processed messages
+        processedMessages.current.clear();
       }
     });
 
@@ -269,6 +312,20 @@ const Analyze = () => {
       setCurrentChannel(null);
       setMessages([]);
       setStreamUrl('');
+      // Reset sentiment counts
+      setSentimentCounts({
+        positive: 0,
+        neutral: 0,
+        negative: 0
+      });
+      // Reset user sentiments
+      setUserSentiments({
+        positive: {},
+        neutral: {},
+        negative: {}
+      });
+      // Clear processed messages
+      processedMessages.current.clear();
     } catch (error) {
       console.error('Disconnect failed:', error);
       // Still clean up the local state even if the server request fails
@@ -276,6 +333,20 @@ const Analyze = () => {
       setCurrentChannel(null);
       setMessages([]);
       setStreamUrl('');
+      // Reset sentiment counts
+      setSentimentCounts({
+        positive: 0,
+        neutral: 0,
+        negative: 0
+      });
+      // Reset user sentiments
+      setUserSentiments({
+        positive: {},
+        neutral: {},
+        negative: {}
+      });
+      // Clear processed messages
+      processedMessages.current.clear();
     }
   };
 
@@ -318,7 +389,7 @@ const Analyze = () => {
     <div className="min-h-screen bg-black py-6 px-8">
       {/* Main container */}
       <div className="max-w-[1400px] mx-auto space-y-6">
-        
+
         {!isConnected && (
           <div className="text-center pt-10 pb-16">
             <h1 className="text-5xl md:text-7xl font-bold text-white mb-6">
@@ -334,7 +405,7 @@ const Analyze = () => {
         <div className="bg-black border border-gray-700 rounded-lg p-6 shadow-lg">
           <h2 className="text-2xl font-bold text-white mb-4">Connect to Channel</h2>
           <p className="text-gray-300 mb-4">Enter a Twitch channel URL to start analyzing chat</p>
-          
+
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label htmlFor="streamUrl" className="block text-base font-medium text-gray-300 mb-2">
@@ -352,17 +423,16 @@ const Analyze = () => {
               />
               <p className="text-sm text-gray-400 mt-1">Format: https://www.twitch.tv/channelname</p>
             </div>
-            
+
             <button
               type="submit"
               disabled={isAnalyzing}
-              className={`px-6 py-3 rounded-lg font-medium transition-colors flex items-center justify-center ${
-                isAnalyzing
-                  ? 'bg-gray-600 cursor-not-allowed'
-                  : isConnected
-                    ? 'bg-red-600 hover:bg-red-700 text-white'
-                    : 'bg-twitch hover:bg-twitch-dark text-white'
-              }`}
+              className={`px-6 py-3 rounded-lg font-medium transition-colors flex items-center justify-center ${isAnalyzing
+                ? 'bg-gray-600 cursor-not-allowed'
+                : isConnected
+                  ? 'bg-red-600 hover:bg-red-700 text-white'
+                  : 'bg-twitch hover:bg-twitch-dark text-white'
+                }`}
             >
               {isAnalyzing ? (
                 <>
@@ -394,7 +464,7 @@ const Analyze = () => {
               <div className="bg-black border border-gray-700 rounded-lg p-6 shadow-lg">
                 <h2 className="text-xl font-bold text-white mb-3">Overall Sentiment Analysis</h2>
                 <p className="text-sm text-gray-400 mb-4">Real-time sentiment breakdown of chat messages</p>
-                
+
                 {isConnected && messages.length > 0 ? (
                   <div className="h-[250px] relative">
                     <Pie data={chartData} options={chartOptions} />
@@ -414,7 +484,7 @@ const Analyze = () => {
               <div className="bg-black border border-gray-700 rounded-lg p-6 shadow-lg">
                 <h2 className="text-xl font-bold text-white mb-3">Top Chatters Analysis</h2>
                 <p className="text-sm text-gray-400 mb-4">Users with most messages by sentiment</p>
-                
+
                 {isConnected && messages.length > 0 ? (
                   <div className="space-y-4">
                     {/* Positive */}
@@ -425,7 +495,7 @@ const Analyze = () => {
                         return (
                           <div className="flex justify-between items-center bg-gray-900 border border-gray-700 p-3 rounded">
                             <span className="text-gray-300">{username}</span>
-                            <span className="text-green-400 font-medium">{count} messages</span>
+                            <span className="text-green-400 font-medium">{count} {count === 1 ? 'message' : 'messages'}</span>
                           </div>
                         );
                       })()}
@@ -439,7 +509,7 @@ const Analyze = () => {
                         return (
                           <div className="flex justify-between items-center bg-gray-900 border border-gray-700 p-3 rounded">
                             <span className="text-gray-300">{username}</span>
-                            <span className="text-orange-400 font-medium">{count} messages</span>
+                            <span className="text-orange-400 font-medium">{count} {count === 1 ? 'message' : 'messages'}</span>
                           </div>
                         );
                       })()}
@@ -453,7 +523,7 @@ const Analyze = () => {
                         return (
                           <div className="flex justify-between items-center bg-gray-900 border border-gray-700 p-3 rounded">
                             <span className="text-gray-300">{username}</span>
-                            <span className="text-red-400 font-medium">{count} messages</span>
+                            <span className="text-red-400 font-medium">{count} {count === 1 ? 'message' : 'messages'}</span>
                           </div>
                         );
                       })()}
@@ -483,7 +553,7 @@ const Analyze = () => {
                   Chat
                   {currentChannel && <span className="ml-2 text-sm text-twitch font-normal">{currentChannel}</span>}
                 </h2>
-                
+
                 {isConnected && messages.length > 0 ? (
                   <div className="h-[600px]">
                     <div
@@ -492,16 +562,15 @@ const Analyze = () => {
                       onScroll={handleChatScroll}
                     >
                       {messages.map((msg, idx) => (
-                        <div key={idx} className="flex items-center justify-between bg-gray-900/40 border border-gray-800 p-3 rounded-lg">
+                        <div key={msg.id} className="flex items-center justify-between bg-gray-900/40 border border-gray-800 p-3 rounded-lg">
                           <div className="flex items-start space-x-2 flex-1 min-w-0">
                             <span className="text-twitch font-medium whitespace-nowrap">{msg.username}:</span>
                             <span className="text-gray-300 break-words overflow-hidden">{msg.message}</span>
                           </div>
-                          <span className={`ml-4 px-2 py-1 rounded text-xs font-medium whitespace-nowrap flex-shrink-0 ${
-                            msg.sentiment === 'positive' ? 'bg-green-900/50 text-green-400' :
+                          <span className={`ml-4 px-2 py-1 rounded text-xs font-medium whitespace-nowrap flex-shrink-0 ${msg.sentiment === 'positive' ? 'bg-green-900/50 text-green-400' :
                             msg.sentiment === 'negative' ? 'bg-red-900/50 text-red-400' :
-                            'bg-orange-900/50 text-orange-400'
-                          }`}>
+                              'bg-orange-900/50 text-orange-400'
+                            }`}>
                             {msg.sentiment}
                           </span>
                         </div>
@@ -519,7 +588,7 @@ const Analyze = () => {
                     </div>
                   </div>
                 )}
-                
+
                 {showScrollButton && (
                   <button
                     onClick={scrollToBottom}

@@ -39,7 +39,8 @@ def create_user(mongo, user_data):
         'otp_secret': secret,  # Store the OTP secret
         'otp_created_at': now,  # Track when OTP was created
         'created_at': now,
-        'updated_at': now
+        'updated_at': now,
+        'profile_image': None  # Add profile image field
     }
     result = mongo.db.users.insert_one(user)
     return result, otp
@@ -76,3 +77,70 @@ def get_user_by_id(mongo, user_id):
         return mongo.db.users.find_one({'_id': ObjectId(user_id)})
     except:
         return None
+
+def update_profile(mongo, user_id, profile_data):
+    try:
+        now = datetime.utcnow()
+        update_fields = {
+            'first_name': profile_data.get('first_name'),
+            'last_name': profile_data.get('last_name'),
+            'email': profile_data.get('email'),
+            'updated_at': now
+        }
+        
+        # Remove None values
+        update_fields = {k: v for k, v in update_fields.items() if v is not None}
+        
+        if not update_fields:
+            return False
+            
+        # Check if email is being updated and if it's already taken
+        if 'email' in update_fields:
+            existing_user = mongo.db.users.find_one({
+                'email': update_fields['email'],
+                '_id': {'$ne': ObjectId(user_id)}
+            })
+            if existing_user:
+                raise ValueError('Email is already taken')
+            
+        result = mongo.db.users.update_one(
+            {'_id': ObjectId(user_id)},
+            {'$set': update_fields}
+        )
+        return result.modified_count > 0
+    except ValueError as e:
+        raise e
+    except:
+        return False
+
+def update_profile_image(mongo, user_id, image_data):
+    try:
+        now = datetime.utcnow()
+        result = mongo.db.users.update_one(
+            {'_id': ObjectId(user_id)},
+            {
+                '$set': {
+                    'profile_image': image_data,
+                    'updated_at': now
+                }
+            }
+        )
+        return result.modified_count > 0
+    except:
+        return False
+
+def remove_profile_image(mongo, user_id):
+    try:
+        now = datetime.utcnow()
+        result = mongo.db.users.update_one(
+            {'_id': ObjectId(user_id)},
+            {
+                '$set': {
+                    'profile_image': None,
+                    'updated_at': now
+                }
+            }
+        )
+        return result.modified_count > 0
+    except:
+        return False

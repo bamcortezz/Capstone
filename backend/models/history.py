@@ -14,6 +14,7 @@ def create_history_schema(mongo):
         # Create indexes
         mongo.db.history.create_index([('user_id', 1)])  # Index for user_id
         mongo.db.history.create_index([('created_at', -1)])  # Index for sorting by date
+        mongo.db.history.create_index([('status', 1)])  # Index for status
     except Exception as e:
         logger.error(f"History index creation failed: {str(e)}")
 
@@ -86,7 +87,7 @@ def save_analysis(mongo, data):
                 'top_negative': data.get('top_negative', []),
                 'top_neutral': data.get('top_neutral', []),
                 'summary': summary,
-                'status': 'completed',
+                'status': 'active',
                 'created_at': now,
                 'updated_at': now
             }
@@ -111,7 +112,11 @@ def save_analysis(mongo, data):
 
 def get_user_history(mongo, user_id):
     try:
-        history = mongo.db.history.find({'user_id': ObjectId(user_id)}).sort('created_at', -1)
+        # Only return active (non-deleted) history items
+        history = mongo.db.history.find({
+            'user_id': ObjectId(user_id),
+            'status': 'active'
+        }).sort('created_at', -1)
         return list(history)
     except Exception as e:
         logger.error(f"Error fetching history: {str(e)}")
@@ -123,3 +128,30 @@ def get_history_by_id(mongo, history_id):
     except Exception as e:
         logger.error(f"Error fetching history by id: {str(e)}")
         return None
+
+def delete_history(mongo, history_id, user_id):
+    try:
+        # Soft delete by updating status to 'deleted'
+        result = mongo.db.history.update_one(
+            {
+                '_id': ObjectId(history_id),
+                'user_id': ObjectId(user_id)  # Ensure user owns this history item
+            },
+            {
+                '$set': {
+                    'status': 'deleted',
+                    'updated_at': datetime.utcnow()
+                }
+            }
+        )
+        
+        if result.modified_count == 0:
+            logger.warning(f"No history found for id: {history_id} and user_id: {user_id}")
+            return False
+            
+        logger.debug(f"Successfully deleted history id: {history_id}")
+        return True
+        
+    except Exception as e:
+        logger.error(f"Error deleting history: {str(e)}")
+        return False

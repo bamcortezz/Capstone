@@ -9,6 +9,7 @@ import Contact from "./components/pages/Contact"
 import About from "./components/pages/About"
 import Analyze from "./components/pages/Analyze"
 import History from "./components/pages/History"
+import Settings from "./components/pages/Settings"
 import Navbar from "./components/layout/Navbar"
 import useBackendStatus from "./hooks/useBackendStatus"
 import { AuthProvider, useAuth } from "./contexts/AuthContext"
@@ -41,6 +42,14 @@ const AppContent = () => {
             element={
               <ProtectedRoute>
                 <History />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/settings" 
+            element={
+              <ProtectedRoute>
+                <Settings />
               </ProtectedRoute>
             } 
           />

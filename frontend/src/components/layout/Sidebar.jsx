@@ -50,10 +50,18 @@ const Sidebar = ({ isOpen, onClose }) => {
           {user && (
             <div className="mb-6 pb-6 border-b border-gray-700">
               <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 rounded-full bg-twitch flex items-center justify-center">
-                  <span className="text-white font-medium text-lg">
-                    {user.first_name[0].toUpperCase()}
-                  </span>
+                <div className="w-10 h-10 rounded-full bg-twitch flex items-center justify-center overflow-hidden">
+                  {user.profile_image ? (
+                    <img 
+                      src={user.profile_image} 
+                      alt={`${user.first_name}'s profile`}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <span className="text-white font-medium text-lg">
+                      {user.first_name[0].toUpperCase()}
+                    </span>
+                  )}
                 </div>
                 <div>
                   <p className="text-white font-medium">{`${user.first_name} ${user.last_name}`}</p>
@@ -145,21 +153,6 @@ const Sidebar = ({ isOpen, onClose }) => {
 
             {user ? (
               <>
-                <Link 
-                  to="/profile" 
-                  className={getLinkClass('/profile')}
-                  onClick={onClose}
-                >
-                  <div className="flex items-center space-x-3">
-                    <span className="text-twitch">
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                      </svg>
-                    </span>
-                    <span>Profile</span>
-                  </div>
-                </Link>
-
                 <Link 
                   to="/settings" 
                   className={getLinkClass('/settings')}

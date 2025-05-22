@@ -162,7 +162,7 @@ const History = () => {
     e.stopPropagation();
     
     const result = await Swal.fire({
-      title: 'Are you sure?',
+      title: 'Delete Analysis?',
       text: "You won't be able to revert this!",
       icon: 'warning',
       showCancelButton: true,
@@ -170,7 +170,8 @@ const History = () => {
       cancelButtonColor: '#374151',
       confirmButtonText: 'Yes, delete it!',
       background: '#1F2937',
-      color: '#fff'
+      color: '#fff',
+      showConfirmButton: true
     });
 
     if (result.isConfirmed) {
@@ -196,8 +197,8 @@ const History = () => {
           timer: 2000,
           timerProgressBar: true,
           showConfirmButton: false,
-          background: '#1F2937',
-          color: '#fff'
+          position: 'top-end',
+          toast: true
         });
       } catch (error) {
         console.error('Delete failed:', error);
@@ -205,8 +206,11 @@ const History = () => {
           title: 'Error',
           text: 'Failed to delete analysis',
           icon: 'error',
-          background: '#1F2937',
-          color: '#fff'
+          timer: 3000,
+          timerProgressBar: true,
+          showConfirmButton: false,
+          position: 'top-end',
+          toast: true
         });
       }
     }
