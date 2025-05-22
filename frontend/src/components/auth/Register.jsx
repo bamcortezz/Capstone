@@ -124,7 +124,7 @@ const Register = () => {
                       onChange={handleChange}
                       required
                       className="w-full p-3 rounded-lg bg-black border border-gray-700 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-twitch"
-                      placeholder="John"
+                      placeholder="First Name"
                     />
                   </div>
 
@@ -140,7 +140,7 @@ const Register = () => {
                       onChange={handleChange}
                       required
                       className="w-full p-3 rounded-lg bg-black border border-gray-700 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-twitch"
-                      placeholder="Doe"
+                      placeholder="Last Name"
                     />
                   </div>
                 </div>
@@ -157,7 +157,7 @@ const Register = () => {
                     onChange={handleChange}
                     required
                     className="w-full p-3 rounded-lg bg-black border border-gray-700 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-twitch"
-                    placeholder="you@example.com"
+                    placeholder="Email"
                   />
                 </div>
 
@@ -175,6 +175,10 @@ const Register = () => {
                     className="w-full p-3 rounded-lg bg-black border border-gray-700 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-twitch"
                     placeholder="••••••••"
                   />
+                  <p className="mt-1 text-xs text-gray-400">
+                    Password must be at least 8 characters and include uppercase, lowercase, 
+                    numbers, and special characters.
+                  </p>
                 </div>
 
                 <div>

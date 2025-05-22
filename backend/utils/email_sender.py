@@ -26,9 +26,6 @@ def send_otp_email(to_email, otp):
     This OTP will expire in 10 minutes.
     
     If you didn't request this OTP, please ignore this email.
-    
-    Best regards,
-    Team
     """
     
     message.attach(MIMEText(body, "plain"))
@@ -70,9 +67,6 @@ def send_password_reset_email(to_email, user_id, reset_token):
     This link will expire in 24 hours.
     
     If you didn't request a password reset, please ignore this email.
-    
-    Best regards,
-    Team
     """
     
     message.attach(MIMEText(body, "plain"))

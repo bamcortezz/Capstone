@@ -12,6 +12,7 @@ from models.history import create_history_schema, save_analysis, get_user_histor
 from werkzeug.security import generate_password_hash
 from utils.email_sender import send_otp_email, send_password_reset_email
 from utils.twitch_chat import TwitchChatBot, extract_channel_name
+from utils.password_validator import validate_password
 from flask_socketio import SocketIO
 from dotenv import load_dotenv
 from datetime import timedelta
@@ -83,6 +84,11 @@ def register():
         if mongo.db.users.find_one({'email': data['email']}):
             return jsonify({'error': 'Email already registered'}), 400
         
+        # Validate password with enhanced policy
+        is_valid, error_message = validate_password(data['password'])
+        if not is_valid:
+            return jsonify({'error': error_message}), 400
+            
         # Create new user with default role and status
         user_data = {
             'first_name': data['first_name'],
@@ -528,9 +534,10 @@ def reset_password_route():
         if not userId or not token or not password:
             return jsonify({'error': 'User ID, token and password are required'}), 400
             
-        # Validate password
-        if len(password) < 8:
-            return jsonify({'error': 'Password must be at least 8 characters'}), 400
+        # Validate password with enhanced policy
+        is_valid, error_message = validate_password(password)
+        if not is_valid:
+            return jsonify({'error': error_message}), 400
             
         # Reset the password
         success = reset_password(mongo, userId, token, password)

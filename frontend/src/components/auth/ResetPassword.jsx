@@ -168,8 +168,7 @@ const ResetPassword = () => {
                   Enter your new password below
                 </p>
               </div>
-              <form onSubmit={handleSubmit} className="space-y-6">
-                <div>
+              <form onSubmit={handleSubmit} className="space-y-6">                <div>
                   <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-2">
                     New Password
                   </label>
@@ -183,6 +182,10 @@ const ResetPassword = () => {
                     required
                     className="w-full p-3 rounded-lg bg-black border border-gray-700 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-twitch"
                   />
+                  <p className="mt-1 text-xs text-gray-400">
+                    Password must be at least 8 characters and include uppercase, lowercase, 
+                    numbers, and special characters (!@#$%^&*).
+                  </p>
                 </div>
 
                 <div>
