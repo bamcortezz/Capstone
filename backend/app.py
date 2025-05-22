@@ -5,11 +5,12 @@ from flask_cors import CORS
 from models.user import (
     create_user_schema, create_user, verify_otp, activate_user, 
     verify_password, get_user_by_email, get_user_by_id,
-    update_profile, update_profile_image, remove_profile_image
+    update_profile, update_profile_image, remove_profile_image,
+    save_reset_token, validate_reset_token, reset_password
 )
 from models.history import create_history_schema, save_analysis, get_user_history, get_history_by_id, delete_history
 from werkzeug.security import generate_password_hash
-from utils.email_sender import send_otp_email
+from utils.email_sender import send_otp_email, send_password_reset_email
 from utils.twitch_chat import TwitchChatBot, extract_channel_name
 from flask_socketio import SocketIO
 from dotenv import load_dotenv
@@ -468,6 +469,76 @@ def handle_profile_image():
                 'profile_image': user.get('profile_image')
             }
         }), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/forgot-password', methods=['POST'])
+def forgot_password():
+    try:
+        data = request.get_json()
+        email = data.get('email')
+        
+        if not email:
+            return jsonify({'error': 'Email is required'}), 400
+            
+        # Check if user exists but don't reveal this information
+        user, token = save_reset_token(mongo, email)
+        
+        if user and token:
+            # Send password reset email
+            email_sent = send_password_reset_email(email, str(user['_id']), token)
+            
+            if not email_sent:
+                return jsonify({'error': 'Failed to send password reset email'}), 500
+                
+            return jsonify({'message': 'Password reset instructions sent to email'}), 200
+            
+        # Still return success even if email not found for security reasons
+        return jsonify({'message': 'Password reset instructions sent to email if account exists'}), 200
+        
+    except Exception as e:
+        print(f"Password reset error: {str(e)}")
+        return jsonify({'error': 'An unexpected error occurred'}), 500
+
+@app.route('/api/validate-reset-token/<userId>/<token>', methods=['GET'])
+def validate_reset_token_route(userId, token):
+    try:
+        if not userId or not token:
+            return jsonify({'error': 'Invalid reset link'}), 400
+            
+        is_valid = validate_reset_token(mongo, userId, token)
+        
+        if not is_valid:
+            return jsonify({'error': 'Invalid or expired reset link'}), 400
+            
+        return jsonify({'message': 'Valid reset token'}), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/reset-password', methods=['POST'])
+def reset_password_route():
+    try:
+        data = request.get_json()
+        userId = data.get('userId')
+        token = data.get('token')
+        password = data.get('password')
+        
+        if not userId or not token or not password:
+            return jsonify({'error': 'User ID, token and password are required'}), 400
+            
+        # Validate password
+        if len(password) < 8:
+            return jsonify({'error': 'Password must be at least 8 characters'}), 400
+            
+        # Reset the password
+        success = reset_password(mongo, userId, token, password)
+        
+        if not success:
+            return jsonify({'error': 'Invalid or expired reset link'}), 400
+            
+        return jsonify({'message': 'Password has been reset successfully'}), 200
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500

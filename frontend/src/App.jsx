@@ -4,6 +4,8 @@ import { ClipLoader } from "react-spinners"
 import Login from "./components/auth/Login"
 import Register from "./components/auth/Register"
 import OTPVerification from "./components/auth/OTPVerification"
+import ForgotPassword from "./components/auth/ForgotPassword"
+import ResetPassword from "./components/auth/ResetPassword"
 import Home from "./components/pages/Home"
 import Contact from "./components/pages/Contact"
 import About from "./components/pages/About"
@@ -56,6 +58,8 @@ const AppContent = () => {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/verify-otp" element={<OTPVerification />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password/:userId/:token" element={<ResetPassword />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </div>

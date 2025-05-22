@@ -6,7 +6,6 @@ import json
 load_dotenv()
 
 def generate_analysis_summary(analysis_data):
-    """Generate a summary of the chat analysis using Gemini AI."""
     try:
         api_key = os.getenv('GEMINI_API_KEY')
         if not api_key:

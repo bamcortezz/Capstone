@@ -32,15 +32,15 @@ def create_user(mongo, user_data):
         'last_name': user_data.get('last_name'),
         'email': user_data.get('email'),
         'password_hash': generate_password_hash(user_data.get('password'), method='pbkdf2:sha256'),
-        'role': user_data.get('role', 'user'),  # Default to 'user' if not specified
-        'status': 'not_active',  # Always start as not_active
+        'role': user_data.get('role', 'user'),  
+        'status': 'not_active',  
         'reset_token': None,
         'token_expire': None,
-        'otp_secret': secret,  # Store the OTP secret
-        'otp_created_at': now,  # Track when OTP was created
+        'otp_secret': secret,  
+        'otp_created_at': now,  
         'created_at': now,
         'updated_at': now,
-        'profile_image': None  # Add profile image field
+        'profile_image': None 
     }
     result = mongo.db.users.insert_one(user)
     return result, otp
@@ -52,7 +52,7 @@ def activate_user(mongo, email):
         {
             '$set': {
                 'status': 'active',
-                'otp_secret': None,  # Clear OTP secret after verification
+                'otp_secret': None, 
                 'otp_created_at': None,
                 'updated_at': now
             }
@@ -61,7 +61,7 @@ def activate_user(mongo, email):
 
 def generate_reset_token():
     token = secrets.token_urlsafe(32)
-    expire = datetime.utcnow() + timedelta(hours=24)  # Token expires in 24 hours
+    expire = datetime.utcnow() + timedelta(hours=24)  
     return token, expire
 
 def get_user_by_email(mongo, email):
@@ -143,4 +143,77 @@ def remove_profile_image(mongo, user_id):
         )
         return result.modified_count > 0
     except:
+        return False
+
+def save_reset_token(mongo, email):
+    try:
+        user = get_user_by_email(mongo, email)
+        if not user:
+            return None, None
+            
+        # Generate reset token and expiration
+        token, expire = generate_reset_token()
+        
+        # Update the user document
+        result = mongo.db.users.update_one(
+            {'_id': user['_id']},
+            {
+                '$set': {
+                    'reset_token': token,
+                    'token_expire': expire,
+                    'updated_at': datetime.utcnow()
+                }
+            }
+        )
+        
+        if result.modified_count > 0:
+            return user, token
+        return None, None
+    except Exception as e:
+        print(f"Error saving reset token: {e}")
+        return None, None
+
+def validate_reset_token(mongo, user_id, token):
+    """
+    Check if a reset token is valid.
+    Returns True if the token is valid, False otherwise.
+    """
+    try:
+        user = mongo.db.users.find_one({
+            '_id': ObjectId(user_id),
+            'reset_token': token,
+            'token_expire': {'$gt': datetime.utcnow()}
+        })
+        return user is not None
+    except Exception as e:
+        print(f"Error validating reset token: {e}")
+        return False
+
+def reset_password(mongo, user_id, token, new_password):
+    """
+    Reset a user's password using a reset token.
+    Returns True if successful, False otherwise.
+    """
+    try:
+        # Check if the token is valid
+        if not validate_reset_token(mongo, user_id, token):
+            return False
+            
+        # Update the password and clear the reset token
+        password_hash = generate_password_hash(new_password, method='pbkdf2:sha256')
+        result = mongo.db.users.update_one(
+            {'_id': ObjectId(user_id), 'reset_token': token},
+            {
+                '$set': {
+                    'password_hash': password_hash,
+                    'reset_token': None,
+                    'token_expire': None,
+                    'updated_at': datetime.utcnow()
+                }
+            }
+        )
+        
+        return result.modified_count > 0
+    except Exception as e:
+        print(f"Error resetting password: {e}")
         return False

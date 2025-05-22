@@ -120,22 +120,6 @@ const Login = () => {
                   />
                 </div>
 
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
-                      id="remember"
-                      className="h-4 w-4 rounded border-gray-700 bg-black text-twitch focus:ring-twitch focus:ring-offset-black"
-                    />
-                    <label htmlFor="remember" className="ml-2 text-sm text-gray-400">
-                      Remember me
-                    </label>
-                  </div>
-                  <a href="#" className="text-sm text-twitch hover:text-twitch">
-                    Forgot password?
-                  </a>
-                </div>
-
                 <button
                   type="submit"
                   disabled={isLoading}
@@ -150,6 +134,12 @@ const Login = () => {
                     "Sign In"
                   )}
                 </button>
+                
+                <div className="flex items-center justify-center mt-4">
+                  <Link to="/forgot-password" className="text-sm text-twitch hover:text-twitch">
+                    Forgot password?
+                  </Link>
+                </div>
               </form>
             </div>
           </div>

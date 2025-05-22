@@ -373,14 +373,6 @@ const Settings = () => {
               </div>
             </div>
           </div>
-
-          {/* Security Section */}
-          <div className="bg-gray-800 rounded-lg p-6">
-            <h2 className="text-xl font-semibold text-white mb-6">Security</h2>
-            <button className="px-4 py-2 bg-twitch hover:bg-twitch-dark text-white rounded-md transition-colors">
-              Change Password
-            </button>
-          </div>
         </div>
       </div>
     </div>
