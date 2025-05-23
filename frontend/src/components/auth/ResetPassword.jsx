@@ -3,6 +3,9 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { ClipLoader } from "react-spinners";
 import Swal from "sweetalert2";
 
+// API URL
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
 const ResetPassword = () => {
   const navigate = useNavigate();
   const { userId, token } = useParams();
@@ -33,7 +36,7 @@ const ResetPassword = () => {
 
     const validateToken = async () => {
       try {
-        const response = await fetch(`http://localhost:5000/api/validate-reset-token/${userId}/${token}`, {
+        const response = await fetch(`${API_URL}/api/validate-reset-token/${userId}/${token}`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
@@ -54,7 +57,8 @@ const ResetPassword = () => {
           toast: true,
           timerProgressBar: true,
           showConfirmButton: false,
-          timer: 3000        });
+          timer: 3000
+        });
       }
     };
 
@@ -79,9 +83,9 @@ const ResetPassword = () => {
         timer: 3000
       });
       return;
-    }    setIsLoading(true);
+    } setIsLoading(true);
     try {
-      const response = await fetch('http://localhost:5000/api/reset-password', {
+      const response = await fetch(`${API_URL}/api/reset-password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -105,7 +109,7 @@ const ResetPassword = () => {
         showConfirmButton: false,
         timer: 3000
       });
-      
+
       // Navigate to login page after successful password reset
       navigate('/login');
 
@@ -169,24 +173,23 @@ const ResetPassword = () => {
                 </p>
               </div>
               <form onSubmit={handleSubmit} className="space-y-6">                <div>
-                  <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-2">
-                    New Password
-                  </label>
-                  <input
-                    type="password"
-                    id="password"
-                    name="password"
-                    value={password}
-                    onChange={handleChange}
-                    placeholder="••••••••"
-                    required
-                    className="w-full p-3 rounded-lg bg-black border border-gray-700 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-twitch"
-                  />
-                  <p className="mt-1 text-xs text-gray-400">
-                    Password must be at least 8 characters and include uppercase, lowercase, 
-                    numbers, and special characters (!@#$%^&*).
-                  </p>
-                </div>
+                <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-2">
+                  New Password
+                </label>
+                <input
+                  type="password"
+                  id="password"
+                  name="password"
+                  value={password}
+                  onChange={handleChange}
+                  placeholder="••••••••"
+                  required
+                  className="w-full p-3 rounded-lg bg-black border border-gray-700 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-twitch"
+                />
+                <p className="mt-1 text-xs text-gray-400">
+                  Password must be at least 8 characters and include uppercase, lowercase, numbers, and special characters.
+                </p>
+              </div>
 
                 <div>
                   <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-300 mb-2">
@@ -207,9 +210,8 @@ const ResetPassword = () => {
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className={`w-full py-3 rounded-lg font-medium transition-colors flex items-center justify-center ${
-                    isLoading ? 'bg-gray-600 cursor-not-allowed' : 'bg-twitch hover:bg-twitch-dark text-white'
-                  }`}
+                  className={`w-full py-3 rounded-lg font-medium transition-colors flex items-center justify-center ${isLoading ? 'bg-gray-600 cursor-not-allowed' : 'bg-twitch hover:bg-twitch-dark text-white'
+                    }`}
                 >
                   {isLoading ? (
                     <ClipLoader size={24} color="#9146FF" />

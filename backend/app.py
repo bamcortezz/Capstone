@@ -6,7 +6,8 @@ from models.user import (
     create_user_schema, create_user, verify_otp, activate_user, 
     verify_password, get_user_by_email, get_user_by_id,
     update_profile, update_profile_image, remove_profile_image,
-    save_reset_token, validate_reset_token, reset_password
+    save_reset_token, validate_reset_token, reset_password,
+    update_user_by_admin
 )
 from models.history import create_history_schema, save_analysis, get_user_history, get_history_by_id, delete_history
 from werkzeug.security import generate_password_hash
@@ -135,8 +136,11 @@ def login():
         if not verify_password(user, password):
             return jsonify({'error': 'Incorrect Password.'}), 401
 
-        if user['status'] != 'active':
-            return jsonify({'error': 'Please verify your email before logging in'}), 403
+        # Check account status and return appropriate message
+        if user['status'] == 'not_active':
+            return jsonify({'error': 'Account is not active. Please verify your email.'}), 403
+        elif user['status'] == 'suspended':
+            return jsonify({'error': 'Account is suspended.'}), 403
 
         # Set session data
         session.permanent = True  # Use permanent session
@@ -547,6 +551,134 @@ def reset_password_route():
             
         return jsonify({'message': 'Password has been reset successfully'}), 200
         
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/admin/users', methods=['GET'])
+def get_all_users():
+    try:
+        if 'user_id' not in session:
+            return jsonify({'error': 'Authentication required'}), 401
+            
+        current_user = get_user_by_id(mongo, session['user_id'])
+        if not current_user or current_user.get('role') != 'admin':
+            return jsonify({'error': 'Admin privileges required'}), 403
+        
+        users = list(mongo.db.users.find({}))
+        
+        for user in users:
+            user['_id'] = str(user['_id'])
+            # Remove sensitive information
+            if 'password_hash' in user:
+                del user['password_hash']
+            if 'reset_token' in user:
+                del user['reset_token']
+            if 'token_expire' in user:
+                del user['token_expire']
+            if 'otp_secret' in user:
+                del user['otp_secret']
+            if 'otp_created_at' in user:
+                del user['otp_created_at']
+        
+        return jsonify(users), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/admin/users/count', methods=['GET'])
+def get_users_count():
+    try:
+        if 'user_id' not in session:
+            return jsonify({'error': 'Authentication required'}), 401
+            
+        current_user = get_user_by_id(mongo, session['user_id'])
+        if not current_user or current_user.get('role') != 'admin':
+            return jsonify({'error': 'Admin privileges required'}), 403
+        
+        total_users = mongo.db.users.count_documents({})
+        active_users = mongo.db.users.count_documents({'status': 'active'})
+        
+        return jsonify({
+            'total': total_users,
+            'active': active_users
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/admin/comments/count', methods=['GET'])
+def get_comments_count():
+    try:
+        if 'user_id' not in session:
+            return jsonify({'error': 'Authentication required'}), 401
+            
+        current_user = get_user_by_id(mongo, session['user_id'])
+        if not current_user or current_user.get('role') != 'admin':
+            return jsonify({'error': 'Admin privileges required'}), 403
+        
+        history_records = mongo.db.history.find({'status': 'active'})
+        
+        total_comments = sum(record.get('total_chats', 0) for record in history_records)
+        
+        return jsonify({
+            'total': total_comments
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/admin/usage/count', methods=['GET'])
+def get_usage_count():
+    try:
+        if 'user_id' not in session:
+            return jsonify({'error': 'Authentication required'}), 401
+            
+        current_user = get_user_by_id(mongo, session['user_id'])
+        if not current_user or current_user.get('role') != 'admin':
+            return jsonify({'error': 'Admin privileges required'}), 403
+        
+        total_requests = mongo.db.history.count_documents({'status': 'active'})
+        
+        return jsonify({
+            'total': total_requests
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/admin/users/<user_id>', methods=['PUT'])
+def update_user(user_id):
+    try:
+        # Check if user is authenticated
+        if 'user_id' not in session:
+            return jsonify({'error': 'Authentication required'}), 401
+            
+        # Check if user is an admin
+        current_user = get_user_by_id(mongo, session['user_id'])
+        if not current_user or current_user.get('role') != 'admin':
+            return jsonify({'error': 'Admin privileges required'}), 403
+        
+        # Get request data
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+            
+        # Validate required fields
+        required_fields = ['first_name', 'last_name', 'email', 'role', 'status']
+        for field in required_fields:
+            if field not in data or not data[field]:
+                return jsonify({'error': f'{field} is required'}), 400
+                
+        # Update the user
+        try:
+            updated_user = update_user_by_admin(mongo, user_id, data)
+            if not updated_user:
+                return jsonify({'error': 'Failed to update user'}), 400
+                
+            return jsonify(updated_user), 200
+        except ValueError as e:
+            return jsonify({'error': str(e)}), 400
+            
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 

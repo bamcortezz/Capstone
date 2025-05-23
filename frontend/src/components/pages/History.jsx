@@ -3,6 +3,9 @@ import { format } from 'date-fns';
 import Swal from 'sweetalert2';
 import { ClipLoader } from 'react-spinners';
 
+// API URL
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
 // Analysis Details Modal Component
 const AnalysisModal = ({ analysis, onClose }) => {
   if (!analysis) return null;
@@ -134,7 +137,7 @@ const History = () => {
 
   const fetchAnalyses = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/history', {
+      const response = await fetch(`${API_URL}/api/history`, {
         credentials: 'include'
       });
 
@@ -176,7 +179,7 @@ const History = () => {
 
     if (result.isConfirmed) {
       try {
-        const response = await fetch(`http://localhost:5000/api/history/${analysisId}`, {
+        const response = await fetch(`${API_URL}/api/history/${analysisId}`, {
           method: 'DELETE',
           credentials: 'include'
         });

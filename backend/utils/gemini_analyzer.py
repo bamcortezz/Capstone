@@ -37,7 +37,6 @@ def generate_analysis_summary(analysis_data):
         2. Provide a brief insight or takeaway for the streamer based on this sentiment data.
         3. Keep the tone informative and the summary short and clear.
         4. Make an insight of the chat, what the streamer is doing well and what they could improve on.
-        5. Include the names of the Most Positive, Most Neutral and Most Negative chatters.
         """
 
         print("Creating Gemini model...")

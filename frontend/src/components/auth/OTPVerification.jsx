@@ -3,6 +3,9 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { ClipLoader } from "react-spinners";
 import Swal from "sweetalert2";
 
+// API URL
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
 const OTPVerification = () => {
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [isLoading, setIsLoading] = useState(false);
@@ -73,7 +76,7 @@ const OTPVerification = () => {
 
     try {
       const otpString = otp.join('');
-      const response = await fetch('http://localhost:5000/api/verify-otp', {
+      const response = await fetch(`${API_URL}/api/verify-otp`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

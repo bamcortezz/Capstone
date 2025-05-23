@@ -1,6 +1,9 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import Swal from 'sweetalert2';
 
+// API URL
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
 const AuthContext = createContext(null);
 
 export const useAuth = () => useContext(AuthContext);
@@ -12,7 +15,7 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const initializeAuth = async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/authenticate', {
+        const response = await fetch(`${API_URL}/api/authenticate`, {
           credentials: 'include'
         });
 
@@ -39,7 +42,7 @@ export const AuthProvider = ({ children }) => {
   
   const logout = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/logout', {
+      const response = await fetch(`${API_URL}/api/logout`, {
         method: 'POST',
         credentials: 'include'
       });
@@ -76,7 +79,7 @@ export const AuthProvider = ({ children }) => {
 
   const updateProfile = async (profileData) => {
     try {
-      const response = await fetch('http://localhost:5000/api/user/profile', {
+      const response = await fetch(`${API_URL}/api/user/profile`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -101,7 +104,7 @@ export const AuthProvider = ({ children }) => {
 
   const updateProfileImage = async (imageData) => {
     try {
-      const response = await fetch('http://localhost:5000/api/user/profile-image', {
+      const response = await fetch(`${API_URL}/api/user/profile-image`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -126,7 +129,7 @@ export const AuthProvider = ({ children }) => {
 
   const removeProfileImage = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/user/profile-image', {
+      const response = await fetch(`${API_URL}/api/user/profile-image`, {
         method: 'DELETE',
         credentials: 'include',
       });

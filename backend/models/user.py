@@ -216,3 +216,71 @@ def reset_password(mongo, user_id, token, new_password):
     except Exception as e:
         print(f"Error resetting password: {e}")
         return False
+
+def update_user_by_admin(mongo, user_id, user_data):
+    try:
+        now = datetime.utcnow()
+        
+        # Validate status value
+        status = user_data.get('status')
+        valid_statuses = ['active', 'not_active', 'suspended']
+            
+        if status and status not in valid_statuses:
+            raise ValueError(f'Status must be one of: {", ".join(valid_statuses)}')
+            
+        # Update the status in the user_data
+        if status:
+            user_data['status'] = status
+            
+        update_fields = {
+            'first_name': user_data.get('first_name'),
+            'last_name': user_data.get('last_name'),
+            'email': user_data.get('email'),
+            'role': user_data.get('role'),
+            'status': status,
+            'updated_at': now
+        }
+        
+        # Remove None values
+        update_fields = {k: v for k, v in update_fields.items() if v is not None}
+        
+        if not update_fields:
+            return None
+        
+        # Check if email is being updated and if it's already taken
+        if 'email' in update_fields:
+            existing_user = mongo.db.users.find_one({
+                'email': update_fields['email'],
+                '_id': {'$ne': ObjectId(user_id)}
+            })
+            if existing_user:
+                raise ValueError('Email is already taken')
+        
+        result = mongo.db.users.update_one(
+            {'_id': ObjectId(user_id)},
+            {'$set': update_fields}
+        )
+        
+        if result.modified_count > 0:
+            # Return the updated user
+            updated_user = mongo.db.users.find_one({'_id': ObjectId(user_id)})
+            if updated_user:
+                updated_user['_id'] = str(updated_user['_id'])
+                # Remove sensitive information
+                if 'password_hash' in updated_user:
+                    del updated_user['password_hash']
+                if 'reset_token' in updated_user:
+                    del updated_user['reset_token']
+                if 'token_expire' in updated_user:
+                    del updated_user['token_expire']
+                if 'otp_secret' in updated_user:
+                    del updated_user['otp_secret']
+                if 'otp_created_at' in updated_user:
+                    del updated_user['otp_created_at']
+            return updated_user
+        return None
+    except ValueError as e:
+        raise e
+    except Exception as e:
+        print(f"Error updating user by admin: {e}")
+        return None

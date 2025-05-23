@@ -5,6 +5,9 @@ import { ClipLoader } from "react-spinners";
 import Swal from "sweetalert2";
 import { useAuth } from "../../contexts/AuthContext";
 
+// API URL
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
 const Login = () => {
   const navigate = useNavigate();
   const { login } = useAuth();
@@ -25,7 +28,7 @@ const Login = () => {
     setIsLoading(true);
 
     try {
-      const response = await fetch('http://localhost:5000/api/login', {
+      const response = await fetch(`${API_URL}/api/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -54,8 +57,12 @@ const Login = () => {
         timer: 2000
       });
 
-      // Navigate to the home page after successful login
-      navigate('/');
+      // Navigate based on user role
+      if (data.user.role === 'admin') {
+        navigate('/admin/dashboard');
+      } else {
+        navigate('/');
+      }
 
     } catch (err) {
       Swal.fire({

@@ -1,5 +1,8 @@
 import { useState, useEffect } from 'react';
 
+// API URL
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
 const useBackendStatus = () => {
   const [isBackendReady, setIsBackendReady] = useState(false);
   const [isChecking, setIsChecking] = useState(true);
@@ -7,7 +10,7 @@ const useBackendStatus = () => {
   useEffect(() => {
     const checkBackend = async () => {
       try {
-        const response = await fetch('http://localhost:5000/');
+        const response = await fetch(`${API_URL}/`);
         if (response.ok) {
           setIsBackendReady(true);
         }
@@ -18,10 +21,8 @@ const useBackendStatus = () => {
       }
     };
 
-    // Check immediately
     checkBackend();
 
-    // Check every 5 seconds until backend is ready
     const intervalId = setInterval(() => {
       if (!isBackendReady) {
         checkBackend();

@@ -12,9 +12,13 @@ import About from "./components/pages/About"
 import Analyze from "./components/pages/Analyze"
 import History from "./components/pages/History"
 import Settings from "./components/pages/Settings"
+import AdminLayout from "./components/admin/layout/AdminLayout"
+import Dashboard from "./components/admin/pages/Dashboard"
+import Users from "./components/admin/pages/Users"
 import Navbar from "./components/layout/Navbar"
 import useBackendStatus from "./hooks/useBackendStatus"
 import { AuthProvider, useAuth } from "./contexts/AuthContext"
+import AdminRoute from "./components/admin/AdminRoute"
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
@@ -28,41 +32,103 @@ const ProtectedRoute = ({ children }) => {
   return children;
 };
 
+// Auth Route Component (redirects authenticated users)
+const AuthRoute = ({ children }) => {
+  const { user } = useAuth();
+  const location = useLocation();
+  
+  if (user) {
+    // Redirect admin to admin dashboard, regular users to home
+    if (user.role === 'admin') {
+      return <Navigate to="/admin/dashboard" replace />;
+    }
+    return <Navigate to="/" replace />;
+  }
+  
+  return children;
+};
+
+// Admin pages wrapper
+const AdminPages = () => {
+  return (
+    <AdminLayout>
+      <Routes>
+        <Route path="dashboard" element={<Dashboard />} />
+        <Route path="users" element={<Users />} />
+      </Routes>
+    </AdminLayout>
+  );
+};
+
 // Wrapper component
 const AppContent = () => {
   return (
-    <div className="flex flex-col min-h-screen">
-      <Navbar />
-      <div className="flex-grow">
-        <Routes>
-          <Route path="/" element={<Home />} /> 
-          <Route path="/contact" element={<Contact />} />
-          <Route path="/about" element={<About />} />
-          <Route path="/analyze" element={<Analyze />} />
-          <Route 
-            path="/history" 
-            element={
-              <ProtectedRoute>
-                <History />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/settings" 
-            element={
-              <ProtectedRoute>
-                <Settings />
-              </ProtectedRoute>
-            } 
-          />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/verify-otp" element={<OTPVerification />} />
-          <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route path="/reset-password/:userId/:token" element={<ResetPassword />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </div>
+    <div className="flex flex-col min-h-screen bg-black">
+      <Routes>
+        {/* Admin routes */}
+        <Route
+          path="/admin/*"
+          element={
+            <AdminRoute>
+              <AdminPages />
+            </AdminRoute>
+          }
+        />
+
+        {/* Public routes with main layout */}
+        <Route
+          path="/*"
+          element={
+            <>
+              <Navbar />
+              <div className="flex-grow">
+                <Routes>
+                  <Route path="/" element={<Home />} /> 
+                  <Route path="/contact" element={<Contact />} />
+                  <Route path="/about" element={<About />} />
+                  <Route path="/analyze" element={<Analyze />} />
+                  <Route 
+                    path="/history" 
+                    element={
+                      <ProtectedRoute>
+                        <History />
+                      </ProtectedRoute>
+                    } 
+                  />
+                  <Route 
+                    path="/settings" 
+                    element={
+                      <ProtectedRoute>
+                        <Settings />
+                      </ProtectedRoute>
+                    } 
+                  />
+                  <Route 
+                    path="/login" 
+                    element={
+                      <AuthRoute>
+                        <Login />
+                      </AuthRoute>
+                    } 
+                  />
+                  <Route 
+                    path="/register" 
+                    element={
+                      <AuthRoute>
+                        <Register />
+                      </AuthRoute>
+                    } 
+                  />
+                  <Route path="/verify-otp" element={<OTPVerification />} />
+                  <Route path="/forgot-password" element={<ForgotPassword />} />
+                  <Route path="/reset-password/:userId/:token" element={<ResetPassword />} />
+                  <Route path="*" element={<Navigate to="/" replace />} />
+                </Routes>
+              </div>
+            </>
+          }
+        />
+      </Routes>
     </div>
   );
 };

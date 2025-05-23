@@ -5,6 +5,9 @@ import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
 import Swal from 'sweetalert2';
 import { useAuth } from '../../contexts/AuthContext';
 
+// API URL
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
 ChartJS.register(ArcElement, Tooltip, Legend);
 
 const Analyze = () => {
@@ -13,7 +16,6 @@ const Analyze = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
   const [messages, setMessages] = useState([]);
-  const [error, setError] = useState('');
   const socketRef = useRef(null);
   const messagesEndRef = useRef(null);
   const [currentChannel, setCurrentChannel] = useState(null);
@@ -59,7 +61,7 @@ const Analyze = () => {
 
   // Connect to WebSocket server
   useEffect(() => {
-    socketRef.current = io('http://localhost:5000');
+    socketRef.current = io(API_URL);
 
     socketRef.current.on('connect', () => {
       console.log('Connected to WebSocket server');
@@ -213,7 +215,6 @@ const Analyze = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsAnalyzing(true);
-    setError('');
 
     try {
       if (isConnected) {
@@ -286,7 +287,17 @@ const Analyze = () => {
       }
     } catch (error) {
       console.error('Action failed:', error);
-      setError(error.message);
+      // Replace error state with SweetAlert toast
+      Swal.fire({
+        title: 'Invalid Link',
+        text: error.message || 'Failed to connect to channel',
+        icon: 'error',
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 3000,
+        timerProgressBar: true
+      });
     } finally {
       setIsAnalyzing(false);
     }
@@ -447,12 +458,6 @@ const Analyze = () => {
               )}
             </button>
           </form>
-
-          {error && (
-            <div className="mt-4 p-4 bg-red-900/30 border border-red-600 rounded-lg">
-              <p className="text-red-400">{error}</p>
-            </div>
-          )}
         </div>
 
         {/* Bottom Container - Analysis and Chat */}
