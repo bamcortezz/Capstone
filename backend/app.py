@@ -10,6 +10,7 @@ from models.user import (
     update_user_by_admin
 )
 from models.history import create_history_schema, save_analysis, get_user_history, get_history_by_id, delete_history
+from models.log import create_logs_schema, add_log, get_logs, clear_old_logs
 from werkzeug.security import generate_password_hash
 from utils.email_sender import send_otp_email, send_password_reset_email
 from utils.twitch_chat import TwitchChatBot, extract_channel_name
@@ -65,6 +66,7 @@ with app.app_context():
     # Initialize schemas
     create_user_schema(mongo)
     create_history_schema(mongo)
+    create_logs_schema(mongo)
 
 @app.route('/')
 def index():
@@ -150,6 +152,9 @@ def login():
         session['last_name'] = user['last_name']
         session['role'] = user['role']
         
+        # Log user login activity
+        add_log(mongo, str(user['_id']), 'Logged in')
+        
         return jsonify({
             'user': {
                 'id': str(user['_id']),
@@ -234,6 +239,8 @@ def connect_to_twitch():
             
             active_bots[channel] = (bot, thread)
             
+            # We'll log this in the dedicated analysis-start endpoint instead
+            
             return jsonify({'message': f'Connected to {channel}\'s chat', 'channel': channel}), 200
         except Exception as e:
             print(f"Error creating Twitch bot: {e}")
@@ -295,6 +302,14 @@ def save_analysis_history():
         # Save the analysis
         history_id = save_analysis(mongo, data)
         
+        # Log the analysis activity
+        add_log(
+            mongo, 
+            current_user_id, 
+            'Saved an Analysis', 
+            f"Channel: {data['streamer_name']}, Messages: {data['total_chats']}"
+        )
+        
         return jsonify({
             'message': 'Analysis saved successfully',
             'history_id': str(history_id)
@@ -331,6 +346,15 @@ def handle_history_by_id(history_id):
             # Convert ObjectId to string for JSON serialization
             history['_id'] = str(history['_id'])
             history['user_id'] = str(history['user_id'])
+            
+            # Log that the user accessed this analysis if authenticated
+            if 'user_id' in session:
+                add_log(
+                    mongo, 
+                    session['user_id'], 
+                    'Viewed analysis', 
+                    f"Channel: {history.get('streamer_name', 'Unknown')}"
+                )
             
             return jsonify(history), 200
         
@@ -668,18 +692,134 @@ def update_user(user_id):
         for field in required_fields:
             if field not in data or not data[field]:
                 return jsonify({'error': f'{field} is required'}), 400
+        
+        # Get original user data for comparison and logging
+        original_user = get_user_by_id(mongo, user_id)
+        if not original_user:
+            return jsonify({'error': 'User not found'}), 404
                 
         # Update the user
         try:
             updated_user = update_user_by_admin(mongo, user_id, data)
             if not updated_user:
                 return jsonify({'error': 'Failed to update user'}), 400
+            
+            # Prepare log details about what changed
+            changes = []
+            if original_user['first_name'] != updated_user['first_name'] or original_user['last_name'] != updated_user['last_name']:
+                changes.append(f"Name: {original_user['first_name']} {original_user['last_name']} → {updated_user['first_name']} {updated_user['last_name']}")
+            
+            if original_user['email'] != updated_user['email']:
+                changes.append(f"Email: {original_user['email']} → {updated_user['email']}")
+                
+            if original_user['role'] != updated_user['role']:
+                changes.append(f"Role: {original_user['role']} → {updated_user['role']}")
+                
+            if original_user['status'] != updated_user['status']:
+                changes.append(f"Status: {original_user['status']} → {updated_user['status']}")
+            
+            # Log the admin action with details about what was changed
+            details = f"Updated user: {updated_user['email']}"
+            if changes:
+                details += f" - Changes: {'; '.join(changes)}"
+                
+            add_log(
+                mongo,
+                session['user_id'],
+                'Updated user profile',
+                details
+            )
                 
             return jsonify(updated_user), 200
         except ValueError as e:
             return jsonify({'error': str(e)}), 400
             
     except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+# Add new route for admin to get logs
+@app.route('/api/admin/logs', methods=['GET'])
+def get_admin_logs():
+    try:
+        # Check if user is admin
+        if 'role' not in session or session['role'] != 'admin':
+            return jsonify({'error': 'Admin privileges required'}), 403
+            
+        # Get pagination parameters
+        page = int(request.args.get('page', 1))
+        limit = int(request.args.get('limit', 10))
+        search = request.args.get('search')
+        sort_field = request.args.get('sortField', 'timestamp')
+        sort_direction = request.args.get('sortDirection', 'desc')
+        activity = request.args.get('activity')
+        
+        # Get logs with pagination
+        logs_data = get_logs(
+            mongo, 
+            page=page, 
+            limit=limit, 
+            search=search, 
+            sort_field=sort_field, 
+            sort_direction=sort_direction,
+            activity=activity
+        )
+        
+        return jsonify(logs_data), 200
+        
+    except Exception as e:
+        print(f"Error getting logs: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+# Maintenance route to clear old logs (can be called manually or set up as a scheduled task)
+@app.route('/api/admin/logs/cleanup', methods=['POST'])
+def cleanup_logs():
+    try:
+        # Check if user is admin
+        if 'role' not in session or session['role'] != 'admin':
+            return jsonify({'error': 'Admin privileges required'}), 403
+            
+        # Get days to keep from request or use default (90 days)
+        data = request.get_json()
+        days_to_keep = data.get('days_to_keep', 90)
+        
+        # Clear old logs
+        deleted_count = clear_old_logs(mongo, days_to_keep)
+        
+        return jsonify({
+            'message': f'Successfully cleaned up logs',
+            'deleted_count': deleted_count
+        }), 200
+        
+    except Exception as e:
+        print(f"Error cleaning up logs: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+# Add new route to log when a user starts an analysis session
+@app.route('/api/log/analysis-start', methods=['POST'])
+def log_analysis_start():
+    try:
+        # Check if user is authenticated
+        if 'user_id' not in session:
+            return jsonify({'error': 'Not authenticated'}), 401
+        
+        data = request.get_json()
+        streamer = data.get('streamer')
+        
+        if not streamer:
+            return jsonify({'error': 'Streamer name is required'}), 400
+        
+        # Log the activity
+        add_log(
+            mongo, 
+            session['user_id'], 
+            'Started an analysis', 
+            f"Channel: {streamer}"
+        )
+        
+        return jsonify({'message': 'Activity logged successfully'}), 200
+        
+    except Exception as e:
+        print(f"Error logging analysis start: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':

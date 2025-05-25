@@ -170,8 +170,11 @@ const Analyze = () => {
         top_neutral: getTopContributors('neutral')
       };
 
-      const response = await fetch('http://localhost:5000/api/history/save', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify(analysisData)
+      const response = await fetch(`${API_URL}/api/history/save`, {
+        method: 'POST', 
+        headers: { 'Content-Type': 'application/json' }, 
+        credentials: 'include', 
+        body: JSON.stringify(analysisData)
       });
 
       const data = await response.json();
@@ -269,12 +272,13 @@ const Analyze = () => {
         // If cancelled, do nothing
       } else {
         // Connect to new channel
-        const response = await fetch('http://localhost:5000/api/twitch/connect', {
+        const response = await fetch(`${API_URL}/api/twitch/connect`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({ url: streamUrl }),
+          credentials: 'include'
         });
 
         if (!response.ok) {
@@ -284,6 +288,23 @@ const Analyze = () => {
         const data = await response.json();
         setIsConnected(true);
         setCurrentChannel(data.channel);
+        
+        // Log that user started an analysis (if logged in)
+        if (user) {
+          try {
+            await fetch(`${API_URL}/api/log/analysis-start`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              credentials: 'include',
+              body: JSON.stringify({ streamer: data.channel }),
+            });
+          } catch (logError) {
+            console.error('Failed to log analysis start:', logError);
+            // Don't interrupt the flow if logging fails
+          }
+        }
       }
     } catch (error) {
       console.error('Action failed:', error);
@@ -306,11 +327,12 @@ const Analyze = () => {
   // Helper function to handle channel disconnection
   const disconnectFromChannel = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/twitch/disconnect', {
+      const response = await fetch(`${API_URL}/api/twitch/disconnect`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include',
         body: JSON.stringify({ channel: currentChannel }),
       });
 

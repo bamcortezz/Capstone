@@ -15,6 +15,7 @@ import Settings from "./components/pages/Settings"
 import AdminLayout from "./components/admin/layout/AdminLayout"
 import Dashboard from "./components/admin/pages/Dashboard"
 import Users from "./components/admin/pages/Users"
+import Logs from "./components/admin/pages/Logs"
 import Navbar from "./components/layout/Navbar"
 import useBackendStatus from "./hooks/useBackendStatus"
 import { AuthProvider, useAuth } from "./contexts/AuthContext"
@@ -55,6 +56,7 @@ const AdminPages = () => {
       <Routes>
         <Route path="dashboard" element={<Dashboard />} />
         <Route path="users" element={<Users />} />
+        <Route path="logs" element={<Logs />} />
       </Routes>
     </AdminLayout>
   );

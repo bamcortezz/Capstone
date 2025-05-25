@@ -122,15 +122,6 @@ const Dashboard = () => {
           )}
         </div>
       </div>
-
-      {/* Recent Activity */}
-      <div className="bg-gray-900 rounded-lg p-6">
-        <h2 className="text-xl font-semibold text-white mb-4">Recent Activity</h2>
-        <div className="space-y-4">
-          {/* Activity items would go here */}
-          <p className="text-gray-400">No recent activity to display.</p>
-        </div>
-      </div>
     </div>
   );
 };
