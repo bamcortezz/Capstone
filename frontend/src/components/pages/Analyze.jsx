@@ -229,10 +229,10 @@ const Analyze = () => {
           showDenyButton: true,
           showCancelButton: true,
           confirmButtonText: 'Save',
-          denyButtonText: 'Discard',
+          denyButtonText: 'Disconnect',
           cancelButtonText: 'Cancel',
           confirmButtonColor: '#10B981', // Green for save
-          denyButtonColor: '#EF4444',    // Red for discard
+          denyButtonColor: '#EF4444',    // Red for disconnect
           cancelButtonColor: '#6B7280'    // Gray for cancel
         } : {
           title: 'Disconnect from Analysis?',

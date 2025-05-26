@@ -169,9 +169,9 @@ const History = () => {
       text: "You won't be able to revert this!",
       icon: 'warning',
       showCancelButton: true,
-      confirmButtonColor: '#EF4444',
+      confirmButtonColor: '#10B981',
       cancelButtonColor: '#374151',
-      confirmButtonText: 'Yes, delete it!',
+      confirmButtonText: 'Yes',
       background: '#1F2937',
       color: '#fff',
       showConfirmButton: true
@@ -208,6 +208,68 @@ const History = () => {
         Swal.fire({
           title: 'Error',
           text: 'Failed to delete analysis',
+          icon: 'error',
+          timer: 3000,
+          timerProgressBar: true,
+          showConfirmButton: false,
+          position: 'top-end',
+          toast: true
+        });
+      }
+    }
+  };
+
+  const handleDownloadPDF = async (analysisId, e) => {
+    e.stopPropagation();
+    
+    // Show confirmation dialog
+    const result = await Swal.fire({
+      title: 'Download Analysis PDF?',
+      text: "Do you want to save this analysis as PDF?",
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#10B981',
+      cancelButtonColor: '#374151',
+      confirmButtonText: 'Yes',
+      background: '#1F2937',
+      color: '#fff',
+      showConfirmButton: true
+    });
+
+    if (result.isConfirmed) {
+      try {
+        const response = await fetch(`${API_URL}/api/history/${analysisId}/pdf`, {
+          credentials: 'include'
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to download PDF');
+        }
+
+        // Get the blob from the response
+        const blob = await response.blob();
+        
+        // Create a URL for the blob
+        const url = window.URL.createObjectURL(blob);
+        
+        // Create a temporary link element
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `chat_analysis_${analysisId}.pdf`;
+        
+        // Append to body, click, and remove
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        // Clean up the URL
+        window.URL.revokeObjectURL(url);
+
+      } catch (error) {
+        console.error('Download failed:', error);
+        Swal.fire({
+          title: 'Error',
+          text: 'Failed to download PDF',
           icon: 'error',
           timer: 3000,
           timerProgressBar: true,
@@ -316,10 +378,7 @@ const History = () => {
                             </button>
                             <button
                               className="text-blue-500 hover:text-blue-400 transition-colors p-1 rounded-full hover:bg-blue-500/10"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                // PDF download functionality will be implemented in the backend
-                              }}
+                              onClick={(e) => handleDownloadPDF(analysis._id, e)}
                               title="Download PDF"
                             >
                               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

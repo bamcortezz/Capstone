@@ -123,17 +123,6 @@ const About = () => {
               </div>
             </div>
           </div>
-
-          {/* CTA Section */}
-          <div className="text-center pb-16">
-            <h2 className="text-3xl font-bold text-white mb-6">Ready to get started?</h2>
-            <Link
-              to="/analyze"
-              className="px-6 py-3 bg-twitch hover:bg-twitch-dark text-white font-medium rounded transition-colors"
-            >
-              Try Twitch Insight
-            </Link>
-          </div>
         </div>
       </div>
     </div>

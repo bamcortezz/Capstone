@@ -154,8 +154,8 @@ const Login = () => {
                   type="submit"
                   disabled={isLoading}
                   className={`w-full py-3 rounded-lg font-medium transition-colors flex items-center justify-center ${isLoading
-                      ? 'bg-gray-600 cursor-not-allowed'
-                      : 'bg-twitch hover:bg-twitch-dark text-white'
+                    ? 'bg-gray-600 cursor-not-allowed'
+                    : 'bg-twitch hover:bg-twitch-dark text-white'
                     }`}
                 >
                   {isLoading ? (
@@ -164,7 +164,7 @@ const Login = () => {
                     "Sign In"
                   )}
                 </button>
-                
+
                 <div className="flex items-center justify-center mt-4">
                   <Link to="/forgot-password" className="text-sm text-twitch hover:text-twitch">
                     Forgot password?

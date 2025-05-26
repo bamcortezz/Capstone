@@ -25,6 +25,12 @@ from bson import ObjectId
 import bcrypt
 import base64
 from datetime import datetime
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
+from io import BytesIO
 
 load_dotenv()
 
@@ -821,6 +827,187 @@ def log_analysis_start():
     except Exception as e:
         print(f"Error logging analysis start: {str(e)}")
         return jsonify({'error': str(e)}), 500
+
+@app.route('/api/history/<history_id>/pdf', methods=['GET'])
+def generate_analysis_pdf(history_id):
+    try:
+        # Ensure user is authenticated
+        if 'user_id' not in session:
+            return jsonify({'error': 'Unauthorized'}), 401
+
+        # Get the analysis history
+        history = get_history_by_id(mongo, history_id)
+        if not history:
+            return jsonify({'error': 'History not found'}), 404
+
+        # Create a BytesIO buffer for the PDF
+        buffer = BytesIO()
+
+        # Create the PDF document
+        doc = SimpleDocTemplate(
+            buffer,
+            pagesize=letter,
+            rightMargin=72,
+            leftMargin=72,
+            topMargin=72,
+            bottomMargin=72
+        )
+        
+        # Define styles
+        styles = getSampleStyleSheet()
+        
+        # Create custom styles
+        title_style = ParagraphStyle(
+            'CustomTitle',
+            parent=styles['Heading1'],
+            fontSize=16,
+            spaceAfter=30,
+            alignment=1,  # Center alignment
+            fontName='Helvetica-Bold'
+        )
+        
+        heading_style = ParagraphStyle(
+            'CustomHeading',
+            parent=styles['Heading2'],
+            fontSize=14,
+            spaceBefore=20,
+            spaceAfter=10,
+            fontName='Helvetica-Bold'
+        )
+        
+        normal_style = ParagraphStyle(
+            'CustomNormal',
+            parent=styles['Normal'],
+            fontSize=12,
+            spaceBefore=6,
+            spaceAfter=6,
+            fontName='Helvetica'
+        )
+        
+        elements = []
+
+        # Format dates
+        current_date = datetime.now().strftime('%B %d, %Y %H:%M')
+        analysis_date = datetime.strptime(str(history['created_at']), '%Y-%m-%d %H:%M:%S.%f').strftime('%B %d, %Y %H:%M') if isinstance(history['created_at'], str) else history['created_at'].strftime('%B %d, %Y %H:%M')
+
+        # Add title and date
+        elements.append(Paragraph("Chat Analysis Report", title_style))
+        elements.append(Paragraph(f"Generated on: {current_date}", normal_style))
+        elements.append(Spacer(1, 20))
+
+        # Add streamer info
+        elements.append(Paragraph(f"Channel: {history['streamer_name']}", heading_style))
+        elements.append(Paragraph(f"Analysis Date: {analysis_date}", normal_style))
+        elements.append(Paragraph(f"Total Messages Analyzed: {history['total_chats']}", normal_style))
+        elements.append(Spacer(1, 20))
+
+        # Calculate total messages for percentage
+        total_messages = history['total_chats']
+        if total_messages == 0:  # Prevent division by zero
+            total_messages = 1
+
+        # Add sentiment analysis
+        elements.append(Paragraph("Sentiment Analysis Summary", heading_style))
+        sentiment_data = [
+            ['Category', 'Count', 'Percentage'],
+            ['Positive', 
+             str(history['sentiment_count']['positive']),
+             f"{(history['sentiment_count']['positive'] / total_messages * 100):.1f}%"],
+            ['Neutral', 
+             str(history['sentiment_count']['neutral']),
+             f"{(history['sentiment_count']['neutral'] / total_messages * 100):.1f}%"],
+            ['Negative', 
+             str(history['sentiment_count']['negative']),
+             f"{(history['sentiment_count']['negative'] / total_messages * 100):.1f}%"]
+        ]
+        
+        # Create and style the sentiment table
+        sentiment_table = Table(sentiment_data, colWidths=[200, 100, 100])
+        sentiment_table.setStyle(TableStyle([
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 0), (-1, -1), 12),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('ALIGN', (1, 0), (-1, -1), 'RIGHT'),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('BOX', (0, 0), (-1, -1), 2, colors.black),
+            ('LINEBELOW', (0, 0), (-1, 0), 2, colors.black),
+            ('BACKGROUND', (0, 0), (-1, 0), colors.white),
+            ('TEXTCOLOR', (0, 0), (-1, -1), colors.black),
+            ('TOPPADDING', (0, 0), (-1, -1), 6),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+            ('LEFTPADDING', (0, 0), (-1, -1), 6),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 6),
+        ]))
+        elements.append(sentiment_table)
+        elements.append(Spacer(1, 20))
+
+        # Add AI Summary
+        elements.append(Paragraph("Analysis Summary", heading_style))
+        elements.append(Paragraph(history.get('summary', 'No summary available'), normal_style))
+        elements.append(Spacer(1, 20))
+
+        # Add top contributors
+        elements.append(Paragraph("Top Contributors Analysis", heading_style))
+
+        # Function to create contributor table
+        def create_contributor_table(title, contributors):
+            elements.append(Paragraph(title, normal_style))
+            data = [['Username', 'Message Count']]
+            for contributor in contributors:
+                data.append([contributor['username'], str(contributor['count'])])
+            
+            table = Table(data, colWidths=[300, 100])
+            table.setStyle(TableStyle([
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+                ('FONTSIZE', (0, 0), (-1, -1), 12),
+                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                ('BOX', (0, 0), (-1, -1), 2, colors.black),
+                ('LINEBELOW', (0, 0), (-1, 0), 2, colors.black),
+                ('BACKGROUND', (0, 0), (-1, 0), colors.white),
+                ('TEXTCOLOR', (0, 0), (-1, -1), colors.black),
+                ('TOPPADDING', (0, 0), (-1, -1), 6),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+                ('LEFTPADDING', (0, 0), (-1, -1), 6),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 6),
+            ]))
+            return table
+
+        # Add contributor tables
+        elements.append(create_contributor_table("Most Positive Contributors", history['top_positive']))
+        elements.append(Spacer(1, 10))
+        elements.append(create_contributor_table("Most Neutral Contributors", history['top_neutral']))
+        elements.append(Spacer(1, 10))
+        elements.append(create_contributor_table("Most Negative Contributors", history['top_negative']))
+
+        # Build the PDF
+        doc.build(elements)
+
+        # Get the value from the BytesIO buffer
+        pdf_value = buffer.getvalue()
+        buffer.close()
+
+        # Log the PDF download
+        add_log(
+            mongo,
+            session['user_id'],
+            'Downloaded analysis PDF',
+            f"Channel: {history.get('streamer_name', 'Unknown')}"
+        )
+
+        # Create the response
+        response = make_response(pdf_value)
+        response.headers['Content-Type'] = 'application/pdf'
+        response.headers['Content-Disposition'] = f'attachment; filename=chat_analysis_{history_id}.pdf'
+        
+        return response
+
+    except Exception as e:
+        print(f"PDF Generation Error: {str(e)}")  # Add detailed error logging
+        return jsonify({'error': f'Failed to generate PDF: {str(e)}'}), 500
 
 if __name__ == '__main__':
     socketio.run(app, debug=True, allow_unsafe_werkzeug=True)
