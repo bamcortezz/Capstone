@@ -22,12 +22,6 @@ const Home = () => {
               >
                 Start Analyzing
               </Link>
-              <Link
-                to="/features"
-                className="px-6 py-3 bg-transparent hover:bg-gray-800 text-white font-medium rounded border border-gray-700 transition-colors"
-              >
-                Learn More
-              </Link>
             </div>
           </div>
 

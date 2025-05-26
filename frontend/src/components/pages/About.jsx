@@ -1,5 +1,11 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import cortezImg from '../../assets/img/Cortez, Francis Emil M..jpg';
+import gaspanImg from '../../assets/img/Gaspan, Hyrum.jpg';
+import gutierrezImg from '../../assets/img/Gutierrez, Marvie M..jpg';
+import pringImg from '../../assets/img/Pring, Christian Angelo M..jpg';
+import medranoImg from '../../assets/img/Medrano, Vincent C..jpg';
+import tadiamanImg from '../../assets/img/Tadiaman, Justine S..jpg';
 
 const About = () => {
   return (
@@ -24,73 +30,94 @@ const About = () => {
               <div className="bg-black p-6 rounded border border-gray-700 mb-8">
                 <h2 className="text-2xl font-bold text-white mb-4">Our Story</h2>
                 <p className="text-gray-300 mb-4">
-                  Twitch Insight was born from a simple realization: streamers needed better tools 
-                  to understand their chat's sentiment and mood during streams.
+                  The researchers are third-year Information Technology students who developed Twitch Insight 
+                  as their capstone project, aiming to enhance the streaming experience on Twitch.
                 </p>
                 <p className="text-gray-300">
-                  Founded by a team of streamers and developers, we've built a platform that combines 
-                  powerful AI sentiment analysis with an intuitive interface. Our focus is to help streamers 
-                  make data-driven decisions that enhance viewer engagement and community building.
+                  This project focuses on helping streamers better understand their audience's reactions 
+                  through real-time chat analysis, enabling them to create more engaging content and build 
+                  stronger communities.
                 </p>
               </div>
 
               <div className="bg-black p-6 rounded border border-gray-700">
-                <h2 className="text-2xl font-bold text-white mb-4">Our Technology</h2>
+                <h2 className="text-2xl font-bold text-white mb-4">Technology Used</h2>
                 <p className="text-gray-300 mb-4">
-                  We utilize cutting-edge natural language processing and machine learning algorithms 
-                  to analyze chat messages in real-time and extract meaningful patterns and sentiments.
+                  The researchers developed a platform that integrates the Twitch API to fetch real-time chat messages 
+                  and employs RoBERTa, a state-of-the-art natural language model, for accurate sentiment analysis.
+                  Additionally, Google's Gemini API is utilized to generate comprehensive text summaries of the analyzed data.
                 </p>
                 <p className="text-gray-300">
-                  Our platform is built with security and privacy in mind, ensuring that all data 
-                  is handled responsibly while providing valuable insights to streamers.
+                  This research implementation provides streamers with reliable, instant insights into their 
+                  chat's emotional tone, engagement levels, and meaningful summaries of chat interactions.
                 </p>
               </div>
             </div>
 
             {/* Right Column */}
             <div>
-              <div className="bg-black p-6 rounded border border-gray-700 mb-8">
-                <h2 className="text-2xl font-bold text-white mb-4">Our Vision</h2>
-                <p className="text-gray-300 mb-4">
-                  We believe that understanding your audience is key to building a successful streaming career. 
-                  Our vision is to become the leading analytics platform for streamers of all sizes.
-                </p>
-                <p className="text-gray-300">
-                  As we grow, we're committed to developing new features and insights that help streamers 
-                  create better content and build stronger communities.
-                </p>
-              </div>
-
               <div className="bg-black p-6 rounded border border-gray-700">
-                <h2 className="text-2xl font-bold text-white mb-4">Meet the Team</h2>
+                <h2 className="text-2xl font-bold text-white mb-4">Researchers</h2>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="text-center">
-                    <div className="w-20 h-20 mx-auto rounded-full bg-twitch flex items-center justify-center mb-3">
-                      <span className="text-white text-2xl font-bold">A</span>
+                    <div className="w-20 h-20 mx-auto rounded-full bg-twitch flex items-center justify-center mb-3 overflow-hidden">
+                      {cortezImg ? (
+                        <img src={cortezImg} alt="Francis Emil M. Cortez" className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="text-white text-2xl font-bold">C</span>
+                      )}
                     </div>
-                    <p className="text-white font-medium">Alex Chen</p>
-                    <p className="text-gray-400 text-sm">Founder & CEO</p>
+                    <p className="text-white font-medium">Cortez, Francis Emil M.</p>
                   </div>
                   <div className="text-center">
-                    <div className="w-20 h-20 mx-auto rounded-full bg-twitch flex items-center justify-center mb-3">
-                      <span className="text-white text-2xl font-bold">J</span>
+                    <div className="w-20 h-20 mx-auto rounded-full bg-twitch flex items-center justify-center mb-3 overflow-hidden">
+                      {gaspanImg ? (
+                        <img src={gaspanImg} alt="Hyrum P. Gaspan" className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="text-white text-2xl font-bold">H</span>
+                      )}
                     </div>
-                    <p className="text-white font-medium">Jamie Rivera</p>
-                    <p className="text-gray-400 text-sm">Lead Engineer</p>
+                    <p className="text-white font-medium">Gaspan, Hyrum P.</p>
                   </div>
                   <div className="text-center mt-4">
-                    <div className="w-20 h-20 mx-auto rounded-full bg-twitch flex items-center justify-center mb-3">
-                      <span className="text-white text-2xl font-bold">S</span>
+                    <div className="w-20 h-20 mx-auto rounded-full bg-twitch flex items-center justify-center mb-3 overflow-hidden">
+                      {gutierrezImg ? (
+                        <img src={gutierrezImg} alt="Marvie M. Gutierrez" className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="text-white text-2xl font-bold">M</span>
+                      )}
                     </div>
-                    <p className="text-white font-medium">Sam Taylor</p>
-                    <p className="text-gray-400 text-sm">Data Scientist</p>
+                    <p className="text-white font-medium">Gutierrez, Marvie M.</p>
                   </div>
                   <div className="text-center mt-4">
-                    <div className="w-20 h-20 mx-auto rounded-full bg-twitch flex items-center justify-center mb-3">
-                      <span className="text-white text-2xl font-bold">M</span>
+                    <div className="w-20 h-20 mx-auto rounded-full bg-twitch flex items-center justify-center mb-3 overflow-hidden">
+                      {medranoImg ? (
+                        <img src={medranoImg} alt="Vincent C. Medrano" className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="text-white text-2xl font-bold">V</span>
+                      )}
                     </div>
-                    <p className="text-white font-medium">Morgan Lee</p>
-                    <p className="text-gray-400 text-sm">UX Designer</p>
+                    <p className="text-white font-medium">Medrano, Vincent C.</p>
+                  </div>
+                  <div className="text-center mt-4">
+                    <div className="w-20 h-20 mx-auto rounded-full bg-twitch flex items-center justify-center mb-3 overflow-hidden">
+                      {pringImg ? (
+                        <img src={pringImg} alt="Christian Angelo M. Pring" className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="text-white text-2xl font-bold">C</span>
+                      )}
+                    </div>
+                    <p className="text-white font-medium">Pring, Christian Angelo M.</p>
+                  </div>
+                  <div className="text-center mt-4">
+                    <div className="w-20 h-20 mx-auto rounded-full bg-twitch flex items-center justify-center mb-3 overflow-hidden">
+                      {tadiamanImg ? (
+                        <img src={tadiamanImg} alt="Justine S. Tadiaman" className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="text-white text-2xl font-bold">J</span>
+                      )}
+                    </div>
+                    <p className="text-white font-medium">Tadiaman, Justine S.</p>
                   </div>
                 </div>
               </div>
