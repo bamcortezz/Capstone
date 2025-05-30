@@ -24,20 +24,20 @@ const Contact = () => {
 
   return (
     <div className="min-h-screen bg-black">
-      <div className="relative py-20 px-6">
+      <div className="relative py-12 px-6">
         <div className="max-w-4xl mx-auto">
-          <div className="text-center pt-10 pb-16">
-            <h1 className="text-5xl md:text-7xl font-bold text-white mb-6">
+          <div className="text-center pt-6 pb-12">
+            <h1 className="text-5xl md:text-7xl font-bold text-white mb-4">
               Get in <span className="text-twitch">Touch</span>
             </h1>
-            <p className="text-xl text-gray-300 mb-8 max-w-3xl mx-auto">
+            <p className="text-xl text-gray-300 mb-6 max-w-3xl mx-auto">
               Have questions about Twitch Insight? We're here to help you get the most from our platform.
             </p>
           </div>
 
           {/* Contact Form */}
-          <div className="bg-black border border-gray-700 rounded-lg p-8 shadow-lg">
-            <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="bg-black border border-gray-700 rounded-lg p-4 shadow-lg">
+            <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label htmlFor="name" className="block text-sm font-medium text-gray-300 mb-2">

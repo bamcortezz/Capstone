@@ -11,23 +11,23 @@ const About = () => {
   return (
     <div className="min-h-screen bg-black">
       {/* Hero Section */}
-      <div className="relative py-20 px-6">
+      <div className="relative py-12 px-6">
         <div className="max-w-7xl mx-auto">
-          <div className="text-center pt-10 pb-16">
-            <h1 className="text-5xl md:text-7xl font-bold text-white mb-6">
+          <div className="text-center pt-6 pb-12">
+            <h1 className="text-5xl md:text-7xl font-bold text-white mb-4">
               About <span className="text-twitch">Twitch Insight</span>
             </h1>
-            <p className="text-xl text-gray-300 mb-8 max-w-3xl mx-auto">
+            <p className="text-xl text-gray-300 mb-6 max-w-3xl mx-auto">
               Our mission is to empower streamers with powerful tools to understand their 
               community better and enhance viewer engagement.
             </p>
           </div>
 
           {/* About Content */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-12 mt-10 mb-16">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-8 mb-12">
             {/* Left Column */}
             <div>
-              <div className="bg-black p-6 rounded border border-gray-700 mb-8">
+              <div className="bg-black p-4 rounded border border-gray-700 mb-6">
                 <h2 className="text-2xl font-bold text-white mb-4">Our Story</h2>
                 <p className="text-gray-300 mb-4">
                   The researchers are third-year Information Technology students who developed Twitch Insight 
@@ -40,7 +40,7 @@ const About = () => {
                 </p>
               </div>
 
-              <div className="bg-black p-6 rounded border border-gray-700">
+              <div className="bg-black p-4 rounded border border-gray-700">
                 <h2 className="text-2xl font-bold text-white mb-4">Technology Used</h2>
                 <p className="text-gray-300 mb-4">
                   The researchers developed a platform that integrates the Twitch API to fetch real-time chat messages 
@@ -56,7 +56,7 @@ const About = () => {
 
             {/* Right Column */}
             <div>
-              <div className="bg-black p-6 rounded border border-gray-700">
+              <div className="bg-black p-4 rounded border border-gray-700">
                 <h2 className="text-2xl font-bold text-white mb-4">Researchers</h2>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="text-center">

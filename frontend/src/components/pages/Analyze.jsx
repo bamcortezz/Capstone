@@ -16,6 +16,7 @@ const Analyze = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
   const [messages, setMessages] = useState([]);
+  const [selectedFilter, setSelectedFilter] = useState('All');
   const socketRef = useRef(null);
   const messagesEndRef = useRef(null);
   const [currentChannel, setCurrentChannel] = useState(null);
@@ -229,7 +230,7 @@ const Analyze = () => {
           showDenyButton: true,
           showCancelButton: true,
           confirmButtonText: 'Save',
-          denyButtonText: 'Disconnect',
+          denyButtonText: 'Discard',
           cancelButtonText: 'Cancel',
           confirmButtonColor: '#10B981', // Green for save
           denyButtonColor: '#EF4444',    // Red for disconnect
@@ -418,24 +419,30 @@ const Analyze = () => {
     [0] || ['-', 0];
   };
 
+  // Filter messages based on selected sentiment
+  const filteredMessages = messages.filter(msg => {
+    if (selectedFilter === 'All') return true;
+    return msg.sentiment.toLowerCase() === selectedFilter.toLowerCase();
+  });
+
   return (
     <div className="min-h-screen bg-black py-6 px-8">
       {/* Main container */}
       <div className="max-w-[1400px] mx-auto space-y-6">
 
         {!isConnected && (
-          <div className="text-center pt-10 pb-16">
-            <h1 className="text-5xl md:text-7xl font-bold text-white mb-6">
+          <div className="text-center pt-6 pb-12">
+            <h1 className="text-5xl md:text-7xl font-bold text-white mb-4">
               Start <span className="text-twitch">Analyzing</span>
             </h1>
-            <p className="text-xl text-gray-300 mb-8 max-w-3xl mx-auto">
+            <p className="text-xl text-gray-300 mb-6 max-w-3xl mx-auto">
               Connect to a Twitch channel to begin real-time sentiment analysis.
             </p>
           </div>
         )}
 
         {/* Top Container - Connect to Channel */}
-        <div className="bg-black border border-gray-700 rounded-lg p-6 shadow-lg">
+        <div className="bg-black border border-gray-700 rounded-lg p-4 shadow-lg">
           <h2 className="text-2xl font-bold text-white mb-4">Connect to Channel</h2>
           <p className="text-gray-300 mb-4">Enter a Twitch channel URL to start analyzing chat</p>
 
@@ -513,48 +520,39 @@ const Analyze = () => {
                 <p className="text-sm text-gray-400 mb-4">Users with most messages by sentiment</p>
 
                 {isConnected && messages.length > 0 ? (
-                  <div className="space-y-4">
+                  <div className="space-y-3">
                     {/* Positive */}
-                    <div>
-                      <h3 className="text-green-400 font-medium mb-2">Most Positive</h3>
-                      {(() => {
-                        const [username, count] = getTopUser('positive');
-                        return (
-                          <div className="flex justify-between items-center bg-gray-900 border border-gray-700 p-3 rounded">
-                            <span className="text-gray-300">{username}</span>
-                            <span className="text-green-400 font-medium">{count} {count === 1 ? 'message' : 'messages'}</span>
-                          </div>
-                        );
-                      })()}
-                    </div>
+                    {(() => {
+                      const [username, count] = getTopUser('positive');
+                      return (
+                        <div className="flex justify-between items-center bg-green-900/30 border border-green-700/30 p-3 rounded">
+                          <span className="text-gray-300">{username}</span>
+                          <span className="text-green-400 font-medium">{count} {count === 1 ? 'message' : 'messages'}</span>
+                        </div>
+                      );
+                    })()}
 
                     {/* Neutral */}
-                    <div>
-                      <h3 className="text-orange-400 font-medium mb-2">Most Neutral</h3>
-                      {(() => {
-                        const [username, count] = getTopUser('neutral');
-                        return (
-                          <div className="flex justify-between items-center bg-gray-900 border border-gray-700 p-3 rounded">
-                            <span className="text-gray-300">{username}</span>
-                            <span className="text-orange-400 font-medium">{count} {count === 1 ? 'message' : 'messages'}</span>
-                          </div>
-                        );
-                      })()}
-                    </div>
+                    {(() => {
+                      const [username, count] = getTopUser('neutral');
+                      return (
+                        <div className="flex justify-between items-center bg-orange-900/30 border border-orange-700/30 p-3 rounded">
+                          <span className="text-gray-300">{username}</span>
+                          <span className="text-orange-400 font-medium">{count} {count === 1 ? 'message' : 'messages'}</span>
+                        </div>
+                      );
+                    })()}
 
                     {/* Negative */}
-                    <div>
-                      <h3 className="text-red-400 font-medium mb-2">Most Negative</h3>
-                      {(() => {
-                        const [username, count] = getTopUser('negative');
-                        return (
-                          <div className="flex justify-between items-center bg-gray-900 border border-gray-700 p-3 rounded">
-                            <span className="text-gray-300">{username}</span>
-                            <span className="text-red-400 font-medium">{count} {count === 1 ? 'message' : 'messages'}</span>
-                          </div>
-                        );
-                      })()}
-                    </div>
+                    {(() => {
+                      const [username, count] = getTopUser('negative');
+                      return (
+                        <div className="flex justify-between items-center bg-red-900/30 border border-red-700/30 p-3 rounded">
+                          <span className="text-gray-300">{username}</span>
+                          <span className="text-red-400 font-medium">{count} {count === 1 ? 'message' : 'messages'}</span>
+                        </div>
+                      );
+                    })()}
                   </div>
                 ) : (
                   <div className="flex flex-col items-center justify-center py-10 text-center">
@@ -571,15 +569,26 @@ const Analyze = () => {
             {/* Right Side - Chat Container (65%) */}
             <div className="lg:col-span-8">
               <div className="bg-black border border-gray-700 rounded-lg p-6 shadow-lg h-full min-h-[600px] relative">
-                <h2 className="text-xl font-bold text-white mb-4 flex items-center">
-                  <span className="text-twitch mr-2">
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                    </svg>
+                <div className="flex justify-between items-center mb-4">
+                  <div className="flex bg-gray-900 rounded-lg p-1">
+                    {['All', 'Positive', 'Neutral', 'Negative'].map((filter) => (
+                      <button
+                        key={filter}
+                        onClick={() => setSelectedFilter(filter)}
+                        className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                          selectedFilter === filter
+                            ? 'bg-twitch text-white'
+                            : 'text-gray-400 hover:text-white hover:bg-gray-800'
+                        }`}
+                      >
+                        {filter}
+                      </button>
+                    ))}
+                  </div>
+                  <span className="text-gray-400 text-sm">
+                    {filteredMessages.length} messages
                   </span>
-                  Chat
-                  {currentChannel && <span className="ml-2 text-sm text-twitch font-normal">{currentChannel}</span>}
-                </h2>
+                </div>
 
                 {isConnected && messages.length > 0 ? (
                   <div className="h-[600px]">
@@ -588,16 +597,17 @@ const Analyze = () => {
                       className="h-full overflow-y-auto overflow-x-hidden pr-2 space-y-3 custom-scrollbar"
                       onScroll={handleChatScroll}
                     >
-                      {messages.map((msg, idx) => (
+                      {filteredMessages.map((msg) => (
                         <div key={msg.id} className="flex items-center justify-between bg-gray-900/40 border border-gray-800 p-3 rounded-lg">
                           <div className="flex items-start space-x-2 flex-1 min-w-0">
                             <span className="text-twitch font-medium whitespace-nowrap">{msg.username}:</span>
                             <span className="text-gray-300 break-words overflow-hidden">{msg.message}</span>
                           </div>
-                          <span className={`ml-4 px-2 py-1 rounded text-xs font-medium whitespace-nowrap flex-shrink-0 ${msg.sentiment === 'positive' ? 'bg-green-900/50 text-green-400' :
+                          <span className={`ml-4 px-2 py-1 rounded text-xs font-medium whitespace-nowrap flex-shrink-0 ${
+                            msg.sentiment === 'positive' ? 'bg-green-900/50 text-green-400' :
                             msg.sentiment === 'negative' ? 'bg-red-900/50 text-red-400' :
                               'bg-orange-900/50 text-orange-400'
-                            }`}>
+                          }`}>
                             {msg.sentiment}
                           </span>
                         </div>

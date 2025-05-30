@@ -129,7 +129,8 @@ const History = () => {
   const [selectedAnalysis, setSelectedAnalysis] = useState(null);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     fetchAnalyses();
@@ -158,6 +159,29 @@ const History = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Handle items per page change
+  const handleItemsPerPageChange = (newItemsPerPage) => {
+    setItemsPerPage(Number(newItemsPerPage));
+    setCurrentPage(1); // Reset to first page when changing items per page
+  };
+
+  // Filter analyses based on search term
+  const filteredAnalyses = analyses.filter(analysis => 
+    analysis.streamer_name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  // Pagination
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentItems = filteredAnalyses.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(filteredAnalyses.length / itemsPerPage);
+
+  const paginate = (pageNumber) => {
+    if (pageNumber > 0 && pageNumber <= totalPages) {
+      setCurrentPage(pageNumber);
     }
   };
 
@@ -281,14 +305,6 @@ const History = () => {
     }
   };
 
-  // Pagination logic
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = analyses.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(analyses.length / itemsPerPage);
-
-  const paginate = (pageNumber) => setCurrentPage(pageNumber);
-
   if (loading) {
     return (
       <div className="min-h-screen bg-black flex justify-center items-center">
@@ -299,41 +315,75 @@ const History = () => {
 
   return (
     <div className="min-h-screen bg-black">
-      <div className="relative py-20 px-6">
+      <div className="relative py-6 px-6">
         <div className="max-w-7xl mx-auto">
-          <div className="text-center pt-10 pb-16">
-            <h1 className="text-5xl md:text-7xl font-bold text-white mb-6">
-              Analysis <span className="text-twitch">History</span>
-            </h1>
-            <p className="text-xl text-gray-300 mb-8 max-w-3xl mx-auto">
-              Review your past stream analyses and track sentiment patterns over time.
-            </p>
-          </div>
-
           {analyses.length === 0 ? (
             <div className="text-center py-8">
               <p className="text-gray-400">No analysis history found.</p>
             </div>
           ) : (
             <div className="space-y-6">
+              {/* Search and Items Per Page Controls */}
+              <div>
+                <div className="flex flex-col md:flex-row items-center justify-between gap-4 p-4">
+                  <div className="w-full md:w-64">
+                    <div className="relative">
+                      <input
+                        type="text"
+                        placeholder="Search by streamer name..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full bg-gray-800 text-white placeholder-gray-400 border border-gray-700 rounded-lg py-3 pl-10 pr-4 focus:outline-none focus:border-twitch"
+                      />
+                      <svg
+                        className="absolute left-3 top-3.5 h-5 w-5 text-gray-400"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="2"
+                          d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                        />
+                      </svg>
+                    </div>
+                  </div>
+                  <div className="w-full md:w-auto">
+                    <select
+                      value={itemsPerPage}
+                      onChange={(e) => handleItemsPerPageChange(e.target.value)}
+                      className="w-full md:w-auto bg-gray-800 text-white border border-gray-700 rounded-lg px-6 py-3 focus:outline-none focus:border-twitch"
+                    >
+                      <option value={5}>5 per page</option>
+                      <option value={10}>10 per page</option>
+                      <option value={15}>15 per page</option>
+                      <option value={20}>20 per page</option>
+                    </select>
+                  </div>
+                </div>
+                <hr className="border-gray-800 mx-4" />
+              </div>
+
               {/* Table Section */}
-              <div className="overflow-x-auto rounded-lg border border-gray-700">
+              <div className="overflow-x-auto rounded-lg border border-gray-700 mx-4 md:mx-0">
                 <table className="min-w-full divide-y divide-gray-700">
                   <thead className="bg-gray-900">
                     <tr>
-                      <th scope="col" className="px-6 py-4 text-left text-sm font-semibold text-white w-20">
+                      <th scope="col" className="px-4 md:px-6 py-4 text-left text-sm font-semibold text-white w-16 md:w-20">
                         #
                       </th>
-                      <th scope="col" className="px-6 py-4 text-left text-sm font-semibold text-white">
+                      <th scope="col" className="px-4 md:px-6 py-4 text-left text-sm font-semibold text-white">
                         Streamer
                       </th>
-                      <th scope="col" className="px-6 py-4 text-left text-sm font-semibold text-white">
+                      <th scope="col" className="px-4 md:px-6 py-4 text-left text-sm font-semibold text-white">
                         Date
                       </th>
-                      <th scope="col" className="px-6 py-4 text-left text-sm font-semibold text-white">
+                      <th scope="col" className="px-4 md:px-6 py-4 text-left text-sm font-semibold text-white">
                         Messages
                       </th>
-                      <th scope="col" className="px-6 py-4 text-center text-sm font-semibold text-white w-24">
+                      <th scope="col" className="px-4 md:px-6 py-4 text-center text-sm font-semibold text-white w-20 md:w-24">
                         Actions
                       </th>
                     </tr>
@@ -344,32 +394,32 @@ const History = () => {
                         key={analysis._id}
                         className="hover:bg-gray-900/50 transition-colors"
                       >
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-4 md:px-6 py-4 whitespace-nowrap">
                           <div className="text-sm font-medium text-gray-400">
                             {indexOfFirstItem + index + 1}
                           </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-4 md:px-6 py-4 whitespace-nowrap">
                           <div className="text-sm font-medium text-white">
                             {analysis.streamer_name}
                           </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-4 md:px-6 py-4 whitespace-nowrap">
                           <div className="text-sm text-gray-300">
                             {format(new Date(analysis.created_at), 'MMM d, yyyy HH:mm')}
                           </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-4 md:px-6 py-4 whitespace-nowrap">
                           <div className="text-sm text-twitch">
                             {analysis.total_chats}
                           </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-4 md:px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center justify-center space-x-3">
                             <button
-                              className="text-twitch hover:text-twitch/80 transition-colors p-1 rounded-full hover:bg-twitch/10"
+                              className="text-blue-500 hover:text-blue-400 transition-colors p-1.5 rounded-full hover:bg-blue-500/10"
                               onClick={() => setSelectedAnalysis(analysis)}
-                              title="View Details"
+                              title="View Analysis"
                             >
                               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -377,7 +427,7 @@ const History = () => {
                               </svg>
                             </button>
                             <button
-                              className="text-blue-500 hover:text-blue-400 transition-colors p-1 rounded-full hover:bg-blue-500/10"
+                              className="text-green-500 hover:text-green-400 transition-colors p-1.5 rounded-full hover:bg-green-500/10"
                               onClick={(e) => handleDownloadPDF(analysis._id, e)}
                               title="Download PDF"
                             >
@@ -386,7 +436,7 @@ const History = () => {
                               </svg>
                             </button>
                             <button
-                              className="text-red-500 hover:text-red-400 transition-colors p-1 rounded-full hover:bg-red-500/10"
+                              className="text-red-500 hover:text-red-400 transition-colors p-1.5 rounded-full hover:bg-red-500/10"
                               onClick={(e) => handleDelete(analysis._id, e)}
                               title="Delete Analysis"
                             >
@@ -403,49 +453,94 @@ const History = () => {
               </div>
 
               {/* Pagination */}
-              <div className="flex justify-center space-x-2 mt-6">
-                <button
-                  onClick={() => paginate(currentPage - 1)}
-                  disabled={currentPage === 1}
-                  className={`px-4 py-2 rounded-md text-sm font-medium ${
-                    currentPage === 1
-                      ? 'bg-gray-800 text-gray-400 cursor-not-allowed'
-                      : 'bg-twitch text-white hover:bg-twitch/80'
-                  }`}
-                >
-                  Previous
-                </button>
-                {[...Array(totalPages)].map((_, index) => (
-                  <button
-                    key={index + 1}
-                    onClick={() => paginate(index + 1)}
-                    className={`px-4 py-2 rounded-md text-sm font-medium ${
-                      currentPage === index + 1
-                        ? 'bg-twitch text-white'
-                        : 'bg-gray-800 text-white hover:bg-gray-700'
-                    }`}
-                  >
-                    {index + 1}
-                  </button>
-                ))}
-                <button
-                  onClick={() => paginate(currentPage + 1)}
-                  disabled={currentPage === totalPages}
-                  className={`px-4 py-2 rounded-md text-sm font-medium ${
-                    currentPage === totalPages
-                      ? 'bg-gray-800 text-gray-400 cursor-not-allowed'
-                      : 'bg-twitch text-white hover:bg-twitch/80'
-                  }`}
-                >
-                  Next
-                </button>
+              <div className="px-4 md:px-6 py-4 border-t border-gray-800">
+                <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+                  <div>
+                    <p className="text-sm text-gray-400 text-center md:text-left">
+                      Showing <span className="font-medium text-white">
+                        {indexOfFirstItem + 1}
+                      </span> to{' '}
+                      <span className="font-medium text-white">
+                        {Math.min(indexOfLastItem, filteredAnalyses.length)}
+                      </span> of{' '}
+                      <span className="font-medium text-white">{filteredAnalyses.length}</span> results
+                    </p>
+                  </div>
+                  <div>
+                    <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
+                      <button
+                        onClick={() => paginate(currentPage - 1)}
+                        disabled={currentPage === 1}
+                        className={`relative inline-flex items-center px-3 py-2 rounded-l-md border border-gray-700 text-sm font-medium ${
+                          currentPage === 1
+                            ? 'bg-gray-800 text-gray-400 cursor-not-allowed'
+                            : 'text-gray-300 hover:bg-gray-800'
+                        }`}
+                      >
+                        <span className="sr-only">Previous</span>
+                        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
+                        </svg>
+                      </button>
+                      {[...Array(totalPages)].map((_, index) => {
+                        const pageNumber = index + 1;
+                        const isCurrentPage = pageNumber === currentPage;
+                        const isNearCurrentPage =
+                          Math.abs(pageNumber - currentPage) <= 1 ||
+                          pageNumber === 1 ||
+                          pageNumber === totalPages;
+
+                        if (!isNearCurrentPage) {
+                          if (pageNumber === 2 || pageNumber === totalPages - 1) {
+                            return (
+                              <span
+                                key={pageNumber}
+                                className="relative inline-flex items-center px-3 py-2 border border-gray-700 bg-gray-800 text-sm font-medium text-gray-400"
+                              >
+                                ...
+                              </span>
+                            );
+                          }
+                          return null;
+                        }
+
+                        return (
+                          <button
+                            key={pageNumber}
+                            onClick={() => paginate(pageNumber)}
+                            className={`relative inline-flex items-center px-4 py-2 border border-gray-700 text-sm font-medium ${
+                              isCurrentPage
+                                ? 'z-10 bg-twitch text-white border-twitch'
+                                : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                            }`}
+                          >
+                            {pageNumber}
+                          </button>
+                        );
+                      })}
+                      <button
+                        onClick={() => paginate(currentPage + 1)}
+                        disabled={currentPage === totalPages}
+                        className={`relative inline-flex items-center px-3 py-2 rounded-r-md border border-gray-700 text-sm font-medium ${
+                          currentPage === totalPages
+                            ? 'bg-gray-800 text-gray-400 cursor-not-allowed'
+                            : 'text-gray-300 hover:bg-gray-800'
+                        }`}
+                      >
+                        <span className="sr-only">Next</span>
+                        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+                        </svg>
+                      </button>
+                    </nav>
+                  </div>
+                </div>
               </div>
             </div>
           )}
         </div>
       </div>
 
-      {/* Analysis Details Modal */}
       {selectedAnalysis && (
         <AnalysisModal
           analysis={selectedAnalysis}
