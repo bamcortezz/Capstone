@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import io from 'socket.io-client';
 import { Pie } from 'react-chartjs-2';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
@@ -9,6 +9,36 @@ import { useAuth } from '../../contexts/AuthContext';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 ChartJS.register(ArcElement, Tooltip, Legend);
+
+// Memoized Pie Chart Component
+const SentimentPieChart = React.memo(({ sentimentCounts }) => {
+  const chartData = useMemo(() => ({
+    labels: ['Positive', 'Neutral', 'Negative'],
+    datasets: [
+      {
+        data: [sentimentCounts.positive, sentimentCounts.neutral, sentimentCounts.negative],
+        backgroundColor: ['#22c55e', '#6B7280', '#ef4444'],
+        borderColor: ['#16a34a', '#374151', '#b91c1c'],
+        borderWidth: 1,
+      },
+    ],
+  }), [sentimentCounts]);
+
+  const chartOptions = useMemo(() => ({
+    plugins: {
+      legend: {
+        position: 'bottom',
+        labels: {
+          color: '#D1D5DB',
+          font: { size: 12 }
+        }
+      }
+    },
+    maintainAspectRatio: false
+  }), []);
+
+  return <Pie data={chartData} options={chartOptions} />;
+});
 
 const Analyze = () => {
   const { user } = useAuth();
@@ -420,34 +450,6 @@ const Analyze = () => {
     }
   };
 
-  // Pie chart data
-  const chartData = {
-    labels: ['Positive', 'Neutral', 'Negative'],
-    datasets: [
-      {
-        data: [sentimentCounts.positive, sentimentCounts.neutral, sentimentCounts.negative],
-        backgroundColor: ['#22c55e', '#6B7280', '#ef4444'], // green, gray, red
-        borderColor: ['#16a34a', '#374151', '#b91c1c'],
-        borderWidth: 1,
-      },
-    ],
-  };
-
-  const chartOptions = {
-    plugins: {
-      legend: {
-        position: 'bottom',
-        labels: {
-          color: '#D1D5DB',
-          font: {
-            size: 12
-          }
-        }
-      }
-    },
-    maintainAspectRatio: false
-  };
-
   // Get top user for each sentiment
   const getTopUser = (sentiment) => {
     return Object.entries(userSentiments[sentiment])
@@ -537,7 +539,7 @@ const Analyze = () => {
 
                 {isConnected && messages.length > 0 ? (
                   <div className="h-[250px] relative">
-                    <Pie data={chartData} options={chartOptions} />
+                    <SentimentPieChart sentimentCounts={sentimentCounts} />
                   </div>
                 ) : (
                   <div className="flex flex-col items-center justify-center py-10 text-center">
