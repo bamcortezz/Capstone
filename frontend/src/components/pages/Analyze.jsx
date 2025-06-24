@@ -34,6 +34,61 @@ const Analyze = () => {
   const [autoScroll, setAutoScroll] = useState(true);
   const chatContainerRef = useRef(null);
   const processedMessages = useRef(new Set());
+  const messageQueue = useRef([]);
+
+  // Debounced effect for processing message queue
+  useEffect(() => {
+    const processQueue = () => {
+      if (messageQueue.current.length === 0) return;
+  
+      const newMessages = [...messageQueue.current];
+      messageQueue.current = [];
+  
+      // Batch updates
+      setMessages((prev) => [...prev, ...newMessages]);
+  
+      const newSentimentCounts = { positive: 0, neutral: 0, negative: 0 };
+      const newUserSentiments = {};
+  
+      newMessages.forEach((msg) => {
+        newSentimentCounts[msg.sentiment] += 1;
+  
+        if (!newUserSentiments[msg.sentiment]) {
+          newUserSentiments[msg.sentiment] = {};
+        }
+        if (!newUserSentiments[msg.sentiment][msg.username]) {
+          newUserSentiments[msg.sentiment][msg.username] = 0;
+        }
+        newUserSentiments[msg.sentiment][msg.username] += 1;
+      });
+  
+      setSentimentCounts((prev) => ({
+        positive: prev.positive + newSentimentCounts.positive,
+        neutral: prev.neutral + newSentimentCounts.neutral,
+        negative: prev.negative + newSentimentCounts.negative
+      }));
+  
+      setUserSentiments((prev) => {
+        const updatedSentiments = JSON.parse(JSON.stringify(prev));
+        for (const sentiment in newUserSentiments) {
+          for (const username in newUserSentiments[sentiment]) {
+            if (!updatedSentiments[sentiment]) {
+              updatedSentiments[sentiment] = {};
+            }
+            if (!updatedSentiments[sentiment][username]) {
+              updatedSentiments[sentiment][username] = 0;
+            }
+            updatedSentiments[sentiment][username] += newUserSentiments[sentiment][username];
+          }
+        }
+        return updatedSentiments;
+      });
+    };
+  
+    const intervalId = setInterval(processQueue, 1000); // Process queue every second
+  
+    return () => clearInterval(intervalId);
+  }, []);
 
   // Scroll to bottom whenever messages update
   useEffect(() => {
@@ -75,28 +130,9 @@ const Analyze = () => {
       // Check if we've already processed this message
       if (!processedMessages.current.has(messageId)) {
         processedMessages.current.add(messageId);
-
-        setMessages((prev) => [...prev, { ...data, id: messageId }]);
-
-        // Update sentiment counts
-        setSentimentCounts((prev) => ({
-          ...prev,
-          [data.sentiment]: prev[data.sentiment] + 1
-        }));
-
-        // Update user sentiments - increment count for each message from a user
-        setUserSentiments((prev) => {
-          // Create deep copy to avoid state issues
-          const newCounts = JSON.parse(JSON.stringify(prev));
-          if (!newCounts[data.sentiment][data.username]) {
-            // First time user with this sentiment - set to 1
-            newCounts[data.sentiment][data.username] = 1;
-          } else {
-            // Increment the count for existing users
-            newCounts[data.sentiment][data.username] += 1;
-          }
-          return newCounts;
-        });
+        
+        // Push new message to the queue instead of direct state update
+        messageQueue.current.push({ ...data, id: messageId });
       }
     });
 

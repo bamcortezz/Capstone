@@ -53,8 +53,8 @@ const AnalysisModal = ({ analysis, onClose }) => {
               </div>
               <div className="bg-black/50 p-4 rounded-lg border border-gray-700">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-orange-400">Neutral</span>
-                  <span className="text-2xl font-bold text-orange-400">
+                  <span className="text-gray-400">Neutral</span>
+                  <span className="text-2xl font-bold text-gray-400">
                     {analysis.sentiment_count.neutral}
                   </span>
                 </div>
@@ -98,7 +98,7 @@ const AnalysisModal = ({ analysis, onClose }) => {
                   ))}
                 </div>
                 <div>
-                  <h4 className="font-medium text-orange-400 mb-2">Top Neutral</h4>
+                  <h4 className="font-medium text-gray-400 mb-2">Top Neutral</h4>
                   {analysis.top_neutral.map((contributor, index) => (
                     <div key={index} className="text-sm py-1">
                       <span className="text-twitch">{contributor.username}</span>
