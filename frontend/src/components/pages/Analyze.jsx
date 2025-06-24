@@ -390,8 +390,8 @@ const Analyze = () => {
     datasets: [
       {
         data: [sentimentCounts.positive, sentimentCounts.neutral, sentimentCounts.negative],
-        backgroundColor: ['#10B981', '#F97316', '#EF4444'],
-        borderColor: ['#064E3B', '#9A3412', '#991B1B'],
+        backgroundColor: ['#22c55e', '#6B7280', '#ef4444'], // green, gray, red
+        borderColor: ['#16a34a', '#374151', '#b91c1c'],
         borderWidth: 1,
       },
     ],
@@ -525,8 +525,8 @@ const Analyze = () => {
                     {(() => {
                       const [username, count] = getTopUser('positive');
                       return (
-                        <div className="flex justify-between items-center bg-green-900/30 border border-green-700/30 p-3 rounded">
-                          <span className="text-gray-300">{username}</span>
+                        <div className="flex justify-between items-center bg-black border border-gray-700/30 p-3 rounded">
+                          <span className="text-twitch">{username}</span>
                           <span className="text-green-400 font-medium">{count} {count === 1 ? 'message' : 'messages'}</span>
                         </div>
                       );
@@ -536,9 +536,9 @@ const Analyze = () => {
                     {(() => {
                       const [username, count] = getTopUser('neutral');
                       return (
-                        <div className="flex justify-between items-center bg-orange-900/30 border border-orange-700/30 p-3 rounded">
-                          <span className="text-gray-300">{username}</span>
-                          <span className="text-orange-400 font-medium">{count} {count === 1 ? 'message' : 'messages'}</span>
+                        <div className="flex justify-between items-center bg-black border border-gray-700/30 p-3 rounded">
+                          <span className="text-twitch">{username}</span>
+                          <span className="text-gray-400 font-medium">{count} {count === 1 ? 'message' : 'messages'}</span>
                         </div>
                       );
                     })()}
@@ -547,8 +547,8 @@ const Analyze = () => {
                     {(() => {
                       const [username, count] = getTopUser('negative');
                       return (
-                        <div className="flex justify-between items-center bg-red-900/30 border border-red-700/30 p-3 rounded">
-                          <span className="text-gray-300">{username}</span>
+                        <div className="flex justify-between items-center bg-black border border-gray-700/30 p-3 rounded">
+                          <span className="text-twitch">{username}</span>
                           <span className="text-red-400 font-medium">{count} {count === 1 ? 'message' : 'messages'}</span>
                         </div>
                       );
@@ -578,7 +578,7 @@ const Analyze = () => {
                         className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
                           selectedFilter === filter
                             ? 'bg-twitch text-white'
-                            : 'text-gray-400 hover:text-white hover:bg-gray-800'
+                            : 'text-gray-400 hover:text-twitch hover:bg-gray-900'
                         }`}
                       >
                         {filter}
@@ -598,15 +598,16 @@ const Analyze = () => {
                       onScroll={handleChatScroll}
                     >
                       {filteredMessages.map((msg) => (
-                        <div key={msg.id} className="flex items-center justify-between bg-gray-900/40 border border-gray-800 p-3 rounded-lg">
+                        <div key={msg.id} className="flex items-center justify-between p-3 rounded-lg border border-gray-800 mb-2
+                          ${msg.sentiment === 'positive' ? 'bg-green-900/80' : msg.sentiment === 'negative' ? 'bg-red-900/80' : 'bg-gray-800/80'}">
                           <div className="flex items-start space-x-2 flex-1 min-w-0">
                             <span className="text-twitch font-medium whitespace-nowrap">{msg.username}:</span>
-                            <span className="text-gray-300 break-words overflow-hidden">{msg.message}</span>
+                            <span className="text-white break-words overflow-hidden">{msg.message}</span>
                           </div>
                           <span className={`ml-4 px-2 py-1 rounded text-xs font-medium whitespace-nowrap flex-shrink-0 ${
-                            msg.sentiment === 'positive' ? 'bg-green-900/50 text-green-400' :
-                            msg.sentiment === 'negative' ? 'bg-red-900/50 text-red-400' :
-                              'bg-orange-900/50 text-orange-400'
+                            msg.sentiment === 'positive' ? 'bg-green-700 text-green-200' :
+                            msg.sentiment === 'negative' ? 'bg-red-700 text-red-200' :
+                              'bg-gray-700 text-gray-200'
                           }`}>
                             {msg.sentiment}
                           </span>
