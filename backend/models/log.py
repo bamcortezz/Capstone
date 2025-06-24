@@ -6,9 +6,6 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
 def create_logs_schema(mongo):
-    """
-    Create necessary indexes for the logs collection
-    """
     try:
         # Create indexes for efficient querying
         mongo.db.logs.create_index([('user_id', 1)])  # Index for user_id

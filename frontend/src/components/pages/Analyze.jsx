@@ -34,6 +34,48 @@ const Analyze = () => {
   const [autoScroll, setAutoScroll] = useState(true);
   const chatContainerRef = useRef(null);
   const processedMessages = useRef(new Set());
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [isReceivingMessages, setIsReceivingMessages] = useState(true);
+
+  // Online/offline event listeners
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOnline(true);
+      if (isConnected) {
+        setIsReceivingMessages(true);
+        Swal.fire({
+          position: 'top-end',
+          icon: 'success',
+          title: 'Internet connection restored. Receiving messages again.',
+          toast: true,
+          timerProgressBar: true,
+          showConfirmButton: false,
+          timer: 3000
+        });
+      }
+    };
+    const handleOffline = () => {
+      setIsOnline(false);
+      if (isConnected) {
+        setIsReceivingMessages(false);
+        Swal.fire({
+          position: 'top-end',
+          icon: 'error',
+          title: 'No internet connection. You will not receive messages.',
+          toast: true,
+          timerProgressBar: true,
+          showConfirmButton: false,
+          timer: 3000
+        });
+      }
+    };
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, [isConnected]);
 
   // Scroll to bottom whenever messages update
   useEffect(() => {
@@ -69,6 +111,7 @@ const Analyze = () => {
     });
 
     socketRef.current.on('chat_message', (data) => {
+      if (!isOnline || !isReceivingMessages) return;
       // Create a unique identifier for the message based on content and username only
       const messageId = `${data.username}-${data.message}`;
 
@@ -149,7 +192,30 @@ const Analyze = () => {
         socketRef.current.disconnect();
       }
     };
+  }, [isOnline, isReceivingMessages]);
+
+  // Restore analysis state from localStorage on mount
+  useEffect(() => {
+    const savedState = JSON.parse(localStorage.getItem('analyzeState'));
+    if (savedState && savedState.isConnected) {
+      setIsConnected(true);
+      setCurrentChannel(savedState.currentChannel);
+      setMessages(savedState.messages || []);
+      setSentimentCounts(savedState.sentimentCounts || { positive: 0, neutral: 0, negative: 0 });
+      setUserSentiments(savedState.userSentiments || { positive: {}, neutral: {}, negative: {} });
+    }
   }, []);
+
+  // Save analysis state to localStorage whenever relevant state changes
+  useEffect(() => {
+    localStorage.setItem('analyzeState', JSON.stringify({
+      isConnected,
+      currentChannel,
+      messages,
+      sentimentCounts,
+      userSentiments
+    }));
+  }, [isConnected, currentChannel, messages, sentimentCounts, userSentiments]);
 
   const saveAnalysis = async () => {
     try {
@@ -360,6 +426,8 @@ const Analyze = () => {
       });
       // Clear processed messages
       processedMessages.current.clear();
+      // Remove analysis state from localStorage
+      localStorage.removeItem('analyzeState');
     } catch (error) {
       console.error('Disconnect failed:', error);
       // Still clean up the local state even if the server request fails
@@ -381,6 +449,8 @@ const Analyze = () => {
       });
       // Clear processed messages
       processedMessages.current.clear();
+      // Remove analysis state from localStorage
+      localStorage.removeItem('analyzeState');
     }
   };
 

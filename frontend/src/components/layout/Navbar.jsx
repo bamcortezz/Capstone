@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import Sidebar from './Sidebar';
+import Logo from '../../assets/Logo.png';
 
 const Navbar = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -42,8 +43,11 @@ const Navbar = () => {
       <nav className="bg-black border-b border-gray-800 py-4 px-6 fixed w-full top-0 z-30">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
           {/* Left - Logo */}
-          <Link to="/" className="text-white text-2xl font-bold">
-            Twitch <span className="text-twitch">Insight</span>
+          <Link to="/" className="flex items-center space-x-3 text-white text-2xl font-bold">
+            <img src={Logo} alt="Twitch Insight Logo" className="h-8 w-8 object-contain" />
+            <span>
+              Twitch <span className="text-twitch">Insight</span>
+            </span>
           </Link>
 
           {/* Middle - Navigation Links */}

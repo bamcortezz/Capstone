@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import Logo from '../../../assets/Logo.png';
 
 const AdminNavbar = ({ onMenuClick }) => {
   return (
@@ -8,8 +9,11 @@ const AdminNavbar = ({ onMenuClick }) => {
         <div className="h-full max-w-[1600px] mx-auto flex items-center justify-between">
           {/* Left - Logo and Brand */}
           <div className="flex items-center">
-            <Link to="/admin/dashboard" className="text-white text-3xl font-bold tracking-tight">
-              Twitch <span className="text-twitch">Insight</span>
+            <Link to="/admin/dashboard" className="flex items-center space-x-3 text-white text-3xl font-bold tracking-tight">
+              <img src={Logo} alt="Twitch Insight Logo" className="h-9 w-9 object-contain" />
+              <span>
+                Twitch <span className="text-twitch">Insight</span>
+              </span>
             </Link>
           </div>
 
