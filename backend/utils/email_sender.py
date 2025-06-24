@@ -13,7 +13,7 @@ def send_otp_email(to_email, otp):
     
     # Create message
     message = MIMEMultipart()
-    message["From"] = sender_email
+    message["From"] = f'Twitch Insight <{sender_email}>'
     message["To"] = to_email
     message["Subject"] = "Your OTP for Account Verification"
     
@@ -48,7 +48,7 @@ def send_password_reset_email(to_email, user_id, reset_token):
     
     # Create message
     message = MIMEMultipart()
-    message["From"] = sender_email
+    message["From"] = f'Twitch Insight <{sender_email}>'
     message["To"] = to_email
     message["Subject"] = "Password Reset Request"
     

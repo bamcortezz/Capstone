@@ -169,7 +169,7 @@ const History = () => {
   };
 
   // Filter analyses based on search term
-  const filteredAnalyses = analyses.filter(analysis => 
+  const filteredAnalyses = analyses.filter(analysis =>
     analysis.streamer_name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -187,7 +187,7 @@ const History = () => {
 
   const handleDelete = async (analysisId, e) => {
     e.stopPropagation();
-    
+
     const result = await Swal.fire({
       title: 'Delete Analysis?',
       text: "You won't be able to revert this!",
@@ -245,63 +245,47 @@ const History = () => {
 
   const handleDownloadPDF = async (analysisId, e) => {
     e.stopPropagation();
-    
-    // Show confirmation dialog
-    const result = await Swal.fire({
-      title: 'Download Analysis PDF?',
-      text: "Do you want to save this analysis as PDF?",
-      icon: 'question',
-      showCancelButton: true,
-      confirmButtonColor: '#10B981',
-      cancelButtonColor: '#374151',
-      confirmButtonText: 'Yes',
-      background: '#1F2937',
-      color: '#fff',
-      showConfirmButton: true
-    });
+    try {
+      const response = await fetch(`${API_URL}/api/history/${analysisId}/pdf`, {
+        credentials: 'include'
+      });
 
-    if (result.isConfirmed) {
-      try {
-        const response = await fetch(`${API_URL}/api/history/${analysisId}/pdf`, {
-          credentials: 'include'
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to download PDF');
-        }
-
-        // Get the blob from the response
-        const blob = await response.blob();
-        
-        // Create a URL for the blob
-        const url = window.URL.createObjectURL(blob);
-        
-        // Create a temporary link element
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `chat_analysis_${analysisId}.pdf`;
-        
-        // Append to body, click, and remove
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        
-        // Clean up the URL
-        window.URL.revokeObjectURL(url);
-
-      } catch (error) {
-        console.error('Download failed:', error);
-        Swal.fire({
-          title: 'Error',
-          text: 'Failed to download PDF',
-          icon: 'error',
-          timer: 3000,
-          timerProgressBar: true,
-          showConfirmButton: false,
-          position: 'top-end',
-          toast: true
-        });
+      if (!response.ok) {
+        throw new Error('Failed to download PDF');
       }
+
+      // Get the blob from the response
+      const blob = await response.blob();
+
+      // Create a URL for the blob
+      const url = window.URL.createObjectURL(blob);
+
+      // Create a temporary link element
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `chat_analysis_${analysisId}.pdf`;
+
+      // Append to body, click, and remove
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      // Clean up the URL
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Download failed:', error);
+      Swal.fire({
+        title: 'Error',
+        text: 'Failed to download PDF',
+        icon: 'error',
+        timer: 3000,
+        timerProgressBar: true,
+        showConfirmButton: false,
+        position: 'top-end',
+        toast: true,
+        background: '#1F2937',
+        color: '#fff',
+      });
     }
   };
 
@@ -390,7 +374,7 @@ const History = () => {
                   </thead>
                   <tbody className="divide-y divide-gray-700 bg-black">
                     {currentItems.map((analysis, index) => (
-                      <tr 
+                      <tr
                         key={analysis._id}
                         className="hover:bg-gray-900/50 transition-colors"
                       >
@@ -417,7 +401,7 @@ const History = () => {
                         <td className="px-4 md:px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center justify-center space-x-3">
                             <button
-                              className="text-blue-500 hover:text-blue-400 transition-colors p-1.5 rounded-full hover:bg-blue-500/10"
+                              className="text-twitch hover:text-twitch/80 transition-colors p-1.5 rounded-full hover:bg-twitch/10"
                               onClick={() => setSelectedAnalysis(analysis)}
                               title="View Analysis"
                             >
@@ -471,11 +455,10 @@ const History = () => {
                       <button
                         onClick={() => paginate(currentPage - 1)}
                         disabled={currentPage === 1}
-                        className={`relative inline-flex items-center px-3 py-2 rounded-l-md border border-gray-700 text-sm font-medium ${
-                          currentPage === 1
+                        className={`relative inline-flex items-center px-3 py-2 rounded-l-md border border-gray-700 text-sm font-medium ${currentPage === 1
                             ? 'bg-gray-800 text-gray-400 cursor-not-allowed'
                             : 'text-gray-300 hover:bg-gray-800'
-                        }`}
+                          }`}
                       >
                         <span className="sr-only">Previous</span>
                         <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -508,11 +491,10 @@ const History = () => {
                           <button
                             key={pageNumber}
                             onClick={() => paginate(pageNumber)}
-                            className={`relative inline-flex items-center px-4 py-2 border border-gray-700 text-sm font-medium ${
-                              isCurrentPage
+                            className={`relative inline-flex items-center px-4 py-2 border border-gray-700 text-sm font-medium ${isCurrentPage
                                 ? 'z-10 bg-twitch text-white border-twitch'
                                 : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
-                            }`}
+                              }`}
                           >
                             {pageNumber}
                           </button>
@@ -521,11 +503,10 @@ const History = () => {
                       <button
                         onClick={() => paginate(currentPage + 1)}
                         disabled={currentPage === totalPages}
-                        className={`relative inline-flex items-center px-3 py-2 rounded-r-md border border-gray-700 text-sm font-medium ${
-                          currentPage === totalPages
+                        className={`relative inline-flex items-center px-3 py-2 rounded-r-md border border-gray-700 text-sm font-medium ${currentPage === totalPages
                             ? 'bg-gray-800 text-gray-400 cursor-not-allowed'
                             : 'text-gray-300 hover:bg-gray-800'
-                        }`}
+                          }`}
                       >
                         <span className="sr-only">Next</span>
                         <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
