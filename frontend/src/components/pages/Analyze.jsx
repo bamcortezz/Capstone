@@ -4,36 +4,11 @@ import { Pie } from 'react-chartjs-2';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
 import Swal from 'sweetalert2';
 import { useAuth } from '../../contexts/AuthContext';
-import { FixedSizeList as List } from 'react-window';
 
 // API URL
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 ChartJS.register(ArcElement, Tooltip, Legend);
-
-// MessageRow component for react-window
-const MessageRow = ({ index, style, data }) => {
-  const msg = data[index];
-
-  return (
-    <div style={style} className="pr-2">
-        <div key={msg.id} className={`flex items-center justify-between p-3 rounded-lg border border-gray-800
-          ${msg.sentiment === 'positive' ? 'bg-green-900/80' : msg.sentiment === 'negative' ? 'bg-red-900/80' : 'bg-gray-800/80'}`}>
-          <div className="flex items-start space-x-2 flex-1 min-w-0">
-            <span className="text-twitch font-medium whitespace-nowrap">{msg.username}:</span>
-            <span className="text-white break-words overflow-hidden">{msg.message}</span>
-          </div>
-          <span className={`ml-4 px-2 py-1 rounded text-xs font-medium whitespace-nowrap flex-shrink-0 ${
-            msg.sentiment === 'positive' ? 'bg-green-700 text-green-200' :
-            msg.sentiment === 'negative' ? 'bg-red-700 text-red-200' :
-              'bg-gray-700 text-gray-200'
-          }`}>
-            {msg.sentiment}
-          </span>
-        </div>
-    </div>
-  );
-};
 
 const Analyze = () => {
   const { user } = useAuth();
@@ -653,18 +628,28 @@ const Analyze = () => {
 
                 {isConnected && messages.length > 0 ? (
                   <div className="h-[600px]">
-                    <List
-                      className="custom-scrollbar"
-                      height={600}
-                      itemCount={filteredMessages.length}
-                      itemSize={70} // Adjusted for better spacing
-                      width="100%"
-                      itemData={filteredMessages}
+                    <div
                       ref={chatContainerRef}
+                      className="h-full overflow-y-auto overflow-x-hidden pr-2 space-y-3 custom-scrollbar"
                       onScroll={handleChatScroll}
                     >
-                      {MessageRow}
-                    </List>
+                      {filteredMessages.map((msg) => (
+                        <div key={msg.id} className="flex items-center justify-between p-3 rounded-lg border border-gray-800 mb-2
+                          ${msg.sentiment === 'positive' ? 'bg-green-900/80' : msg.sentiment === 'negative' ? 'bg-red-900/80' : 'bg-gray-800/80'}">
+                          <div className="flex items-start space-x-2 flex-1 min-w-0">
+                            <span className="text-twitch font-medium whitespace-nowrap">{msg.username}:</span>
+                            <span className="text-white break-words overflow-hidden">{msg.message}</span>
+                          </div>
+                          <span className={`ml-4 px-2 py-1 rounded text-xs font-medium whitespace-nowrap flex-shrink-0 ${
+                            msg.sentiment === 'positive' ? 'bg-green-700 text-green-200' :
+                            msg.sentiment === 'negative' ? 'bg-red-700 text-red-200' :
+                              'bg-gray-700 text-gray-200'
+                          }`}>
+                            {msg.sentiment}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 ) : (
                   <div className="h-[600px] flex items-center justify-center">
