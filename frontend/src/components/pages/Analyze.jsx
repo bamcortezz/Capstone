@@ -4,6 +4,7 @@ import { Pie } from 'react-chartjs-2';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
 import Swal from 'sweetalert2';
 import { useAuth } from '../../contexts/AuthContext';
+import { FixedSizeList as List } from 'react-window';
 
 // API URL
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
@@ -39,6 +40,40 @@ const SentimentPieChart = React.memo(({ sentimentCounts }) => {
 
   return <Pie data={chartData} options={chartOptions} />;
 });
+
+// Row renderer for react-window
+const ChatRow = ({ index, style, data }) => {
+  const msg = data[index];
+  return (
+    <div
+      style={style}
+      key={msg.id}
+      className={`flex items-center justify-between p-3 rounded-lg border-b border-gray-700 mb-2 bg-black`}
+    >
+      <div className="flex items-start space-x-2 flex-1 min-w-0">
+        <span className="text-twitch font-medium whitespace-nowrap">{msg.username}:</span>
+        <span
+          className="text-white break-words overflow-hidden max-w-[60%] line-clamp-2"
+          title={msg.message}
+          style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
+        >
+          {msg.message}
+        </span>
+      </div>
+      <span
+        className={`ml-4 px-2 py-1 rounded text-xs font-medium whitespace-nowrap flex-shrink-0 ${
+          msg.sentiment === 'positive'
+            ? 'bg-green-700 text-green-200'
+            : msg.sentiment === 'negative'
+            ? 'bg-red-700 text-red-200'
+            : 'bg-gray-700 text-gray-200'
+        }`}
+      >
+        {msg.sentiment}
+      </span>
+    </div>
+  );
+};
 
 const Analyze = () => {
   const { user } = useAuth();
@@ -123,8 +158,11 @@ const Analyze = () => {
   // Scroll to bottom whenever messages update
   useEffect(() => {
     if (autoScroll && chatContainerRef.current) {
-      const chatDiv = chatContainerRef.current;
-      chatDiv.scrollTop = chatDiv.scrollHeight;
+      // react-window List API: scrollToItem
+      chatContainerRef.current.scrollToItem(
+        messages.length - 1,
+        'end'
+      );
     }
   }, [messages, autoScroll]);
 
@@ -139,7 +177,10 @@ const Analyze = () => {
   // Scroll to bottom function
   const scrollToBottom = () => {
     if (chatContainerRef.current) {
-      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+      chatContainerRef.current.scrollToItem(
+        messages.length - 1,
+        'end'
+      );
       setAutoScroll(true);
       setShowScrollButton(false);
     }
@@ -630,28 +671,26 @@ const Analyze = () => {
 
                 {isConnected && messages.length > 0 ? (
                   <div className="h-[600px]">
-                    <div
+                    <List
+                      height={600}
+                      itemCount={filteredMessages.length}
+                      itemSize={64} // Adjust for your message height + spacing
+                      width={"100%"}
+                      itemData={filteredMessages}
                       ref={chatContainerRef}
-                      className="h-full overflow-y-auto overflow-x-hidden pr-2 space-y-3 custom-scrollbar"
-                      onScroll={handleChatScroll}
+                      onScroll={({ scrollOffset, scrollUpdateWasRequested }) => {
+                        // If user scrolls up, disable autoScroll
+                        if (!scrollUpdateWasRequested) {
+                          const atBottom =
+                            scrollOffset >=
+                            filteredMessages.length * 64 - 600 - 10; // 10px leeway
+                          setAutoScroll(atBottom);
+                          setShowScrollButton(!atBottom);
+                        }
+                      }}
                     >
-                      {filteredMessages.map((msg) => (
-                        <div key={msg.id} className="flex items-center justify-between p-3 rounded-lg border border-gray-800 mb-2
-                          ${msg.sentiment === 'positive' ? 'bg-green-900/80' : msg.sentiment === 'negative' ? 'bg-red-900/80' : 'bg-gray-800/80'}">
-                          <div className="flex items-start space-x-2 flex-1 min-w-0">
-                            <span className="text-twitch font-medium whitespace-nowrap">{msg.username}:</span>
-                            <span className="text-white break-words overflow-hidden">{msg.message}</span>
-                          </div>
-                          <span className={`ml-4 px-2 py-1 rounded text-xs font-medium whitespace-nowrap flex-shrink-0 ${
-                            msg.sentiment === 'positive' ? 'bg-green-700 text-green-200' :
-                            msg.sentiment === 'negative' ? 'bg-red-700 text-red-200' :
-                              'bg-gray-700 text-gray-200'
-                          }`}>
-                            {msg.sentiment}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
+                      {ChatRow}
+                    </List>
                   </div>
                 ) : (
                   <div className="h-[600px] flex items-center justify-center">
