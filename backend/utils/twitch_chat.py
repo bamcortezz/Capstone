@@ -17,9 +17,7 @@ class TwitchChatBot(irc.bot.SingleServerIRCBot):
         # Create IRC bot connection
         server = 'irc.chat.twitch.tv'
         port = 6667
-        
-        # Create connection with proper nickname
-        # The nickname must be lowercase for Twitch
+
         nickname = username.lower()
         super().__init__([(server, port, token)], nickname, nickname)
         

@@ -9,7 +9,7 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 const OTPVerification = () => {
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [isLoading, setIsLoading] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(300); // 5 minutes
+  const [timeLeft, setTimeLeft] = useState(120); // 2 minutes
   const location = useLocation();
   const navigate = useNavigate();
   const email = location.state?.email;
@@ -30,9 +30,18 @@ const OTPVerification = () => {
   const handleResendOTP = async () => {
     try {
       setIsLoading(true);
-      // TODO: Implement resend OTP functionality
-      setTimeLeft(300); // Reset timer
-      
+      const response = await fetch(`${API_URL}/api/resend-otp`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to resend code');
+      }
+      setTimeLeft(120); // Reset timer to 2 minutes
       await Swal.fire({
         position: 'top-end',
         icon: 'success',
@@ -40,17 +49,18 @@ const OTPVerification = () => {
         toast: true,
         timerProgressBar: true,
         showConfirmButton: false,
-        timer: 2000
+        timer: 1000
       });
     } catch (error) {
       Swal.fire({
         position: 'top-end',
         icon: 'error',
         title: 'Failed to resend code',
+        text: error.message,
         toast: true,
         timerProgressBar: true,
         showConfirmButton: false,
-        timer: 3000
+        timer: 1000
       });
     } finally {
       setIsLoading(false);
@@ -98,13 +108,13 @@ const OTPVerification = () => {
         toast: true,
         timerProgressBar: true,
         showConfirmButton: false,
-        timer: 2000
+        timer: 1000
       });
 
       // Navigate to login after success
       setTimeout(() => {
         navigate('/login');
-      }, 2000);
+      }, 1000);
 
     } catch (err) {
       Swal.fire({
@@ -115,7 +125,7 @@ const OTPVerification = () => {
         toast: true,
         timerProgressBar: true,
         showConfirmButton: false,
-        timer: 3000
+        timer: 1000
       });
     } finally {
       setIsLoading(false);

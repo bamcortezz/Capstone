@@ -43,7 +43,7 @@ const Register = () => {
         toast: true,
         timerProgressBar: true,
         showConfirmButton: false,
-        timer: 3000
+        timer: 1000
       });
       return;
     }
@@ -78,7 +78,7 @@ const Register = () => {
         toast: true,
         timerProgressBar: true,
         showConfirmButton: false,
-        timer: 2000
+        timer: 1000
       });
 
       // Reset form
@@ -102,7 +102,7 @@ const Register = () => {
         toast: true,
         timerProgressBar: true,
         showConfirmButton: false,
-        timer: 3000
+        timer: 1000
       });
     } finally {
       setIsLoading(false);

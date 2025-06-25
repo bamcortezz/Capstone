@@ -59,7 +59,7 @@ const Login = () => {
         toast: true,
         timerProgressBar: true,
         showConfirmButton: false,
-        timer: 2000
+        timer: 1000
       });
 
       // Navigate based on user role
@@ -78,7 +78,7 @@ const Login = () => {
         toast: true,
         timerProgressBar: true,
         showConfirmButton: false,
-        timer: 3000
+        timer: 1000
       });
     } finally {
       setIsLoading(false);

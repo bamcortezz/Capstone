@@ -43,7 +43,7 @@ const Settings = () => {
           toast: true,
           position: 'top-end',
           showConfirmButton: false,
-          timer: 3000,
+          timer: 1000,
           timerProgressBar: true
         });
         return;
@@ -59,7 +59,7 @@ const Settings = () => {
           toast: true,
           position: 'top-end',
           showConfirmButton: false,
-          timer: 3000,
+          timer: 1000,
           timerProgressBar: true
         });
         return;
@@ -75,7 +75,7 @@ const Settings = () => {
         toast: true,
         position: 'top-end',
         showConfirmButton: false,
-        timer: 3000,
+        timer: 1000,
         timerProgressBar: true
       });
     } catch (error) {
@@ -87,7 +87,7 @@ const Settings = () => {
         toast: true,
         position: 'top-end',
         showConfirmButton: false,
-        timer: 3000,
+        timer: 1000,
         timerProgressBar: true
       });
     } finally {
@@ -106,7 +106,7 @@ const Settings = () => {
           toast: true,
           position: 'top-end',
           showConfirmButton: false,
-          timer: 3000,
+          timer: 1000,
           timerProgressBar: true
         });
         return;
@@ -135,7 +135,7 @@ const Settings = () => {
         toast: true,
         position: 'top-end',
         showConfirmButton: false,
-        timer: 3000,
+        timer: 1000,
         timerProgressBar: true
       });
     } catch (error) {
@@ -147,7 +147,7 @@ const Settings = () => {
         toast: true,
         position: 'top-end',
         showConfirmButton: false,
-        timer: 3000,
+        timer: 1000,
         timerProgressBar: true
       });
     } finally {
@@ -179,7 +179,7 @@ const Settings = () => {
           toast: true,
           position: 'top-end',
           showConfirmButton: false,
-          timer: 3000,
+          timer: 1000,
           timerProgressBar: true
         });
       }
@@ -192,7 +192,7 @@ const Settings = () => {
         toast: true,
         position: 'top-end',
         showConfirmButton: false,
-        timer: 3000,
+        timer: 1000,
         timerProgressBar: true
       });
     } finally {

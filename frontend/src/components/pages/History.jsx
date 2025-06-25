@@ -278,7 +278,7 @@ const History = () => {
         title: 'Error',
         text: 'Failed to download PDF',
         icon: 'error',
-        timer: 3000,
+        timer: 1000,
         timerProgressBar: true,
         showConfirmButton: false,
         position: 'top-end',

@@ -19,8 +19,6 @@ def send_otp_email(to_email, otp):
     
     # Email body
     body = f"""
-    Dear User,
-    
     Your One-Time Password (OTP) for account verification is: {otp}
     
     This OTP will expire in 10 minutes.
@@ -56,15 +54,11 @@ def send_password_reset_email(to_email, user_id, reset_token):
     reset_link = f"http://localhost:5173/reset-password/{user_id}/{reset_token}"
     
     # Email body
-    body = f"""
-    Dear User,
-    
+    body = f"""    
     You requested a password reset for your account.
     
     Please click on the link below to reset your password:
     {reset_link}
-    
-    This link will expire in 24 hours.
     
     If you didn't request a password reset, please ignore this email.
     """

@@ -35,7 +35,7 @@ def create_user(mongo, user_data):
         'status': 'not_active',  
         'reset_token': None,
         'token_expire': None,
-        'otp_secret': secret,  
+        'otp': secret,  
         'otp_created_at': now,  
         'created_at': now,
         'updated_at': now,
@@ -51,7 +51,7 @@ def activate_user(mongo, email):
         {
             '$set': {
                 'status': 'active',
-                'otp_secret': None, 
+                'otp': None, 
                 'otp_created_at': None,
                 'updated_at': now
             }
@@ -273,8 +273,8 @@ def update_user_by_admin(mongo, user_id, user_data):
                     del updated_user['reset_token']
                 if 'token_expire' in updated_user:
                     del updated_user['token_expire']
-                if 'otp_secret' in updated_user:
-                    del updated_user['otp_secret']
+                if 'otp' in updated_user:
+                    del updated_user['otp']
                 if 'otp_created_at' in updated_user:
                     del updated_user['otp_created_at']
             return updated_user

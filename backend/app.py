@@ -423,7 +423,7 @@ def verify_otp_route():
             return jsonify({'error': 'User is already verified'}), 400
             
         # Verify OTP
-        if verify_otp(user['otp_secret'], otp):
+        if verify_otp(user['otp'], otp):
             # Activate user
             activate_user(mongo, email)
             return jsonify({'message': 'Email verified successfully'}), 200
@@ -628,8 +628,8 @@ def get_all_users():
                 del user['reset_token']
             if 'token_expire' in user:
                 del user['token_expire']
-            if 'otp_secret' in user:
-                del user['otp_secret']
+            if 'otp' in user:
+                del user['otp']
             if 'otp_created_at' in user:
                 del user['otp_created_at']
         
@@ -1031,6 +1031,40 @@ def generate_analysis_pdf(history_id):
     except Exception as e:
         print(f"PDF Generation Error: {str(e)}")  # Add detailed error logging
         return jsonify({'error': f'Failed to generate PDF: {str(e)}'}), 500
+
+@app.route('/api/resend-otp', methods=['POST'])
+def resend_otp():
+    try:
+        data = request.get_json()
+        email = data.get('email')
+        if not email:
+            return jsonify({'error': 'Email is required'}), 400
+
+        # Get user by email
+        user = get_user_by_email(mongo, email)
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+        if user['status'] == 'active':
+            return jsonify({'error': 'User is already verified'}), 400
+
+        # Generate new OTP and update user
+        from models.user import generate_otp
+        secret, otp = generate_otp()
+        now = datetime.utcnow()
+        mongo.db.users.update_one(
+            {'_id': user['_id']},
+            {'$set': {'otp': secret, 'otp_created_at': now, 'updated_at': now}}
+        )
+
+        # Send OTP via email
+        email_sent = send_otp_email(email, otp)
+        if not email_sent:
+            return jsonify({'error': 'Failed to send OTP email'}), 500
+
+        return jsonify({'message': 'OTP resent successfully'}), 200
+    except Exception as e:
+        print(f"Error in resend_otp: {str(e)}")
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
     socketio.run(app, debug=True, allow_unsafe_werkzeug=True)

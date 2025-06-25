@@ -31,7 +31,7 @@ const ResetPassword = () => {
         toast: true,
         timerProgressBar: true,
         showConfirmButton: false,
-        timer: 3000
+        timer: 1000
       });
       return;
     }
@@ -59,7 +59,7 @@ const ResetPassword = () => {
           toast: true,
           timerProgressBar: true,
           showConfirmButton: false,
-          timer: 3000
+          timer: 1000
         });
       }
     };
@@ -90,7 +90,7 @@ const ResetPassword = () => {
         toast: true,
         timerProgressBar: true,
         showConfirmButton: false,
-        timer: 3000
+        timer: 1000
       });
       return;
     } setIsLoading(true);
@@ -117,7 +117,7 @@ const ResetPassword = () => {
         toast: true,
         timerProgressBar: true,
         showConfirmButton: false,
-        timer: 3000
+        timer: 1000
       });
 
       // Navigate to login page after successful password reset
@@ -132,7 +132,7 @@ const ResetPassword = () => {
         toast: true,
         timerProgressBar: true,
         showConfirmButton: false,
-        timer: 3000
+        timer: 1000
       });
     } finally {
       setIsLoading(false);

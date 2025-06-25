@@ -60,7 +60,7 @@ export const AuthProvider = ({ children }) => {
         toast: true,
         timerProgressBar: true,
         showConfirmButton: false,
-        timer: 2000
+        timer: 1000
       });
     } catch (error) {
       console.error('Logout error:', error);
@@ -72,7 +72,7 @@ export const AuthProvider = ({ children }) => {
         toast: true,
         timerProgressBar: true,
         showConfirmButton: false,
-        timer: 3000
+        timer: 1000
       });
     }
   };

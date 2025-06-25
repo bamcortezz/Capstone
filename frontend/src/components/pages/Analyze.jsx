@@ -295,7 +295,7 @@ const Analyze = () => {
         title: 'Saved!',
         text: 'Analysis has been saved successfully',
         icon: 'success',
-        timer: 2000,
+        timer: 1000,
         timerProgressBar: true,
         showConfirmButton: false,
         position: 'top-end',
@@ -370,7 +370,7 @@ const Analyze = () => {
             title: user ? 'Discarded!' : 'Disconnected!',
             text: user ? 'Analysis has been discarded' : 'Disconnected from channel',
             icon: 'info',
-            timer: 2000,
+            timer: 1000,
             timerProgressBar: true,
             showConfirmButton: false,
             position: 'top-end',
@@ -424,7 +424,7 @@ const Analyze = () => {
         toast: true,
         position: 'top-end',
         showConfirmButton: false,
-        timer: 3000,
+        timer: 1000,
         timerProgressBar: true
       });
     } finally {
