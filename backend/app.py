@@ -58,6 +58,8 @@ socketio = SocketIO(app,
 
 # Store active bots
 active_bots = {}
+# Map user_id to list of channels they started
+user_bots = {}
 
 # MongoDB connection
 client = MongoClient('mongodb://localhost:27017/')
@@ -202,6 +204,23 @@ def authenticate():
 @app.route('/api/logout', methods=['POST'])
 def logout():
     try:
+        user_id = session.get('user_id')
+        # Disconnect all bots started by this user
+        if user_id and user_id in user_bots:
+            channels = list(user_bots[user_id])
+            for channel in channels:
+                if channel in active_bots:
+                    try:
+                        bot, thread = active_bots[channel]
+                        bot.disconnect()
+                        bot.die()
+                    except Exception as e:
+                        print(f"Error during bot disconnection on logout: {e}")
+                    finally:
+                        active_bots.pop(channel, None)
+                        # Optionally emit disconnect notification
+                        socketio.emit('disconnect_notification', {'channel': channel})
+            user_bots.pop(user_id, None)
         session.clear()
         return jsonify({"message": "Successfully logged out"}), 200
     except Exception as e:
@@ -244,6 +263,10 @@ def connect_to_twitch():
             thread.start()
             
             active_bots[channel] = (bot, thread)
+            # Track which user started this bot
+            user_id = session.get('user_id')
+            if user_id:
+                user_bots.setdefault(user_id, set()).add(channel)
             
             # We'll log this in the dedicated analysis-start endpoint instead
             

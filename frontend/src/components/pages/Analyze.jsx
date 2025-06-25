@@ -504,6 +504,14 @@ const Analyze = () => {
     return msg.sentiment.toLowerCase() === selectedFilter.toLowerCase();
   });
 
+  // Disconnect from channel on logout
+  useEffect(() => {
+    if (user === null && isConnected) {
+      disconnectFromChannel();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
+
   return (
     <div className="min-h-screen bg-black py-6 px-8">
       {/* Main container */}
@@ -605,7 +613,7 @@ const Analyze = () => {
                       const [username, count] = getTopUser('positive');
                       return (
                         <div className="flex justify-between items-center bg-black border border-gray-700/30 p-3 rounded">
-                          <span className="text-gray-300">{username}</span>
+                          <span className="text-twitch">{username}</span>
                           <span className="text-green-400 font-medium">{count} {count === 1 ? 'message' : 'messages'}</span>
                         </div>
                       );
@@ -616,7 +624,7 @@ const Analyze = () => {
                       const [username, count] = getTopUser('neutral');
                       return (
                         <div className="flex justify-between items-center bg-black border border-gray-700/30 p-3 rounded">
-                          <span className="text-gray-300">{username}</span>
+                          <span className="text-twitch">{username}</span>
                           <span className="text-gray-400 font-medium">{count} {count === 1 ? 'message' : 'messages'}</span>
                         </div>
                       );
@@ -627,7 +635,7 @@ const Analyze = () => {
                       const [username, count] = getTopUser('negative');
                       return (
                         <div className="flex justify-between items-center bg-black border border-gray-700/30 p-3 rounded">
-                          <span className="text-gray-300">{username}</span>
+                          <span className="text-twitch">{username}</span>
                           <span className="text-red-400 font-medium">{count} {count === 1 ? 'message' : 'messages'}</span>
                         </div>
                       );
