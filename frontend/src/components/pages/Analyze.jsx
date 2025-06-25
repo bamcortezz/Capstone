@@ -9,6 +9,12 @@ import { FixedSizeList as List } from 'react-window';
 // API URL
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
+// Helper function to format numbers with commas
+const formatNumber = (num) => {
+  if (typeof num !== 'number') return num;
+  return num.toLocaleString();
+};
+
 ChartJS.register(ArcElement, Tooltip, Legend);
 
 // Memoized Pie Chart Component
@@ -410,7 +416,6 @@ const Analyze = () => {
             });
           } catch (logError) {
             console.error('Failed to log analysis start:', logError);
-            // Don't interrupt the flow if logging fails
           }
         }
       }
@@ -614,7 +619,7 @@ const Analyze = () => {
                       return (
                         <div className="flex justify-between items-center bg-black border border-gray-700/30 p-3 rounded">
                           <span className="text-twitch">{username}</span>
-                          <span className="text-green-400 font-medium">{count} {count === 1 ? 'message' : 'messages'}</span>
+                          <span className="text-green-400 font-medium">{formatNumber(count)} {count === 1 ? 'message' : 'messages'}</span>
                         </div>
                       );
                     })()}
@@ -625,7 +630,7 @@ const Analyze = () => {
                       return (
                         <div className="flex justify-between items-center bg-black border border-gray-700/30 p-3 rounded">
                           <span className="text-twitch">{username}</span>
-                          <span className="text-gray-400 font-medium">{count} {count === 1 ? 'message' : 'messages'}</span>
+                          <span className="text-gray-400 font-medium">{formatNumber(count)} {count === 1 ? 'message' : 'messages'}</span>
                         </div>
                       );
                     })()}
@@ -636,7 +641,7 @@ const Analyze = () => {
                       return (
                         <div className="flex justify-between items-center bg-black border border-gray-700/30 p-3 rounded">
                           <span className="text-twitch">{username}</span>
-                          <span className="text-red-400 font-medium">{count} {count === 1 ? 'message' : 'messages'}</span>
+                          <span className="text-red-400 font-medium">{formatNumber(count)} {count === 1 ? 'message' : 'messages'}</span>
                         </div>
                       );
                     })()}
@@ -673,7 +678,7 @@ const Analyze = () => {
                     ))}
                   </div>
                   <span className="text-gray-400 text-sm">
-                    {filteredMessages.length} messages
+                    {formatNumber(filteredMessages.length)} messages
                   </span>
                 </div>
 

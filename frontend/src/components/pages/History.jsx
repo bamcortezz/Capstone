@@ -6,6 +6,12 @@ import { ClipLoader } from 'react-spinners';
 // API URL
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
+// Helper function to format numbers with commas
+const formatNumber = (num) => {
+  if (typeof num !== 'number') return num;
+  return num.toLocaleString();
+};
+
 // Analysis Details Modal Component
 const AnalysisModal = ({ analysis, onClose }) => {
   if (!analysis) return null;
@@ -47,7 +53,7 @@ const AnalysisModal = ({ analysis, onClose }) => {
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-green-400">Positive</span>
                   <span className="text-2xl font-bold text-green-400">
-                    {analysis.sentiment_count.positive}
+                    {formatNumber(analysis.sentiment_count.positive)}
                   </span>
                 </div>
               </div>
@@ -55,7 +61,7 @@ const AnalysisModal = ({ analysis, onClose }) => {
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-gray-400">Neutral</span>
                   <span className="text-2xl font-bold text-gray-400">
-                    {analysis.sentiment_count.neutral}
+                    {formatNumber(analysis.sentiment_count.neutral)}
                   </span>
                 </div>
               </div>
@@ -63,7 +69,7 @@ const AnalysisModal = ({ analysis, onClose }) => {
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-red-400">Negative</span>
                   <span className="text-2xl font-bold text-red-400">
-                    {analysis.sentiment_count.negative}
+                    {formatNumber(analysis.sentiment_count.negative)}
                   </span>
                 </div>
               </div>
@@ -93,7 +99,7 @@ const AnalysisModal = ({ analysis, onClose }) => {
                   {analysis.top_positive.map((contributor, index) => (
                     <div key={index} className="text-sm py-1">
                       <span className="text-twitch">{contributor.username}</span>
-                      <span className="text-gray-300">: {contributor.count} messages</span>
+                      <span className="text-gray-300">: {formatNumber(contributor.count)} messages</span>
                     </div>
                   ))}
                 </div>
@@ -102,7 +108,7 @@ const AnalysisModal = ({ analysis, onClose }) => {
                   {analysis.top_neutral.map((contributor, index) => (
                     <div key={index} className="text-sm py-1">
                       <span className="text-twitch">{contributor.username}</span>
-                      <span className="text-gray-300">: {contributor.count} messages</span>
+                      <span className="text-gray-300">: {formatNumber(contributor.count)} messages</span>
                     </div>
                   ))}
                 </div>
@@ -111,7 +117,7 @@ const AnalysisModal = ({ analysis, onClose }) => {
                   {analysis.top_negative.map((contributor, index) => (
                     <div key={index} className="text-sm py-1">
                       <span className="text-twitch">{contributor.username}</span>
-                      <span className="text-gray-300">: {contributor.count} messages</span>
+                      <span className="text-gray-300">: {formatNumber(contributor.count)} messages</span>
                     </div>
                   ))}
                 </div>
@@ -395,7 +401,7 @@ const History = () => {
                         </td>
                         <td className="px-4 md:px-6 py-4 whitespace-nowrap">
                           <div className="text-sm text-twitch">
-                            {analysis.total_chats}
+                            {formatNumber(analysis.total_chats)}
                           </div>
                         </td>
                         <td className="px-4 md:px-6 py-4 whitespace-nowrap">
@@ -447,7 +453,7 @@ const History = () => {
                       <span className="font-medium text-white">
                         {Math.min(indexOfLastItem, filteredAnalyses.length)}
                       </span> of{' '}
-                      <span className="font-medium text-white">{filteredAnalyses.length}</span> results
+                      <span className="font-medium text-white">{formatNumber(filteredAnalyses.length)}</span> results
                     </p>
                   </div>
                   <div>
