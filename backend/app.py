@@ -12,7 +12,7 @@ from models.user import (
 from models.history import create_history_schema, save_analysis, get_user_history, get_history_by_id, delete_history
 from models.log import create_logs_schema, add_log, get_logs, clear_old_logs
 from werkzeug.security import generate_password_hash
-from utils.email_sender import send_otp_email, send_password_reset_email
+from utils.email_sender import send_otp_email, send_password_reset_email, send_contact_email
 from utils.twitch_chat import TwitchChatBot, extract_channel_name
 from utils.password_validator import validate_password
 from flask_socketio import SocketIO
@@ -1064,6 +1064,27 @@ def resend_otp():
         return jsonify({'message': 'OTP resent successfully'}), 200
     except Exception as e:
         print(f"Error in resend_otp: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/contact', methods=['POST'])
+def contact():
+    try:
+        data = request.get_json()
+        name = data.get('name')
+        email = data.get('email')
+        subject = data.get('subject')
+        message = data.get('message')
+
+        # Validate all fields
+        if not all([name, email, subject, message]):
+            return jsonify({'error': 'All fields are required.'}), 400
+
+        email_sent = send_contact_email(name, email, subject, message)
+        if not email_sent:
+            return jsonify({'error': 'Failed to send message.'}), 500
+
+        return jsonify({'message': 'Message sent successfully!'}), 200
+    except Exception as e:
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':

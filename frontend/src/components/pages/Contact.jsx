@@ -1,4 +1,9 @@
 import React, { useState } from 'react';
+import Swal from 'sweetalert2';
+import { ClipLoader } from 'react-spinners';
+
+// API URL
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 const Contact = () => {
   const [formData, setFormData] = useState({
@@ -7,11 +12,52 @@ const Contact = () => {
     subject: '',
     message: ''
   });
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // TODO: Implement form submission
-    console.log('Form submitted:', formData);
+    setLoading(true);
+    try {
+      await new Promise(resolve => setTimeout(resolve, 1000)); 
+      const response = await fetch(`${API_URL}/api/contact`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+        credentials: 'include',
+      });
+      const result = await response.json();
+      if (response.ok) {
+        await Swal.fire({
+          title: 'Sent!',
+          text: 'Message sent successfully!',
+          icon: 'success',
+          timer: 1000,
+          timerProgressBar: true,
+          showConfirmButton: false,
+          position: 'top-end',
+          toast: true
+        });
+        setFormData({ name: '', email: '', subject: '', message: '' });
+      } else {
+        await Swal.fire({
+          title: 'Error',
+          text: result.error,
+          icon: 'error',
+          showConfirmButton: true,
+          confirmButtonColor: '#EF4444'
+        });
+      }
+    } catch (err) {
+      await Swal.fire({
+        title: 'Error',
+        text: 'An error occurred. Please try again later.',
+        icon: 'error',
+        showConfirmButton: true,
+        confirmButtonColor: '#EF4444'
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleChange = (e) => {
@@ -106,9 +152,16 @@ const Contact = () => {
               <div>
                 <button
                   type="submit"
-                  className="w-full bg-twitch hover:bg-twitch-dark text-white font-medium py-3 rounded transition-colors"
+                  className="w-full bg-twitch hover:bg-twitch-dark text-white font-medium py-3 rounded transition-colors flex items-center justify-center"
+                  disabled={loading}
                 >
-                  Send Message
+                  {loading ? (
+                    <>
+                      <ClipLoader color="#fff" size={22} className="mr-2" /> Sending...
+                    </>
+                  ) : (
+                    'Send Message'
+                  )}
                 </button>
               </div>
             </form>
