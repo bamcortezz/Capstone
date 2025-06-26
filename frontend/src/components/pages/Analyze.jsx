@@ -194,6 +194,12 @@ const Analyze = () => {
 
   // Connect to WebSocket server
   useEffect(() => {
+    // Clean up any existing socket before creating a new one
+    if (socketRef.current) {
+      socketRef.current.disconnect();
+      socketRef.current = null;
+    }
+
     socketRef.current = io(API_URL);
 
     socketRef.current.on('connect', () => {
@@ -207,7 +213,6 @@ const Analyze = () => {
       // Check if we've already processed this message
       if (!processedMessages.current.has(messageId)) {
         processedMessages.current.add(messageId);
-        
         // Push new message to the queue instead of direct state update
         messageQueue.current.push({ ...data, id: messageId });
       }
@@ -257,12 +262,14 @@ const Analyze = () => {
       }
     });
 
+    // Cleanup function to disconnect socket on unmount or dependency change
     return () => {
       if (socketRef.current) {
         socketRef.current.disconnect();
+        socketRef.current = null;
       }
     };
-  }, []);
+  }, [API_URL, user]);
 
   const saveAnalysis = async () => {
     try {
@@ -496,18 +503,26 @@ const Analyze = () => {
     }
   };
 
-  // Get top user for each sentiment
-  const getTopUser = (sentiment) => {
-    return Object.entries(userSentiments[sentiment])
-      .sort(([, a], [, b]) => b - a)
-    [0] || ['-', 0];
-  };
+  // Memoize filtered messages
+  const filteredMessages = useMemo(() => {
+    if (selectedFilter === 'All') return messages;
+    return messages.filter(msg => msg.sentiment.toLowerCase() === selectedFilter.toLowerCase());
+  }, [messages, selectedFilter]);
 
-  // Filter messages based on selected sentiment
-  const filteredMessages = messages.filter(msg => {
-    if (selectedFilter === 'All') return true;
-    return msg.sentiment.toLowerCase() === selectedFilter.toLowerCase();
-  });
+  // Memoize top users for each sentiment
+  const topUsers = useMemo(() => {
+    const sentiments = ['positive', 'neutral', 'negative'];
+    const result = {};
+    sentiments.forEach(sentiment => {
+      const entries = Object.entries(userSentiments[sentiment] || {});
+      if (entries.length === 0) {
+        result[sentiment] = ['-', 0];
+      } else {
+        result[sentiment] = entries.sort(([, a], [, b]) => b - a)[0];
+      }
+    });
+    return result;
+  }, [userSentiments]);
 
   // Disconnect from channel on logout
   useEffect(() => {
@@ -615,7 +630,7 @@ const Analyze = () => {
                   <div className="space-y-3">
                     {/* Positive */}
                     {(() => {
-                      const [username, count] = getTopUser('positive');
+                      const [username, count] = topUsers['positive'];
                       return (
                         <div className="flex justify-between items-center bg-black border border-gray-700/30 p-3 rounded">
                           <span className="text-twitch">{username}</span>
@@ -626,7 +641,7 @@ const Analyze = () => {
 
                     {/* Neutral */}
                     {(() => {
-                      const [username, count] = getTopUser('neutral');
+                      const [username, count] = topUsers['neutral'];
                       return (
                         <div className="flex justify-between items-center bg-black border border-gray-700/30 p-3 rounded">
                           <span className="text-twitch">{username}</span>
@@ -637,7 +652,7 @@ const Analyze = () => {
 
                     {/* Negative */}
                     {(() => {
-                      const [username, count] = getTopUser('negative');
+                      const [username, count] = topUsers['negative'];
                       return (
                         <div className="flex justify-between items-center bg-black border border-gray-700/30 p-3 rounded">
                           <span className="text-twitch">{username}</span>
