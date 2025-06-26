@@ -60,7 +60,10 @@ export const AuthProvider = ({ children }) => {
         toast: true,
         timerProgressBar: true,
         showConfirmButton: false,
-        timer: 1000
+        timer: 1000,
+        confirmButtonColor: '#9147ff',
+        background: '#18181b',
+        color: '#fff'
       });
     } catch (error) {
       console.error('Logout error:', error);
@@ -72,7 +75,10 @@ export const AuthProvider = ({ children }) => {
         toast: true,
         timerProgressBar: true,
         showConfirmButton: false,
-        timer: 1000
+        timer: 1000,
+        confirmButtonColor: '#9147ff',
+        background: '#18181b',
+        color: '#fff'
       });
     }
   };

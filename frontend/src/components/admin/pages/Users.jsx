@@ -59,8 +59,9 @@ const EditUserModal = ({ user, onClose, onSave }) => {
           timerProgressBar: true,
           showConfirmButton: false,
           timer: 3000,
-          background: '#fff',
-          color: '#000'
+          background: '#18181b',
+          color: '#fff',
+          confirmButtonColor: '#9147ff'
         });
       }
     } catch (error) {
@@ -257,8 +258,9 @@ const Users = () => {
           timerProgressBar: true,
           showConfirmButton: false,
           timer: 3000,
-          background: '#fff',
-          color: '#000'
+          background: '#18181b',
+          color: '#fff',
+          confirmButtonColor: '#9147ff'
         });
       } finally {
         setLoading(false);

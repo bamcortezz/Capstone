@@ -44,7 +44,10 @@ const ForgotPassword = () => {
         toast: true,
         timerProgressBar: true,
         showConfirmButton: false,
-        timer: 1000
+        timer: 1000,
+        confirmButtonColor: '#9147ff',
+        background: '#18181b',
+        color: '#fff'
       });
 
     } catch (err) {
@@ -56,7 +59,10 @@ const ForgotPassword = () => {
         toast: true,
         timerProgressBar: true,
         showConfirmButton: false,
-        timer: 1000
+        timer: 1000,
+        confirmButtonColor: '#9147ff',
+        background: '#18181b',
+        color: '#fff'
       });
     } finally {
       setIsLoading(false);

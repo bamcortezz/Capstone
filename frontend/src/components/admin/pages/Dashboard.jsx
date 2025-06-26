@@ -37,8 +37,9 @@ const Dashboard = () => {
           title: 'Error',
           text: errorMessage,
           icon: 'error',
-          background: '#1F2937',
-          color: '#fff'
+          background: '#18181b',
+          color: '#fff',
+          confirmButtonColor: '#9147ff'
         });
       } finally {
         setLoading(false);

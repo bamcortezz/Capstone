@@ -35,7 +35,10 @@ const Contact = () => {
           timerProgressBar: true,
           showConfirmButton: false,
           position: 'top-end',
-          toast: true
+          toast: true,
+          confirmButtonColor: '#9147ff',
+          background: '#18181b',
+          color: '#fff'
         });
         setFormData({ name: '', email: '', subject: '', message: '' });
       } else {
@@ -44,7 +47,9 @@ const Contact = () => {
           text: result.error,
           icon: 'error',
           showConfirmButton: true,
-          confirmButtonColor: '#EF4444'
+          confirmButtonColor: '#9147ff',
+          background: '#18181b',
+          color: '#fff'
         });
       }
     } catch (err) {
@@ -53,7 +58,9 @@ const Contact = () => {
         text: 'An error occurred. Please try again later.',
         icon: 'error',
         showConfirmButton: true,
-        confirmButtonColor: '#EF4444'
+        confirmButtonColor: '#9147ff',
+        background: '#18181b',
+        color: '#fff'
       });
     } finally {
       setLoading(false);

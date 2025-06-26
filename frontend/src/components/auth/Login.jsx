@@ -59,7 +59,10 @@ const Login = () => {
         toast: true,
         timerProgressBar: true,
         showConfirmButton: false,
-        timer: 1000
+        timer: 1000,
+        confirmButtonColor: '#9147ff',
+        background: '#18181b',
+        color: '#fff'
       });
 
       // Navigate based on user role
@@ -78,7 +81,10 @@ const Login = () => {
         toast: true,
         timerProgressBar: true,
         showConfirmButton: false,
-        timer: 1000
+        timer: 1000,
+        confirmButtonColor: '#9147ff',
+        background: '#18181b',
+        color: '#fff'
       });
     } finally {
       setIsLoading(false);

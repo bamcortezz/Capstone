@@ -49,7 +49,10 @@ const OTPVerification = () => {
         toast: true,
         timerProgressBar: true,
         showConfirmButton: false,
-        timer: 1000
+        timer: 1000,
+        confirmButtonColor: '#9147ff',
+        background: '#18181b',
+        color: '#fff'
       });
     } catch (error) {
       Swal.fire({
@@ -60,7 +63,10 @@ const OTPVerification = () => {
         toast: true,
         timerProgressBar: true,
         showConfirmButton: false,
-        timer: 1000
+        timer: 1000,
+        confirmButtonColor: '#9147ff',
+        background: '#18181b',
+        color: '#fff'
       });
     } finally {
       setIsLoading(false);
@@ -108,7 +114,10 @@ const OTPVerification = () => {
         toast: true,
         timerProgressBar: true,
         showConfirmButton: false,
-        timer: 1000
+        timer: 1000,
+        confirmButtonColor: '#9147ff',
+        background: '#18181b',
+        color: '#fff'
       });
 
       // Navigate to login after success
@@ -125,7 +134,10 @@ const OTPVerification = () => {
         toast: true,
         timerProgressBar: true,
         showConfirmButton: false,
-        timer: 1000
+        timer: 1000,
+        confirmButtonColor: '#9147ff',
+        background: '#18181b',
+        color: '#fff'
       });
     } finally {
       setIsLoading(false);

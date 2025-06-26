@@ -19,6 +19,7 @@ import Logs from "./components/admin/pages/Logs"
 import Navbar from "./components/layout/Navbar"
 import useBackendStatus from "./hooks/useBackendStatus"
 import { AuthProvider, useAuth } from "./contexts/AuthContext"
+import { AnalyzeProvider } from "./contexts/AnalyzeContext"
 import AdminRoute from "./components/admin/AdminRoute"
 
 // Protected Route Component
@@ -154,7 +155,9 @@ function App() {
   return (
     <Router>
       <AuthProvider>
-        <AppContent />
+        <AnalyzeProvider>
+          <AppContent />
+        </AnalyzeProvider>
       </AuthProvider>
     </Router>
   );

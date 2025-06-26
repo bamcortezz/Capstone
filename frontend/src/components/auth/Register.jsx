@@ -43,7 +43,10 @@ const Register = () => {
         toast: true,
         timerProgressBar: true,
         showConfirmButton: false,
-        timer: 1000
+        timer: 1000,
+        confirmButtonColor: '#9147ff',
+        background: '#18181b',
+        color: '#fff'
       });
       return;
     }
@@ -78,7 +81,10 @@ const Register = () => {
         toast: true,
         timerProgressBar: true,
         showConfirmButton: false,
-        timer: 1000
+        timer: 1000,
+        confirmButtonColor: '#9147ff',
+        background: '#18181b',
+        color: '#fff'
       });
 
       // Reset form
@@ -102,7 +108,10 @@ const Register = () => {
         toast: true,
         timerProgressBar: true,
         showConfirmButton: false,
-        timer: 1000
+        timer: 1000,
+        confirmButtonColor: '#9147ff',
+        background: '#18181b',
+        color: '#fff'
       });
     } finally {
       setIsLoading(false);

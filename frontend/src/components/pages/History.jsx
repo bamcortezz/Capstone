@@ -160,8 +160,9 @@ const History = () => {
         title: 'Error',
         text: 'Failed to load analysis history',
         icon: 'error',
-        background: '#1F2937',
-        color: '#fff'
+        background: '#18181b',
+        color: '#fff',
+        confirmButtonColor: '#9147ff'
       });
     } finally {
       setLoading(false);
@@ -199,10 +200,10 @@ const History = () => {
       text: "You won't be able to revert this!",
       icon: 'warning',
       showCancelButton: true,
-      confirmButtonColor: '#10B981',
+      confirmButtonColor: '#9147ff',
       cancelButtonColor: '#374151',
       confirmButtonText: 'Yes',
-      background: '#1F2937',
+      background: '#18181b',
       color: '#fff',
       showConfirmButton: true
     });
@@ -231,7 +232,8 @@ const History = () => {
           timerProgressBar: true,
           showConfirmButton: false,
           position: 'top-end',
-          toast: true
+          toast: true,
+          confirmButtonColor: '#9147ff'
         });
       } catch (error) {
         console.error('Delete failed:', error);
@@ -243,7 +245,8 @@ const History = () => {
           timerProgressBar: true,
           showConfirmButton: false,
           position: 'top-end',
-          toast: true
+          toast: true,
+          confirmButtonColor: '#9147ff'
         });
       }
     }
@@ -289,8 +292,9 @@ const History = () => {
         showConfirmButton: false,
         position: 'top-end',
         toast: true,
-        background: '#1F2937',
+        background: '#18181b',
         color: '#fff',
+        confirmButtonColor: '#9147ff'
       });
     }
   };

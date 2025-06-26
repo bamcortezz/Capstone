@@ -4,6 +4,7 @@ import { Pie } from 'react-chartjs-2';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
 import Swal from 'sweetalert2';
 import { useAuth } from '../../contexts/AuthContext';
+import { useAnalyze } from '../../contexts/AnalyzeContext';
 import { FixedSizeList as List } from 'react-window';
 
 // API URL
@@ -83,83 +84,23 @@ const ChatRow = ({ index, style, data }) => {
 
 const Analyze = () => {
   const { user } = useAuth();
+  const {
+    isConnected,
+    currentChannel,
+    messages,
+    sentimentCounts,
+    userSentiments,
+    connectToChannel,
+    disconnectFromChannel,
+    topUsers,
+    getFilteredMessages,
+  } = useAnalyze();
   const [streamUrl, setStreamUrl] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [isConnected, setIsConnected] = useState(false);
-  const [messages, setMessages] = useState([]);
   const [selectedFilter, setSelectedFilter] = useState('All');
-  const socketRef = useRef(null);
-  const messagesEndRef = useRef(null);
-  const [currentChannel, setCurrentChannel] = useState(null);
-  const [sentimentCounts, setSentimentCounts] = useState({
-    positive: 0,
-    neutral: 0,
-    negative: 0
-  });
-  const [userSentiments, setUserSentiments] = useState({
-    positive: {},
-    neutral: {},
-    negative: {}
-  });
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [autoScroll, setAutoScroll] = useState(true);
   const chatContainerRef = useRef(null);
-  const processedMessages = useRef(new Set());
-  const messageQueue = useRef([]);
-
-  // Debounced effect for processing message queue
-  useEffect(() => {
-    const processQueue = () => {
-      if (messageQueue.current.length === 0) return;
-  
-      const newMessages = [...messageQueue.current];
-      messageQueue.current = [];
-  
-      // Batch updates
-      setMessages((prev) => [...prev, ...newMessages]);
-  
-      const newSentimentCounts = { positive: 0, neutral: 0, negative: 0 };
-      const newUserSentiments = {};
-  
-      newMessages.forEach((msg) => {
-        newSentimentCounts[msg.sentiment] += 1;
-  
-        if (!newUserSentiments[msg.sentiment]) {
-          newUserSentiments[msg.sentiment] = {};
-        }
-        if (!newUserSentiments[msg.sentiment][msg.username]) {
-          newUserSentiments[msg.sentiment][msg.username] = 0;
-        }
-        newUserSentiments[msg.sentiment][msg.username] += 1;
-      });
-  
-      setSentimentCounts((prev) => ({
-        positive: prev.positive + newSentimentCounts.positive,
-        neutral: prev.neutral + newSentimentCounts.neutral,
-        negative: prev.negative + newSentimentCounts.negative
-      }));
-  
-      setUserSentiments((prev) => {
-        const updatedSentiments = JSON.parse(JSON.stringify(prev));
-        for (const sentiment in newUserSentiments) {
-          for (const username in newUserSentiments[sentiment]) {
-            if (!updatedSentiments[sentiment]) {
-              updatedSentiments[sentiment] = {};
-            }
-            if (!updatedSentiments[sentiment][username]) {
-              updatedSentiments[sentiment][username] = 0;
-            }
-            updatedSentiments[sentiment][username] += newUserSentiments[sentiment][username];
-          }
-        }
-        return updatedSentiments;
-      });
-    };
-  
-    const intervalId = setInterval(processQueue, 1000); // Process queue every second
-  
-    return () => clearInterval(intervalId);
-  }, []);
 
   // Scroll to bottom whenever messages update
   useEffect(() => {
@@ -192,88 +133,9 @@ const Analyze = () => {
     }
   };
 
-  // Connect to WebSocket server
-  useEffect(() => {
-    // Clean up any existing socket before creating a new one
-    if (socketRef.current) {
-      socketRef.current.disconnect();
-      socketRef.current = null;
-    }
-
-    socketRef.current = io(API_URL);
-
-    socketRef.current.on('connect', () => {
-      console.log('Connected to WebSocket server');
-    });
-
-    socketRef.current.on('chat_message', (data) => {
-      // Create a unique identifier for the message based on content and username only
-      const messageId = `${data.username}-${data.message}`;
-
-      // Check if we've already processed this message
-      if (!processedMessages.current.has(messageId)) {
-        processedMessages.current.add(messageId);
-        // Push new message to the queue instead of direct state update
-        messageQueue.current.push({ ...data, id: messageId });
-      }
-    });
-
-    socketRef.current.on('disconnect', () => {
-      console.log('Disconnected from WebSocket server');
-      setIsConnected(false);
-      setCurrentChannel(null);
-      setMessages([]);
-      // Reset sentiment counts
-      setSentimentCounts({
-        positive: 0,
-        neutral: 0,
-        negative: 0
-      });
-      // Reset user sentiments
-      setUserSentiments({
-        positive: {},
-        neutral: {},
-        negative: {}
-      });
-      // Clear processed messages
-      processedMessages.current.clear();
-    });
-
-    socketRef.current.on('disconnect_notification', (data) => {
-      if (data.channel === currentChannel) {
-        setIsConnected(false);
-        setCurrentChannel(null);
-        setMessages([]);
-        setStreamUrl('');
-        // Reset sentiment counts
-        setSentimentCounts({
-          positive: 0,
-          neutral: 0,
-          negative: 0
-        });
-        // Reset user sentiments
-        setUserSentiments({
-          positive: {},
-          neutral: {},
-          negative: {}
-        });
-        // Clear processed messages
-        processedMessages.current.clear();
-      }
-    });
-
-    // Cleanup function to disconnect socket on unmount or dependency change
-    return () => {
-      if (socketRef.current) {
-        socketRef.current.disconnect();
-        socketRef.current = null;
-      }
-    };
-  }, [API_URL, user]);
-
+  // Save analysis logic (remains local, but uses context state)
   const saveAnalysis = async () => {
     try {
-      // Get top contributors for each sentiment
       const getTopContributors = (sentimentType, limit = 5) => {
         const contributors = Object.entries(userSentiments[sentimentType])
           .map(([username, count]) => ({ username, count }))
@@ -281,7 +143,6 @@ const Analyze = () => {
           .slice(0, limit);
         return contributors;
       };
-
       const analysisData = {
         streamer_name: currentChannel,
         total_chats: messages.length,
@@ -290,20 +151,16 @@ const Analyze = () => {
         top_negative: getTopContributors('negative'),
         top_neutral: getTopContributors('neutral')
       };
-
-      const response = await fetch(`${API_URL}/api/history/save`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/history/save`, {
         method: 'POST', 
         headers: { 'Content-Type': 'application/json' }, 
         credentials: 'include', 
         body: JSON.stringify(analysisData)
       });
-
       const data = await response.json();
-
       if (!response.ok) {
         throw new Error(data.error || 'Failed to save analysis');
       }
-
       await Swal.fire({
         title: 'Saved!',
         text: 'Analysis has been saved successfully',
@@ -312,25 +169,26 @@ const Analyze = () => {
         timerProgressBar: true,
         showConfirmButton: false,
         position: 'top-end',
-        toast: true
+        toast: true,
+        confirmButtonColor: '#9147ff',
+        background: '#18181b',
+        color: '#fff'
       });
-
       return true;
     } catch (error) {
       console.error('Save failed:', error);
-
-      // Show detailed error message
       let errorMessage = 'Failed to save analysis data';
       if (error.message) {
         errorMessage += `: ${error.message}`;
       }
-
       await Swal.fire({
         title: 'Error',
         text: errorMessage,
         icon: 'error',
         showConfirmButton: true,
-        confirmButtonColor: '#EF4444'
+        confirmButtonColor: '#EF4444',
+        background: '#18181b',
+        color: '#fff'
       });
       return false;
     }
@@ -339,10 +197,8 @@ const Analyze = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsAnalyzing(true);
-
     try {
       if (isConnected) {
-        // Show different SweetAlert options based on user session
         const alertOptions = user ? {
           title: 'Disconnect from Analysis?',
           text: 'What would you like to do with the current analysis?',
@@ -352,9 +208,11 @@ const Analyze = () => {
           confirmButtonText: 'Save',
           denyButtonText: 'Discard',
           cancelButtonText: 'Cancel',
-          confirmButtonColor: '#10B981', // Green for save
-          denyButtonColor: '#EF4444',    // Red for disconnect
-          cancelButtonColor: '#6B7280'    // Gray for cancel
+          confirmButtonColor: '#9147ff',
+          denyButtonColor: '#EF4444',
+          cancelButtonColor: '#6B7280',
+          background: '#18181b',
+          color: '#fff'
         } : {
           title: 'Disconnect from Analysis?',
           text: 'Are you sure you want to disconnect?',
@@ -364,20 +222,18 @@ const Analyze = () => {
           showConfirmButton: false,
           denyButtonText: 'Disconnect',
           cancelButtonText: 'Cancel',
-          denyButtonColor: '#EF4444',    // Red for disconnect
-          cancelButtonColor: '#6B7280'    // Gray for cancel
+          denyButtonColor: '#EF4444',
+          cancelButtonColor: '#6B7280',
+          background: '#18181b',
+          color: '#fff'
         };
-
         const result = await Swal.fire(alertOptions);
-
         if (result.isConfirmed && user) {
-          // Save the analysis (only possible if user is logged in)
           const saved = await saveAnalysis();
           if (saved) {
             await disconnectFromChannel();
           }
         } else if (result.isDenied) {
-          // Just disconnect
           await disconnectFromChannel();
           await Swal.fire({
             title: user ? 'Discarded!' : 'Disconnected!',
@@ -387,48 +243,17 @@ const Analyze = () => {
             timerProgressBar: true,
             showConfirmButton: false,
             position: 'top-end',
-            toast: true
+            toast: true,
+            confirmButtonColor: '#9147ff',
+            background: '#18181b',
+            color: '#fff'
           });
         }
-        // If cancelled, do nothing
       } else {
-        // Connect to new channel
-        const response = await fetch(`${API_URL}/api/twitch/connect`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ url: streamUrl }),
-          credentials: 'include'
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to connect to channel');
-        }
-
-        const data = await response.json();
-        setIsConnected(true);
-        setCurrentChannel(data.channel);
-        
-        // Log that user started an analysis (if logged in)
-        if (user) {
-          try {
-            await fetch(`${API_URL}/api/log/analysis-start`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              credentials: 'include',
-              body: JSON.stringify({ streamer: data.channel }),
-            });
-          } catch (logError) {
-            console.error('Failed to log analysis start:', logError);
-          }
-        }
+        await connectToChannel(streamUrl);
       }
     } catch (error) {
       console.error('Action failed:', error);
-      // Replace error state with SweetAlert toast
       Swal.fire({
         title: 'Invalid Link',
         text: error.message || 'Failed to connect to channel',
@@ -437,92 +262,17 @@ const Analyze = () => {
         position: 'top-end',
         showConfirmButton: false,
         timer: 1000,
-        timerProgressBar: true
+        timerProgressBar: true,
+        background: '#18181b',
+        color: '#fff'
       });
     } finally {
       setIsAnalyzing(false);
     }
   };
 
-  // Helper function to handle channel disconnection
-  const disconnectFromChannel = async () => {
-    try {
-      const response = await fetch(`${API_URL}/api/twitch/disconnect`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({ channel: currentChannel }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to disconnect');
-      }
-
-      // Clean up the local state
-      setIsConnected(false);
-      setCurrentChannel(null);
-      setMessages([]);
-      setStreamUrl('');
-      // Reset sentiment counts
-      setSentimentCounts({
-        positive: 0,
-        neutral: 0,
-        negative: 0
-      });
-      // Reset user sentiments
-      setUserSentiments({
-        positive: {},
-        neutral: {},
-        negative: {}
-      });
-      // Clear processed messages
-      processedMessages.current.clear();
-    } catch (error) {
-      console.error('Disconnect failed:', error);
-      // Still clean up the local state even if the server request fails
-      setIsConnected(false);
-      setCurrentChannel(null);
-      setMessages([]);
-      setStreamUrl('');
-      // Reset sentiment counts
-      setSentimentCounts({
-        positive: 0,
-        neutral: 0,
-        negative: 0
-      });
-      // Reset user sentiments
-      setUserSentiments({
-        positive: {},
-        neutral: {},
-        negative: {}
-      });
-      // Clear processed messages
-      processedMessages.current.clear();
-    }
-  };
-
-  // Memoize filtered messages
-  const filteredMessages = useMemo(() => {
-    if (selectedFilter === 'All') return messages;
-    return messages.filter(msg => msg.sentiment.toLowerCase() === selectedFilter.toLowerCase());
-  }, [messages, selectedFilter]);
-
-  // Memoize top users for each sentiment
-  const topUsers = useMemo(() => {
-    const sentiments = ['positive', 'neutral', 'negative'];
-    const result = {};
-    sentiments.forEach(sentiment => {
-      const entries = Object.entries(userSentiments[sentiment] || {});
-      if (entries.length === 0) {
-        result[sentiment] = ['-', 0];
-      } else {
-        result[sentiment] = entries.sort(([, a], [, b]) => b - a)[0];
-      }
-    });
-    return result;
-  }, [userSentiments]);
+  // Memoize filtered messages using context method
+  const filteredMessages = useMemo(() => getFilteredMessages(selectedFilter), [getFilteredMessages, selectedFilter]);
 
   // Disconnect from channel on logout
   useEffect(() => {
@@ -530,7 +280,7 @@ const Analyze = () => {
       disconnectFromChannel();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+  }, [user, isConnected, disconnectFromChannel]);
 
   return (
     <div className="min-h-screen bg-black py-6 px-8">

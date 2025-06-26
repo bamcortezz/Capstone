@@ -44,7 +44,9 @@ const Settings = () => {
           position: 'top-end',
           showConfirmButton: false,
           timer: 1000,
-          timerProgressBar: true
+          timerProgressBar: true,
+          background: '#18181b',
+          color: '#fff'
         });
         return;
       }
@@ -60,7 +62,9 @@ const Settings = () => {
           position: 'top-end',
           showConfirmButton: false,
           timer: 1000,
-          timerProgressBar: true
+          timerProgressBar: true,
+          background: '#18181b',
+          color: '#fff'
         });
         return;
       }
@@ -76,7 +80,9 @@ const Settings = () => {
         position: 'top-end',
         showConfirmButton: false,
         timer: 1000,
-        timerProgressBar: true
+        timerProgressBar: true,
+        background: '#18181b',
+        color: '#fff'
       });
     } catch (error) {
       console.error('Error saving profile information:', error);
@@ -88,7 +94,9 @@ const Settings = () => {
         position: 'top-end',
         showConfirmButton: false,
         timer: 1000,
-        timerProgressBar: true
+        timerProgressBar: true,
+        background: '#18181b',
+        color: '#fff'
       });
     } finally {
       setIsProfileSaving(false);
@@ -107,7 +115,9 @@ const Settings = () => {
           position: 'top-end',
           showConfirmButton: false,
           timer: 1000,
-          timerProgressBar: true
+          timerProgressBar: true,
+          background: '#18181b',
+          color: '#fff'
         });
         return;
       }
@@ -136,7 +146,9 @@ const Settings = () => {
         position: 'top-end',
         showConfirmButton: false,
         timer: 1000,
-        timerProgressBar: true
+        timerProgressBar: true,
+        background: '#18181b',
+        color: '#fff'
       });
     } catch (error) {
       console.error('Error saving profile image:', error);
@@ -148,7 +160,9 @@ const Settings = () => {
         position: 'top-end',
         showConfirmButton: false,
         timer: 1000,
-        timerProgressBar: true
+        timerProgressBar: true,
+        background: '#18181b',
+        color: '#fff'
       });
     } finally {
       setIsSaving(false);
@@ -164,7 +178,9 @@ const Settings = () => {
         showCancelButton: true,
         confirmButtonColor: '#9147ff',
         cancelButtonColor: '#d33',
-        confirmButtonText: 'Yes, remove it!'
+        confirmButtonText: 'Yes, remove it!',
+        background: '#18181b',
+        color: '#fff'
       });
 
       if (result.isConfirmed) {
@@ -180,7 +196,9 @@ const Settings = () => {
           position: 'top-end',
           showConfirmButton: false,
           timer: 1000,
-          timerProgressBar: true
+          timerProgressBar: true,
+          background: '#18181b',
+          color: '#fff'
         });
       }
     } catch (error) {
@@ -193,7 +211,9 @@ const Settings = () => {
         position: 'top-end',
         showConfirmButton: false,
         timer: 1000,
-        timerProgressBar: true
+        timerProgressBar: true,
+        background: '#18181b',
+        color: '#fff'
       });
     } finally {
       setIsRemoving(false);
