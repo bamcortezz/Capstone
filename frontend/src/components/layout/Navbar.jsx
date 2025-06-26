@@ -44,7 +44,6 @@ const Navbar = () => {
         <div className="max-w-7xl mx-auto flex justify-between items-center">
           {/* Left - Logo */}
           <Link to="/" className="flex items-center space-x-3 text-white text-2xl font-bold">
-            <img src={Logo} alt="Twitch Insight Logo" className="h-8 w-8 object-contain" />
             <span>
               Twitch <span className="text-twitch">Insight</span>
             </span>

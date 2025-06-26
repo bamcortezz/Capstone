@@ -10,7 +10,6 @@ const AdminNavbar = ({ onMenuClick }) => {
           {/* Left - Logo and Brand */}
           <div className="flex items-center">
             <Link to="/admin/dashboard" className="flex items-center space-x-3 text-white text-3xl font-bold tracking-tight">
-              <img src={Logo} alt="Twitch Insight Logo" className="h-9 w-9 object-contain" />
               <span>
                 Twitch <span className="text-twitch">Insight</span>
               </span>
