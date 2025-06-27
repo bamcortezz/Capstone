@@ -101,6 +101,7 @@ const Analyze = () => {
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [autoScroll, setAutoScroll] = useState(true);
   const chatContainerRef = useRef(null);
+  const [isDisconnecting, setIsDisconnecting] = useState(false);
 
   // Scroll to bottom whenever messages update
   useEffect(() => {
@@ -285,7 +286,7 @@ const Analyze = () => {
   return (
     <div className="min-h-screen bg-black py-6 px-8">
       {/* Main container */}
-      <div className="max-w-[1400px] mx-auto space-y-6">
+      <div className={`max-w-[1400px] mx-auto space-y-6${isConnected ? ' mt-8' : ''} ${isConnected ? 'min-h-[80vh] flex flex-col justify-stretch' : ''}`}>
 
         {!isConnected && (
           <div className="text-center pt-6 pb-12">
@@ -299,52 +300,52 @@ const Analyze = () => {
         )}
 
         {/* Top Container - Connect to Channel */}
-        <div className="bg-black border border-gray-700 rounded-lg p-4 shadow-lg">
-          <h2 className="text-2xl font-bold text-white mb-4">Connect to Channel</h2>
-          <p className="text-gray-300 mb-4">Enter a Twitch channel URL to start analyzing chat</p>
+        {!isConnected && (
+          <div className="bg-black border border-gray-700 rounded-lg p-4 shadow-lg">
+            <h2 className="text-2xl font-bold text-white mb-4">Connect to Channel</h2>
+            <p className="text-gray-300 mb-4">Enter a Twitch channel URL to start analyzing chat</p>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label htmlFor="streamUrl" className="block text-base font-medium text-gray-300 mb-2">
-                Twitch Channel URL
-              </label>
-              <input
-                type="url"
-                id="streamUrl"
-                value={streamUrl}
-                onChange={(e) => setStreamUrl(e.target.value)}
-                placeholder="https://twitch.tv/channelname"
-                required={!isConnected}
-                disabled={isConnected}
-                className="w-full px-4 py-3 rounded-lg bg-gray-900 border border-gray-700 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-twitch disabled:opacity-50"
-              />
-              <p className="text-sm text-gray-400 mt-1">Format: https://www.twitch.tv/channelname</p>
-            </div>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label htmlFor="streamUrl" className="block text-base font-medium text-gray-300 mb-2">
+                  Twitch Channel URL
+                </label>
+                <input
+                  type="url"
+                  id="streamUrl"
+                  value={streamUrl}
+                  onChange={(e) => setStreamUrl(e.target.value)}
+                  placeholder="https://twitch.tv/channelname"
+                  required={!isConnected}
+                  disabled={isConnected}
+                  className="w-full px-4 py-3 rounded-lg bg-gray-900 border border-gray-700 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-twitch disabled:opacity-50"
+                />
+                <p className="text-sm text-gray-400 mt-1">Format: https://www.twitch.tv/channelname</p>
+              </div>
 
-            <button
-              type="submit"
-              disabled={isAnalyzing}
-              className={`px-6 py-3 rounded-lg font-medium transition-colors flex items-center justify-center ${isAnalyzing
-                ? 'bg-gray-600 cursor-not-allowed'
-                : isConnected
-                  ? 'bg-red-600 hover:bg-red-700 text-white'
+              <button
+                type="submit"
+                disabled={isAnalyzing}
+                className={`px-6 py-3 rounded-lg font-medium transition-colors flex items-center justify-center ${isAnalyzing
+                  ? 'bg-gray-600 cursor-not-allowed'
                   : 'bg-twitch hover:bg-twitch-dark text-white'
-                }`}
-            >
-              {isAnalyzing ? (
-                <>
-                  <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  <span>{isConnected ? 'Disconnecting...' : 'Connecting...'}</span>
-                </>
-              ) : (
-                isConnected ? 'Disconnect' : 'Connect and Analyze'
-              )}
-            </button>
-          </form>
-        </div>
+                  }`}
+              >
+                {isAnalyzing ? (
+                  <>
+                    <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span>Connecting...</span>
+                  </>
+                ) : (
+                  'Connect and Analyze'
+                )}
+              </button>
+            </form>
+          </div>
+        )}
 
         {/* Bottom Container - Analysis and Chat */}
         {isConnected && (
@@ -353,7 +354,16 @@ const Analyze = () => {
             <div className="lg:col-span-4 space-y-6">
               {/* Overall Sentiment Analysis */}
               <div className="bg-black border border-gray-700 rounded-lg p-6 shadow-lg">
-                <h2 className="text-xl font-bold text-white mb-3">Overall Sentiment Analysis</h2>
+                <div className="flex items-center justify-between mb-3">
+                  <h2 className="text-xl font-bold text-white flex items-center gap-3">
+                    Overall Sentiment Analysis
+                    {isConnected && messages.length > 0 && (
+                      <span className="ml-3 px-3 py-1 rounded-full bg-gray-800 text-gray-300 text-sm font-medium border border-gray-700">
+                        {formatNumber(messages.length)} messages
+                      </span>
+                    )}
+                  </h2>
+                </div>
                 <p className="text-sm text-gray-400 mb-4">Real-time sentiment breakdown of chat messages</p>
 
                 {isConnected && messages.length > 0 ? (
@@ -426,8 +436,8 @@ const Analyze = () => {
             {/* Right Side - Chat Container (65%) */}
             <div className="lg:col-span-8">
               <div className="bg-black border border-gray-700 rounded-lg p-6 shadow-lg h-full min-h-[600px] relative">
-                <div className="flex justify-between items-center mb-4">
-                  <div className="flex bg-gray-900 rounded-lg p-1">
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-4">
+                  <div className="flex bg-gray-900 rounded-lg p-1 w-full sm:w-auto">
                     {['All', 'Positive', 'Neutral', 'Negative'].map((filter) => (
                       <button
                         key={filter}
@@ -442,9 +452,73 @@ const Analyze = () => {
                       </button>
                     ))}
                   </div>
-                  <span className="text-gray-400 text-sm">
-                    {formatNumber(filteredMessages.length)} messages
-                  </span>
+                  <div className="flex flex-col sm:flex-row sm:items-center w-full sm:w-auto gap-2 sm:gap-3">
+                    <span className="text-gray-400 text-sm text-left sm:text-right">
+                      Connected to: <span className="text-twitch font-semibold">{currentChannel}</span>
+                    </span>
+                    {isConnected && (
+                      <button
+                        onClick={async () => {
+                          setIsDisconnecting(true);
+                          const alertOptions = user ? {
+                            title: 'Disconnect from Analysis?',
+                            text: 'What would you like to do with the current analysis?',
+                            icon: 'warning',
+                            showDenyButton: true,
+                            showCancelButton: true,
+                            confirmButtonText: 'Save',
+                            denyButtonText: 'Discard',
+                            cancelButtonText: 'Cancel',
+                            confirmButtonColor: '#9147ff',
+                            denyButtonColor: '#EF4444',
+                            cancelButtonColor: '#6B7280',
+                            background: '#18181b',
+                            color: '#fff'
+                          } : {
+                            title: 'Disconnect from Analysis?',
+                            text: 'Are you sure you want to disconnect?',
+                            icon: 'warning',
+                            showDenyButton: true,
+                            showCancelButton: true,
+                            showConfirmButton: false,
+                            denyButtonText: 'Disconnect',
+                            cancelButtonText: 'Cancel',
+                            denyButtonColor: '#EF4444',
+                            cancelButtonColor: '#6B7280',
+                            background: '#18181b',
+                            color: '#fff'
+                          };
+                          const result = await Swal.fire(alertOptions);
+                          if (result.isConfirmed && user) {
+                            const saved = await saveAnalysis();
+                            if (saved) {
+                              await disconnectFromChannel();
+                            }
+                          } else if (result.isDenied) {
+                            await disconnectFromChannel();
+                            await Swal.fire({
+                              title: user ? 'Discarded!' : 'Disconnected!',
+                              text: user ? 'Analysis has been discarded' : 'Disconnected from channel',
+                              icon: 'info',
+                              timer: 1000,
+                              timerProgressBar: true,
+                              showConfirmButton: false,
+                              position: 'top-end',
+                              toast: true,
+                              confirmButtonColor: '#9147ff',
+                              background: '#18181b',
+                              color: '#fff'
+                            });
+                          }
+                          setIsDisconnecting(false);
+                        }}
+                        className="ml-0 sm:ml-2 px-4 py-1.5 rounded-md bg-red-600 hover:bg-red-700 text-white text-sm font-semibold transition-colors shadow disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled={isDisconnecting}
+                      >
+                        {isDisconnecting ? 'Disconnecting...' : 'Disconnect'}
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {isConnected && messages.length > 0 ? (
