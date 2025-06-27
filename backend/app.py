@@ -1087,6 +1087,60 @@ def contact():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/user/change-password', methods=['POST'])
+def change_password():
+    try:
+        if 'user_id' not in session:
+            return jsonify({'error': 'Not authenticated'}), 401
+        data = request.get_json()
+        old_password = data.get('old_password')
+        new_password = data.get('new_password')
+        if not old_password or not new_password:
+            return jsonify({'error': 'Old and new password are required'}), 400
+        user = get_user_by_id(mongo, session['user_id'])
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+        if not verify_password(user, old_password):
+            return jsonify({'error': 'Incorrect old password'}), 401
+        # Validate new password
+        is_valid, error_message = validate_password(new_password)
+        if not is_valid:
+            return jsonify({'error': error_message}), 400
+        # Update password hash
+        password_hash = generate_password_hash(new_password, method='pbkdf2:sha256')
+        result = mongo.db.users.update_one(
+            {'_id': user['_id']},
+            {'$set': {'password_hash': password_hash, 'updated_at': datetime.utcnow()}}
+        )
+        if result.modified_count == 0:
+            return jsonify({'error': 'Failed to update password'}), 500
+        return jsonify({'message': 'Password changed successfully'}), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/user/delete-account', methods=['DELETE'])
+def delete_account():
+    try:
+        if 'user_id' not in session:
+            return jsonify({'error': 'Not authenticated'}), 401
+        data = request.get_json()
+        password = data.get('password')
+        if not password:
+            return jsonify({'error': 'Password is required'}), 400
+        user = get_user_by_id(mongo, session['user_id'])
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+        if not verify_password(user, password):
+            return jsonify({'error': 'Incorrect password'}), 401
+        # Delete the user
+        result = mongo.db.users.delete_one({'_id': user['_id']})
+        session.clear()
+        if result.deleted_count == 0:
+            return jsonify({'error': 'Failed to delete account'}), 500
+        return jsonify({'message': 'Account deleted successfully'}), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 if __name__ == '__main__':
     import os
     port = int(os.environ.get("PORT", 5000))

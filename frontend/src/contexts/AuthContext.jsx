@@ -154,6 +154,49 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const changePassword = async (oldPassword, newPassword) => {
+    try {
+      const response = await fetch(`${API_URL}/api/user/change-password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ old_password: oldPassword, new_password: newPassword }),
+        credentials: 'include',
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to change password');
+      }
+      return data;
+    } catch (error) {
+      console.error('Change password error:', error);
+      throw error;
+    }
+  };
+
+  const deleteAccount = async (password) => {
+    try {
+      const response = await fetch(`${API_URL}/api/user/delete-account`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ password }),
+        credentials: 'include',
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to delete account');
+      }
+      setUser(null);
+      return data;
+    } catch (error) {
+      console.error('Delete account error:', error);
+      throw error;
+    }
+  };
+
   return (
     <AuthContext.Provider value={{ 
       user, 
@@ -162,7 +205,9 @@ export const AuthProvider = ({ children }) => {
       logout,
       updateProfile,
       updateProfileImage,
-      removeProfileImage
+      removeProfileImage,
+      changePassword,
+      deleteAccount
     }}>
       {!loading && children}
     </AuthContext.Provider>
