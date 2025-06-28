@@ -357,11 +357,6 @@ const Analyze = () => {
                 <div className="flex items-center justify-between mb-3">
                   <h2 className="text-xl font-bold text-white flex items-center gap-3">
                     Overall Sentiment Analysis
-                    {isConnected && messages.length > 0 && (
-                      <span className="ml-3 px-3 py-1 rounded-full bg-gray-800 text-gray-300 text-sm font-medium border border-gray-700">
-                        {formatNumber(messages.length)} messages
-                      </span>
-                    )}
                   </h2>
                 </div>
                 <p className="text-sm text-gray-400 mb-4">Real-time sentiment breakdown of chat messages</p>
@@ -383,7 +378,14 @@ const Analyze = () => {
 
               {/* Top Chatters Analysis */}
               <div className="bg-black border border-gray-700 rounded-lg p-6 shadow-lg">
-                <h2 className="text-xl font-bold text-white mb-3">Top Chatters Analysis</h2>
+                <div className="flex items-center justify-between mb-3">
+                  <h2 className="text-xl font-bold text-white">Top Chatters Analysis</h2>
+                  {isConnected && messages.length > 0 && (
+                    <span className="ml-3 px-3 py-1 rounded-full bg-gray-800 text-gray-300 text-sm font-medium border border-gray-700">
+                      {formatNumber(messages.length)} messages
+                    </span>
+                  )}
+                </div>
                 <p className="text-sm text-gray-400 mb-4">Users with most messages by sentiment</p>
 
                 {isConnected && messages.length > 0 ? (
@@ -437,22 +439,7 @@ const Analyze = () => {
             <div className="lg:col-span-8">
               <div className="bg-black border border-gray-700 rounded-lg p-6 shadow-lg h-full min-h-[600px] relative">
                 <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-4">
-                  <div className="flex bg-gray-900 rounded-lg p-1 w-full sm:w-auto">
-                    {['All', 'Positive', 'Neutral', 'Negative'].map((filter) => (
-                      <button
-                        key={filter}
-                        onClick={() => setSelectedFilter(filter)}
-                        className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
-                          selectedFilter === filter
-                            ? 'bg-twitch text-white'
-                            : 'text-gray-400 hover:text-twitch hover:bg-gray-900'
-                        }`}
-                      >
-                        {filter}
-                      </button>
-                    ))}
-                  </div>
-                  <div className="flex flex-col sm:flex-row sm:items-center w-full sm:w-auto gap-2 sm:gap-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center w-full sm:w-auto gap-2 sm:gap-3 order-2 sm:order-1">
                     <span className="text-gray-400 text-sm text-left sm:text-right">
                       Connected to: <span className="text-twitch font-semibold">{currentChannel}</span>
                     </span>
@@ -518,6 +505,21 @@ const Analyze = () => {
                         {isDisconnecting ? 'Disconnecting...' : 'Disconnect'}
                       </button>
                     )}
+                  </div>
+                  <div className="flex bg-gray-900 rounded-lg p-1 w-full sm:w-auto order-1 sm:order-2 sm:ml-auto">
+                    {['All', 'Positive', 'Neutral', 'Negative'].map((filter) => (
+                      <button
+                        key={filter}
+                        onClick={() => setSelectedFilter(filter)}
+                        className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                          selectedFilter === filter
+                            ? 'bg-twitch text-white'
+                            : 'text-gray-400 hover:text-twitch hover:bg-gray-900'
+                        }`}
+                      >
+                        {filter}
+                      </button>
+                    ))}
                   </div>
                 </div>
 
