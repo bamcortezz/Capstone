@@ -14,7 +14,7 @@ const Logs = () => {
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [totalItems, setTotalItems] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
-  const [sortConfig, setSortConfig] = useState({ key: 'timestamp', direction: 'desc' });
+  const [sortConfig, setSortConfig] = useState({ key: 'created_at', direction: 'desc' });
 
   // Handle items per page change
   const handleItemsPerPageChange = (newItemsPerPage) => {
@@ -213,11 +213,11 @@ const Logs = () => {
                     <th
                       scope="col"
                       className="px-6 py-4 text-left text-xs font-medium text-gray-300 uppercase tracking-wider cursor-pointer hover:text-white"
-                      onClick={() => handleSort('timestamp')}
+                      onClick={() => handleSort('created_at')}
                     >
                       <div className="flex items-center space-x-1">
-                        <span>Timestamp</span>
-                        {sortConfig.key === 'timestamp' && (
+                        <span>Created At</span>
+                        {sortConfig.key === 'created_at' && (
                           <svg className={`w-4 h-4 ${sortConfig.direction === 'desc' ? 'transform rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 15l7-7 7 7" />
                           </svg>
@@ -253,10 +253,10 @@ const Logs = () => {
                           </span>
                         </td>
                         <td className="px-6 py-4">
-                          <div className="text-sm text-gray-300">{log.details || "-"}</div>
+                          <div className="text-sm text-gray-300">{log.details || "No additional details provided"}</div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-300">{formatDate(log.timestamp)}</div>
+                          <div className="text-sm text-gray-300">{formatDate(log.created_at)}</div>
                         </td>
                       </tr>
                     ))

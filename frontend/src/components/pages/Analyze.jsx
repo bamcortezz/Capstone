@@ -68,12 +68,12 @@ const ChatRow = ({ index, style, data }) => {
         </span>
       </div>
       <span
-        className={`ml-4 px-2 py-1 rounded text-xs font-medium whitespace-nowrap flex-shrink-0 ${
+        className={`ml-4 px-2 py-1 rounded text-xs font-bold uppercase whitespace-nowrap flex-shrink-0 ${
           msg.sentiment === 'positive'
-            ? 'bg-green-700 text-green-200'
+            ? 'text-green-400'
             : msg.sentiment === 'negative'
-            ? 'bg-red-700 text-red-200'
-            : 'bg-gray-700 text-gray-200'
+            ? 'text-red-400'
+            : 'text-gray-400'
         }`}
       >
         {msg.sentiment}
@@ -94,6 +94,8 @@ const Analyze = () => {
     disconnectFromChannel,
     topUsers,
     getFilteredMessages,
+    sessionStart,
+    setSessionStart,
   } = useAnalyze();
   const [streamUrl, setStreamUrl] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -102,6 +104,7 @@ const Analyze = () => {
   const [autoScroll, setAutoScroll] = useState(true);
   const chatContainerRef = useRef(null);
   const [isDisconnecting, setIsDisconnecting] = useState(false);
+  const [elapsed, setElapsed] = useState(0);
 
   // Scroll to bottom whenever messages update
   useEffect(() => {
@@ -275,13 +278,21 @@ const Analyze = () => {
   // Memoize filtered messages using context method
   const filteredMessages = useMemo(() => getFilteredMessages(selectedFilter), [getFilteredMessages, selectedFilter]);
 
-  // Disconnect from channel on logout
   useEffect(() => {
-    if (user === null && isConnected) {
-      disconnectFromChannel();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, isConnected, disconnectFromChannel]);
+    if (!sessionStart) return;
+    setElapsed(Math.floor((Date.now() - sessionStart) / 1000));
+    const interval = setInterval(() => {
+      setElapsed(Math.floor((Date.now() - sessionStart) / 1000));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [sessionStart]);
+
+  function formatElapsed(seconds) {
+    const h = String(Math.floor(seconds / 3600)).padStart(2, '0');
+    const m = String(Math.floor((seconds % 3600) / 60)).padStart(2, '0');
+    const s = String(seconds % 60).padStart(2, '0');
+    return `${h}:${m}:${s}`;
+  }
 
   return (
     <div className="min-h-screen bg-black py-6 px-8">
@@ -358,6 +369,11 @@ const Analyze = () => {
                   <h2 className="text-xl font-bold text-white flex items-center gap-3">
                     Overall Sentiment Analysis
                   </h2>
+                  {isConnected && (
+                    <span className="ml-3 px-3 py-1 rounded-full bg-gray-800 text-gray-300 text-sm font-medium border border-gray-700">
+                      {formatElapsed(elapsed)}
+                    </span>
+                  )}
                 </div>
                 <p className="text-sm text-gray-400 mb-4">Real-time sentiment breakdown of chat messages</p>
 
@@ -389,39 +405,55 @@ const Analyze = () => {
                 <p className="text-sm text-gray-400 mb-4">Users with most messages by sentiment</p>
 
                 {isConnected && messages.length > 0 ? (
-                  <div className="space-y-3">
+                  <div className="flex flex-col md:flex-row gap-4 h-full">
                     {/* Positive */}
-                    {(() => {
-                      const [username, count] = topUsers['positive'];
-                      return (
-                        <div className="flex justify-between items-center bg-black border border-gray-700/30 p-3 rounded">
-                          <span className="text-twitch">{username}</span>
-                          <span className="text-green-400 font-medium">{formatNumber(count)} {count === 1 ? 'message' : 'messages'}</span>
-                        </div>
-                      );
-                    })()}
-
+                    <div className="flex-1 bg-black border border-gray-700 rounded p-2 min-w-0 h-full flex flex-col overflow-y-auto max-h-72">
+                      <h3 className="text-green-400 font-semibold text-center mb-2">Positive</h3>
+                      {Object.entries(userSentiments.positive || {})
+                        .sort(([, a], [, b]) => b - a)
+                        .slice(0, 5)
+                        .map(([username, count], idx) => (
+                          <div key={username} className="flex justify-between items-center py-1 px-2 rounded hover:bg-gray-900/10">
+                            <span className="truncate text-twitch">{username}</span>
+                            <span className="text-green-400 font-medium">{formatNumber(count)}</span>
+                          </div>
+                        ))}
+                      {Object.keys(userSentiments.positive || {}).length === 0 && (
+                        <div className="text-gray-400 text-center py-2">No data</div>
+                      )}
+                    </div>
                     {/* Neutral */}
-                    {(() => {
-                      const [username, count] = topUsers['neutral'];
-                      return (
-                        <div className="flex justify-between items-center bg-black border border-gray-700/30 p-3 rounded">
-                          <span className="text-twitch">{username}</span>
-                          <span className="text-gray-400 font-medium">{formatNumber(count)} {count === 1 ? 'message' : 'messages'}</span>
-                        </div>
-                      );
-                    })()}
-
+                    <div className="flex-1 bg-black border border-gray-700 rounded p-2 min-w-0 h-full flex flex-col overflow-y-auto max-h-72">
+                      <h3 className="text-gray-400 font-semibold text-center mb-2">Neutral</h3>
+                      {Object.entries(userSentiments.neutral || {})
+                        .sort(([, a], [, b]) => b - a)
+                        .slice(0, 5)
+                        .map(([username, count], idx) => (
+                          <div key={username} className="flex justify-between items-center py-1 px-2 rounded hover:bg-gray-900/10">
+                            <span className="truncate text-twitch">{username}</span>
+                            <span className="text-gray-400 font-medium">{formatNumber(count)}</span>
+                          </div>
+                        ))}
+                      {Object.keys(userSentiments.neutral || {}).length === 0 && (
+                        <div className="text-gray-400 text-center py-2">No data</div>
+                      )}
+                    </div>
                     {/* Negative */}
-                    {(() => {
-                      const [username, count] = topUsers['negative'];
-                      return (
-                        <div className="flex justify-between items-center bg-black border border-gray-700/30 p-3 rounded">
-                          <span className="text-twitch">{username}</span>
-                          <span className="text-red-400 font-medium">{formatNumber(count)} {count === 1 ? 'message' : 'messages'}</span>
-                        </div>
-                      );
-                    })()}
+                    <div className="flex-1 bg-black border border-gray-700 rounded p-2 min-w-0 h-full flex flex-col overflow-y-auto max-h-72">
+                      <h3 className="text-red-400 font-semibold text-center mb-2">Negative</h3>
+                      {Object.entries(userSentiments.negative || {})
+                        .sort(([, a], [, b]) => b - a)
+                        .slice(0, 5)
+                        .map(([username, count], idx) => (
+                          <div key={username} className="flex justify-between items-center py-1 px-2 rounded hover:bg-gray-900/10">
+                            <span className="truncate text-twitch">{username}</span>
+                            <span className="text-red-400 font-medium">{formatNumber(count)}</span>
+                          </div>
+                        ))}
+                      {Object.keys(userSentiments.negative || {}).length === 0 && (
+                        <div className="text-gray-400 text-center py-2">No data</div>
+                      )}
+                    </div>
                   </div>
                 ) : (
                   <div className="flex flex-col items-center justify-center py-10 text-center">
@@ -439,74 +471,7 @@ const Analyze = () => {
             <div className="lg:col-span-8">
               <div className="bg-black border border-gray-700 rounded-lg p-6 shadow-lg h-full min-h-[600px] relative">
                 <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-4">
-                  <div className="flex flex-col sm:flex-row sm:items-center w-full sm:w-auto gap-2 sm:gap-3 order-2 sm:order-1">
-                    <span className="text-gray-400 text-sm text-left sm:text-right">
-                      Connected to: <span className="text-twitch font-semibold">{currentChannel}</span>
-                    </span>
-                    {isConnected && (
-                      <button
-                        onClick={async () => {
-                          setIsDisconnecting(true);
-                          const alertOptions = user ? {
-                            title: 'Disconnect from Analysis?',
-                            text: 'What would you like to do with the current analysis?',
-                            icon: 'warning',
-                            showDenyButton: true,
-                            showCancelButton: true,
-                            confirmButtonText: 'Save',
-                            denyButtonText: 'Discard',
-                            cancelButtonText: 'Cancel',
-                            confirmButtonColor: '#9147ff',
-                            denyButtonColor: '#EF4444',
-                            cancelButtonColor: '#6B7280',
-                            background: '#18181b',
-                            color: '#fff'
-                          } : {
-                            title: 'Disconnect from Analysis?',
-                            text: 'Are you sure you want to disconnect?',
-                            icon: 'warning',
-                            showDenyButton: true,
-                            showCancelButton: true,
-                            showConfirmButton: false,
-                            denyButtonText: 'Disconnect',
-                            cancelButtonText: 'Cancel',
-                            denyButtonColor: '#EF4444',
-                            cancelButtonColor: '#6B7280',
-                            background: '#18181b',
-                            color: '#fff'
-                          };
-                          const result = await Swal.fire(alertOptions);
-                          if (result.isConfirmed && user) {
-                            const saved = await saveAnalysis();
-                            if (saved) {
-                              await disconnectFromChannel();
-                            }
-                          } else if (result.isDenied) {
-                            await disconnectFromChannel();
-                            await Swal.fire({
-                              title: user ? 'Discarded!' : 'Disconnected!',
-                              text: user ? 'Analysis has been discarded' : 'Disconnected from channel',
-                              icon: 'info',
-                              timer: 1000,
-                              timerProgressBar: true,
-                              showConfirmButton: false,
-                              position: 'top-end',
-                              toast: true,
-                              confirmButtonColor: '#9147ff',
-                              background: '#18181b',
-                              color: '#fff'
-                            });
-                          }
-                          setIsDisconnecting(false);
-                        }}
-                        className="ml-0 sm:ml-2 px-4 py-1.5 rounded-md bg-red-600 hover:bg-red-700 text-white text-sm font-semibold transition-colors shadow disabled:opacity-50 disabled:cursor-not-allowed"
-                        disabled={isDisconnecting}
-                      >
-                        {isDisconnecting ? 'Disconnecting...' : 'Disconnect'}
-                      </button>
-                    )}
-                  </div>
-                  <div className="flex bg-gray-900 rounded-lg p-1 w-full sm:w-auto order-1 sm:order-2 sm:ml-auto">
+                  <div className="flex bg-gray-900 rounded-lg p-1 w-full sm:w-auto justify-center sm:justify-start mb-2 sm:mb-0">
                     {['All', 'Positive', 'Neutral', 'Negative'].map((filter) => (
                       <button
                         key={filter}
@@ -521,6 +486,68 @@ const Analyze = () => {
                       </button>
                     ))}
                   </div>
+                  {isConnected && (
+                    <button
+                      onClick={async () => {
+                        setIsDisconnecting(true);
+                        const alertOptions = user ? {
+                          title: 'Disconnect from Analysis?',
+                          text: 'What would you like to do with the current analysis?',
+                          icon: 'warning',
+                          showDenyButton: true,
+                          showCancelButton: true,
+                          confirmButtonText: 'Save',
+                          denyButtonText: 'Discard',
+                          cancelButtonText: 'Cancel',
+                          confirmButtonColor: '#9147ff',
+                          denyButtonColor: '#EF4444',
+                          cancelButtonColor: '#6B7280',
+                          background: '#18181b',
+                          color: '#fff'
+                        } : {
+                          title: 'Disconnect from Analysis?',
+                          text: 'Are you sure you want to disconnect?',
+                          icon: 'warning',
+                          showDenyButton: true,
+                          showCancelButton: true,
+                          showConfirmButton: false,
+                          denyButtonText: 'Disconnect',
+                          cancelButtonText: 'Cancel',
+                          denyButtonColor: '#EF4444',
+                          cancelButtonColor: '#6B7280',
+                          background: '#18181b',
+                          color: '#fff'
+                        };
+                        const result = await Swal.fire(alertOptions);
+                        if (result.isConfirmed && user) {
+                          const saved = await saveAnalysis();
+                          if (saved) {
+                            await disconnectFromChannel();
+                          }
+                        } else if (result.isDenied) {
+                          await disconnectFromChannel();
+                          await Swal.fire({
+                            title: user ? 'Discarded!' : 'Disconnected!',
+                            text: user ? 'Analysis has been discarded' : 'Disconnected from channel',
+                            icon: 'info',
+                            timer: 1000,
+                            timerProgressBar: true,
+                            showConfirmButton: false,
+                            position: 'top-end',
+                            toast: true,
+                            confirmButtonColor: '#9147ff',
+                            background: '#18181b',
+                            color: '#fff'
+                          });
+                        }
+                        setIsDisconnecting(false);
+                      }}
+                      className="px-4 py-1.5 rounded-md bg-red-600 hover:bg-red-700 text-white text-sm font-semibold transition-colors shadow disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto"
+                      disabled={isDisconnecting}
+                    >
+                      {isDisconnecting ? 'Disconnecting...' : 'Disconnect'}
+                    </button>
+                  )}
                 </div>
 
                 {isConnected && messages.length > 0 ? (
@@ -561,7 +588,7 @@ const Analyze = () => {
                 {showScrollButton && (
                   <button
                     onClick={scrollToBottom}
-                    className="absolute bottom-6 right-6 bg-twitch hover:bg-twitch-dark text-white rounded-full p-3 shadow-lg transition-all duration-200 hover:scale-105 z-10"
+                    className="absolute bottom-6 left-1/2 transform -translate-x-1/2 bg-twitch hover:bg-twitch-dark text-white rounded-full p-3 shadow-lg transition-all duration-200 hover:scale-105 z-10"
                     title="Scroll to Bottom"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
@@ -573,6 +600,18 @@ const Analyze = () => {
             </div>
           </div>
         )}
+      </div>
+
+      {/* Status Indicator - Far Bottom Right, Outside Container */}
+      <div className="fixed bottom-6 right-6 z-50 hidden sm:block">
+        <span className="flex items-center gap-2 px-4 py-1 rounded-full font-semibold text-sm shadow-lg bg-gray-900/90 text-white border border-white/10">
+          <span className={`inline-block w-3 h-3 rounded-full ${isConnected ? 'bg-green-400' : 'bg-red-400'}`}></span>
+          {isConnected ? (
+            <>
+              Connected: <span className="text-twitch">{currentChannel}</span>
+            </>
+          ) : 'Disconnected'}
+        </span>
       </div>
     </div>
   );

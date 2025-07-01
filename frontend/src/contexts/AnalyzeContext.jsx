@@ -18,6 +18,8 @@ export const AnalyzeProvider = ({ children }) => {
   const socketRef = useRef(null);
   const processedMessages = useRef(new Set());
   const messageQueue = useRef([]);
+  const [sessionStart, setSessionStart] = useState(null);
+  const sessionStartRef = useRef(null);
 
   // Debounced effect for processing message queue
   useEffect(() => {
@@ -80,6 +82,12 @@ export const AnalyzeProvider = ({ children }) => {
     const data = await response.json();
     setIsConnected(true);
     setCurrentChannel(data.channel);
+    // Set session start if not already set
+    if (!sessionStartRef.current) {
+      const now = Date.now();
+      setSessionStart(now);
+      sessionStartRef.current = now;
+    }
     // Log analysis start if user
     if (user) {
       try {
@@ -143,6 +151,9 @@ export const AnalyzeProvider = ({ children }) => {
     setSentimentCounts({ positive: 0, neutral: 0, negative: 0 });
     setUserSentiments({ positive: {}, neutral: {}, negative: {} });
     processedMessages.current.clear();
+    // Reset session start on disconnect
+    setSessionStart(null);
+    sessionStartRef.current = null;
   }, [currentChannel]);
 
   // Clean up socket on unmount
@@ -188,6 +199,8 @@ export const AnalyzeProvider = ({ children }) => {
       disconnectFromChannel,
       topUsers,
       getFilteredMessages,
+      sessionStart,
+      setSessionStart,
     }}>
       {children}
     </AnalyzeContext.Provider>

@@ -778,7 +778,7 @@ def get_admin_logs():
         page = int(request.args.get('page', 1))
         limit = int(request.args.get('limit', 10))
         search = request.args.get('search')
-        sort_field = request.args.get('sortField', 'timestamp')
+        sort_field = request.args.get('sortField', 'created_at')
         sort_direction = request.args.get('sortDirection', 'desc')
         activity = request.args.get('activity')
         

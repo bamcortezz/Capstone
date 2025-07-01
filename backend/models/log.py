@@ -9,7 +9,7 @@ def create_logs_schema(mongo):
     try:
         # Create indexes for efficient querying
         mongo.db.logs.create_index([('user_id', 1)])  # Index for user_id
-        mongo.db.logs.create_index([('timestamp', -1)])  # Index for sorting by date
+        mongo.db.logs.create_index([('created_at', -1)])  # Index for sorting by date
         mongo.db.logs.create_index([('activity', 1)])  # Index for filtering by activity
     except Exception as e:
         logger.error(f"Logs index creation failed: {str(e)}")
@@ -25,7 +25,7 @@ def add_log(mongo, user_id, activity, details=None):
             'user_name': user_name,
             'activity': activity,
             'details': details,
-            'timestamp': datetime.utcnow()
+            'created_at': datetime.utcnow()
         }
         
         result = mongo.db.logs.insert_one(log_entry)
@@ -35,7 +35,7 @@ def add_log(mongo, user_id, activity, details=None):
         # Don't raise the exception - logging should not block normal operation
         return None
 
-def get_logs(mongo, page=1, limit=10, search=None, sort_field='timestamp', sort_direction='desc', activity=None):
+def get_logs(mongo, page=1, limit=10, search=None, sort_field='created_at', sort_direction='desc', activity=None):
 
     try:
         # Build query
@@ -70,8 +70,8 @@ def get_logs(mongo, page=1, limit=10, search=None, sort_field='timestamp', sort_
         for log in logs:
             log['_id'] = str(log['_id'])
             log['user_id'] = str(log['user_id'])
-            # Convert timestamp to ISO format string for easier frontend handling
-            log['timestamp'] = log['timestamp'].isoformat() if log.get('timestamp') else None
+            # Convert created_at to ISO format string for easier frontend handling
+            log['created_at'] = log['created_at'].isoformat() if log.get('created_at') else None
             logs_list.append(log)
         
         return {
@@ -89,7 +89,7 @@ def get_logs(mongo, page=1, limit=10, search=None, sort_field='timestamp', sort_
 def clear_old_logs(mongo, days_to_keep=90):
     try:
         cutoff_date = datetime.utcnow() - timedelta(days=days_to_keep)
-        result = mongo.db.logs.delete_many({'timestamp': {'$lt': cutoff_date}})
+        result = mongo.db.logs.delete_many({'created_at': {'$lt': cutoff_date}})
         return result.deleted_count
     except Exception as e:
         logger.error(f"Error clearing old logs: {str(e)}")

@@ -173,10 +173,6 @@ def save_reset_token(mongo, email):
         return None, None
 
 def validate_reset_token(mongo, user_id, token):
-    """
-    Check if a reset token is valid.
-    Returns True if the token is valid, False otherwise.
-    """
     try:
         user = mongo.db.users.find_one({
             '_id': ObjectId(user_id),
@@ -189,10 +185,6 @@ def validate_reset_token(mongo, user_id, token):
         return False
 
 def reset_password(mongo, user_id, token, new_password):
-    """
-    Reset a user's password using a reset token.
-    Returns True if successful, False otherwise.
-    """
     try:
         # Check if the token is valid
         if not validate_reset_token(mongo, user_id, token):
