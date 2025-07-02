@@ -51,30 +51,38 @@ const SentimentPieChart = React.memo(({ sentimentCounts }) => {
 // Row renderer for react-window
 const ChatRow = ({ index, style, data }) => {
   const msg = data[index];
+  const sentimentColor =
+    msg.sentiment === 'positive'
+      ? 'text-green-400'
+      : msg.sentiment === 'negative'
+        ? 'text-red-400'
+        : 'text-gray-400';
   return (
     <div
       style={style}
       key={msg.id}
-      className={`flex items-center justify-between p-3 rounded-lg border-b border-gray-700 mb-2 bg-black`}
+      className={'flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 rounded-lg border-b border-gray-700 mb-2 bg-black'}
     >
-      <div className="flex items-start space-x-2 flex-1 min-w-0">
-        <span className="text-twitch font-medium whitespace-nowrap">{msg.username}:</span>
+      <div className="flex flex-col sm:flex-row sm:items-start sm:space-x-2 flex-1 min-w-0">
+        <span className="text-twitch font-medium whitespace-nowrap mb-1 sm:mb-0">
+          {msg.username}
+          <span>:</span>
+        </span>
         <span
-          className="text-white break-words overflow-hidden max-w-[60%] line-clamp-2"
+          className={`break-words overflow-hidden max-w-full sm:max-w-[60%] line-clamp-2 sm:text-white ${sentimentColor}`}
           title={msg.message}
           style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
         >
-          {msg.message}
+          <span className="block sm:inline">{msg.message}</span>
         </span>
       </div>
       <span
-        className={`ml-4 px-2 py-1 rounded text-xs font-bold uppercase whitespace-nowrap flex-shrink-0 ${
-          msg.sentiment === 'positive'
-            ? 'text-green-400'
-            : msg.sentiment === 'negative'
+        className={`hidden sm:inline ml-4 px-2 py-1 rounded text-xs font-bold uppercase whitespace-nowrap flex-shrink-0 ${msg.sentiment === 'positive'
+          ? 'text-green-400'
+          : msg.sentiment === 'negative'
             ? 'text-red-400'
             : 'text-gray-400'
-        }`}
+          }`}
       >
         {msg.sentiment}
       </span>
@@ -156,9 +164,9 @@ const Analyze = () => {
         top_neutral: getTopContributors('neutral')
       };
       const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/history/save`, {
-        method: 'POST', 
-        headers: { 'Content-Type': 'application/json' }, 
-        credentials: 'include', 
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(analysisData)
       });
       const data = await response.json();
@@ -476,11 +484,10 @@ const Analyze = () => {
                       <button
                         key={filter}
                         onClick={() => setSelectedFilter(filter)}
-                        className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
-                          selectedFilter === filter
-                            ? 'bg-twitch text-white'
-                            : 'text-gray-400 hover:text-twitch hover:bg-gray-900'
-                        }`}
+                        className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${selectedFilter === filter
+                          ? 'bg-twitch text-white'
+                          : 'text-gray-400 hover:text-twitch hover:bg-gray-900'
+                          }`}
                       >
                         {filter}
                       </button>
