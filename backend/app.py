@@ -244,14 +244,12 @@ def connect_to_twitch():
             # If already connected, just return success
             return jsonify({'message': f'Already connected to {channel}\'s chat', 'channel': channel}), 200
             
-        # Use anonymous authentication with justinfan prefix
-        # This is allowed by Twitch for read-only chat access
         import random
         bot_username = f"justinfan{random.randint(1000, 999999)}"
         
         try:
             bot = TwitchChatBot(
-                token="SCHMOOPIIE",  # Special anonymous token for justinfan
+                token="SCHMOOPIIE",
                 username=bot_username,
                 channel=channel,
                 socket_handler=broadcast_message
@@ -267,8 +265,6 @@ def connect_to_twitch():
             user_id = session.get('user_id')
             if user_id:
                 user_bots.setdefault(user_id, set()).add(channel)
-            
-            # We'll log this in the dedicated analysis-start endpoint instead
             
             return jsonify({'message': f'Connected to {channel}\'s chat', 'channel': channel}), 200
         except Exception as e:
@@ -291,24 +287,20 @@ def disconnect_from_twitch():
         if channel in active_bots:
             try:
                 bot, thread = active_bots[channel]
-                # Gracefully disconnect the bot
                 bot.disconnect()
                 bot.die()
             except Exception as e:
                 print(f"Error during bot disconnection: {e}")
             finally:
-                # Always remove from active bots and notify clients
                 active_bots.pop(channel, None)
                 socketio.emit('disconnect_notification', {'channel': channel})
         else:
-            # Already disconnected, no need to do anything
             return jsonify({'message': 'Already disconnected'}), 200
         
         return jsonify({'message': f'Disconnected from {channel}\'s chat'}), 200
     
     except Exception as e:
         print(f"Error in disconnect_from_twitch: {e}")
-        # Still return success even if we encounter errors, as we've tried to clean up
         return jsonify({'message': 'Attempted to disconnect from chat'}), 200
 
 @app.route('/api/history/save', methods=['POST'])
@@ -484,7 +476,7 @@ def handle_profile_image():
             return jsonify({'error': 'Not authenticated'}), 401
             
         if request.method == 'DELETE':
-            # Remove profile image
+            
             success = remove_profile_image(mongo, session['user_id'])
             if not success:
                 return jsonify({'error': 'Failed to remove profile image'}), 500
@@ -506,7 +498,6 @@ def handle_profile_image():
                 }
             }), 200
         
-        # Handle PUT request (existing image update logic)
         data = request.get_json()
         if not data or 'image' not in data:
             return jsonify({'error': 'No image data provided'}), 400

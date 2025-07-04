@@ -40,7 +40,6 @@ def generate_analysis_summary(analysis_data):
         """
 
         print("Creating Gemini model...")
-        # Using gemini-2.0-flash model which is available in the free tier
         model = genai.GenerativeModel('gemini-2.0-flash')
         
         print("Generating content with Gemini API...")
