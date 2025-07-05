@@ -161,9 +161,10 @@ const Analyze = () => {
         sentiment_count: sentimentCounts,
         top_positive: getTopContributors('positive'),
         top_negative: getTopContributors('negative'),
-        top_neutral: getTopContributors('neutral')
+        top_neutral: getTopContributors('neutral'),
+        duration: elapsed
       };
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/history/save`, {
+      const response = await fetch(`${API_URL}/api/history/save`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',

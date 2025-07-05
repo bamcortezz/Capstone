@@ -320,6 +320,13 @@ def save_analysis_history():
         # Add user_id to the data
         data['user_id'] = current_user_id
         
+        # Optionally: Accept duration from frontend (if present)
+        if 'duration' in data:
+            try:
+                data['duration'] = int(data['duration'])
+            except Exception:
+                data['duration'] = 0
+        
         # Save the analysis
         history_id = save_analysis(mongo, data)
         
@@ -912,6 +919,14 @@ def generate_analysis_pdf(history_id):
         # Add streamer info
         elements.append(Paragraph(f"Channel: {history['streamer_name']}", heading_style))
         elements.append(Paragraph(f"Analysis Date: {analysis_date}", normal_style))
+        # Add duration (format as HH:MM:SS)
+        def format_duration(seconds):
+            h = int(seconds) // 3600
+            m = (int(seconds) % 3600) // 60
+            s = int(seconds) % 60
+            return f"{h:02d}:{m:02d}:{s:02d}"
+        duration_val = history.get('duration', 0)
+        elements.append(Paragraph(f"Duration: {format_duration(duration_val)}", normal_style))
         elements.append(Paragraph(f"Total Messages Analyzed: {history['total_chats']}", normal_style))
         elements.append(Spacer(1, 20))
 

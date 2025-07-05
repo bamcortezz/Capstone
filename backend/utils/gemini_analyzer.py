@@ -15,12 +15,22 @@ def generate_analysis_summary(analysis_data):
         print("Configuring Gemini API...")
         genai.configure(api_key=api_key)
 
+        # Format duration as HH:MM:SS
+        def format_duration(seconds):
+            h = int(seconds) // 3600
+            m = (int(seconds) % 3600) // 60
+            s = int(seconds) % 60
+            return f"{h:02d}:{m:02d}:{s:02d}"
+        duration_val = analysis_data.get('duration', 0)
+        formatted_duration = format_duration(duration_val)
+
         # Create the analysis content
         content = f"""
         Generate a concise summary of the following Twitch chat analysis:
 
         Channel: {analysis_data['streamer_name']}
         Total Messages: {analysis_data['total_chats']}
+        Duration: {formatted_duration}
 
         Sentiment Breakdown:
         - Positive: {analysis_data['sentiment_count']['positive']}

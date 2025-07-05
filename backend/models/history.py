@@ -88,6 +88,7 @@ def save_analysis(mongo, data):
                 'top_neutral': data.get('top_neutral', []),
                 'summary': summary,
                 'status': 'active',
+                'duration': data.get('duration', 0),
                 'created_at': now,
                 'updated_at': now
             }

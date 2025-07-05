@@ -12,6 +12,14 @@ const formatNumber = (num) => {
   return num.toLocaleString();
 };
 
+// Add a helper to format duration
+function formatDuration(seconds) {
+  const h = String(Math.floor(seconds / 3600)).padStart(2, '0');
+  const m = String(Math.floor((seconds % 3600) / 60)).padStart(2, '0');
+  const s = String(seconds % 60).padStart(2, '0');
+  return `${h}:${m}:${s}`;
+}
+
 // Analysis Details Modal Component
 const AnalysisModal = ({ analysis, onClose }) => {
   if (!analysis) return null;
@@ -41,9 +49,15 @@ const AnalysisModal = ({ analysis, onClose }) => {
               </span>
               {analysis.streamer_name}
             </h2>
-            <p className="text-gray-400">
-              Analysis from {format(new Date(analysis.created_at), 'MMMM d, yyyy HH:mm')}
-            </p>
+            <div className="flex flex-col md:flex-row items-center justify-center gap-2 md:gap-6 mt-2">
+              <div className="flex items-center rounded px-4 py-2 text-gray-300 text-sm font-medium shadow">
+                <svg className="w-5 h-5 mr-2 text-twitch" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                <span>Analysis from&nbsp;</span>
+                <span className="text-white font-semibold">{format(new Date(analysis.created_at), 'MMMM d, yyyy HH:mm')}</span>
+              </div>
+            </div>
           </div>
 
           <div className="space-y-6">
@@ -77,14 +91,23 @@ const AnalysisModal = ({ analysis, onClose }) => {
 
             {/* AI Summary */}
             <div className="bg-black/50 p-6 rounded-lg border border-gray-700">
-              <h3 className="text-xl font-semibold text-white mb-4 flex items-center">
-                <span className="text-twitch mr-2">
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4">
+                <h3 className="text-xl font-semibold text-white flex items-center">
+                  <span className="text-twitch mr-2">
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                    </svg>
+                  </span>
+                  AI Analysis Summary
+                </h3>
+                <div className="flex items-center mt-2 md:mt-0 md:ml-4">
+                  <svg className="w-5 h-5 mr-2 text-twitch" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
-                </span>
-                AI Analysis Summary
-              </h3>
+                  <span className="text-gray-400 text-sm">Duration:&nbsp;</span>
+                  <span className="text-white font-semibold text-base">{formatDuration(analysis.duration || 0)}</span>
+                </div>
+              </div>
               <p className="text-gray-300 whitespace-pre-line">
                 {analysis.summary || "No summary available"}
               </p>
@@ -202,7 +225,7 @@ const History = () => {
       showCancelButton: true,
       confirmButtonColor: '#9147ff',
       cancelButtonColor: '#374151',
-      confirmButtonText: 'Yes',
+      confirmButtonText: 'Yes, delete',
       background: '#18181b',
       color: '#fff',
       showConfirmButton: true
@@ -375,6 +398,9 @@ const History = () => {
                         Date
                       </th>
                       <th scope="col" className="px-4 md:px-6 py-4 text-left text-sm font-semibold text-white">
+                        Duration
+                      </th>
+                      <th scope="col" className="px-4 md:px-6 py-4 text-left text-sm font-semibold text-white">
                         Messages
                       </th>
                       <th scope="col" className="px-4 md:px-6 py-4 text-center text-sm font-semibold text-white w-20 md:w-24">
@@ -402,6 +428,9 @@ const History = () => {
                           <div className="text-sm text-gray-300">
                             {format(new Date(analysis.created_at), 'MMM d, yyyy HH:mm')}
                           </div>
+                        </td>
+                        <td className="px-4 md:px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-300">{formatDuration(analysis.duration || 0)}</div>
                         </td>
                         <td className="px-4 md:px-6 py-4 whitespace-nowrap">
                           <div className="text-sm text-twitch">
@@ -466,8 +495,8 @@ const History = () => {
                         onClick={() => paginate(currentPage - 1)}
                         disabled={currentPage === 1}
                         className={`relative inline-flex items-center px-3 py-2 rounded-l-md border border-gray-700 text-sm font-medium ${currentPage === 1
-                            ? 'bg-gray-800 text-gray-400 cursor-not-allowed'
-                            : 'text-gray-300 hover:bg-gray-800'
+                          ? 'bg-gray-800 text-gray-400 cursor-not-allowed'
+                          : 'text-gray-300 hover:bg-gray-800'
                           }`}
                       >
                         <span className="sr-only">Previous</span>
@@ -502,8 +531,8 @@ const History = () => {
                             key={pageNumber}
                             onClick={() => paginate(pageNumber)}
                             className={`relative inline-flex items-center px-4 py-2 border border-gray-700 text-sm font-medium ${isCurrentPage
-                                ? 'z-10 bg-twitch text-white border-twitch'
-                                : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                              ? 'z-10 bg-twitch text-white border-twitch'
+                              : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
                               }`}
                           >
                             {pageNumber}
@@ -514,8 +543,8 @@ const History = () => {
                         onClick={() => paginate(currentPage + 1)}
                         disabled={currentPage === totalPages}
                         className={`relative inline-flex items-center px-3 py-2 rounded-r-md border border-gray-700 text-sm font-medium ${currentPage === totalPages
-                            ? 'bg-gray-800 text-gray-400 cursor-not-allowed'
-                            : 'text-gray-300 hover:bg-gray-800'
+                          ? 'bg-gray-800 text-gray-400 cursor-not-allowed'
+                          : 'text-gray-300 hover:bg-gray-800'
                           }`}
                       >
                         <span className="sr-only">Next</span>
