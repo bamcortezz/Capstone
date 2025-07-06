@@ -46,7 +46,8 @@ def send_otp_email(to_email, otp):
     """
 
     html = f"""
-    <html><body>
+    <html>
+    <body>
       <div style='{CONTAINER_STYLE}'>
         {BRAND_HEADER}
         <div style='{CONTENT_STYLE}'>
@@ -57,7 +58,8 @@ def send_otp_email(to_email, otp):
           <p style='color:#aaa;font-size:13px;margin-top:32px;'>If you didn't request this OTP, please ignore this email.</p>
         </div>
       </div>
-    </body></html>
+    </body>
+    </html>
     """
 
     message.attach(MIMEText(text, "plain"))
@@ -89,7 +91,8 @@ def send_password_reset_email(to_email, user_id, reset_token):
     """
 
     html = f"""
-    <html><body>
+    <html>
+    <body>
       <div style='{CONTAINER_STYLE}'>
         {BRAND_HEADER}
         <div style='{CONTENT_STYLE}'>
@@ -100,7 +103,8 @@ def send_password_reset_email(to_email, user_id, reset_token):
           <p style='margin-top:24px;'>If you didn't request a password reset, please ignore this email.</p>
         </div>
       </div>
-    </body></html>
+    </body>
+    </html>
     """
 
     message.attach(MIMEText(text, "plain"))
@@ -129,7 +133,8 @@ def send_contact_email(name, email, subject, message_body):
     text = f"Name: {name}\nEmail: {email}\n\nMessage:\n{message_body}"
 
     html = f"""
-    <html><body>
+    <html>
+    <body>
       <div style='{CONTAINER_STYLE}'>
         {BRAND_HEADER}
         <div style='{CONTENT_STYLE}'>
@@ -142,7 +147,8 @@ def send_contact_email(name, email, subject, message_body):
           </div>
         </div>
       </div>
-    </body></html>
+    </body>
+    </html>
     """
 
     msg.attach(MIMEText(text, 'plain'))

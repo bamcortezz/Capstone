@@ -7,8 +7,10 @@ const Sidebar = ({ isOpen, onClose }) => {
   const location = useLocation();
 
   const getLinkClass = (path) => {
-    return `text-gray-300 hover:text-white text-lg font-medium transition-colors ${
-      location.pathname === path ? 'text-white' : ''
+    return `text-lg font-medium transition-colors ${
+      location.pathname === path
+        ? 'text-twitch'
+        : 'text-white hover:text-twitch'
     }`;
   };
 
@@ -198,7 +200,7 @@ const Sidebar = ({ isOpen, onClose }) => {
                 <button
                   key={item.name}
                   onClick={item.onClick}
-                  className="text-gray-300 hover:text-white text-lg font-medium transition-colors flex items-center space-x-3"
+                  className="text-white hover:text-twitch text-lg font-medium transition-colors flex items-center space-x-3"
                 >
                   <span className="text-twitch">{item.icon}</span>
                   <span>{item.name}</span>

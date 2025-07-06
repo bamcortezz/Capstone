@@ -55,8 +55,8 @@ const Navbar = () => {
               to="/" 
               className={`transition-colors ${
                 location.pathname === '/' 
-                  ? 'text-white' 
-                  : 'text-gray-300 hover:text-white'
+                  ? 'text-twitch' 
+                  : 'text-white hover:text-twitch'
               }`}
             >
               Home
@@ -65,8 +65,8 @@ const Navbar = () => {
               to="/analyze" 
               className={`transition-colors ${
                 location.pathname === '/analyze' 
-                  ? 'text-white' 
-                  : 'text-gray-300 hover:text-white'
+                  ? 'text-twitch' 
+                  : 'text-white hover:text-twitch'
               }`}
             >
               Analyze
@@ -76,8 +76,8 @@ const Navbar = () => {
                 to="/history" 
                 className={`transition-colors ${
                   location.pathname === '/history' 
-                    ? 'text-white' 
-                    : 'text-gray-300 hover:text-white'
+                    ? 'text-twitch' 
+                    : 'text-white hover:text-twitch'
                 }`}
               >
                 History
@@ -87,8 +87,8 @@ const Navbar = () => {
               to="/contact" 
               className={`transition-colors ${
                 location.pathname === '/contact' 
-                  ? 'text-white' 
-                  : 'text-gray-300 hover:text-white'
+                  ? 'text-twitch' 
+                  : 'text-white hover:text-twitch'
               }`}
             >
               Contact Us
@@ -97,8 +97,8 @@ const Navbar = () => {
               to="/about" 
               className={`transition-colors ${
                 location.pathname === '/about' 
-                  ? 'text-white' 
-                  : 'text-gray-300 hover:text-white'
+                  ? 'text-twitch' 
+                  : 'text-white hover:text-twitch'
               }`}
             >
               About Us
