@@ -6,23 +6,20 @@ import logging
 import os
 
 logger = logging.getLogger(__name__)
-# Set up more detailed logging
 logger.setLevel(logging.DEBUG)
 
 def create_history_schema(mongo):
     try:
-        # Create indexes
-        mongo.db.history.create_index([('user_id', 1)])  # Index for user_id
-        mongo.db.history.create_index([('created_at', -1)])  # Index for sorting by date
-        mongo.db.history.create_index([('status', 1)])  # Index for status
+        mongo.db.history.create_index([('user_id', 1)])  
+        mongo.db.history.create_index([('created_at', -1)])  
+        mongo.db.history.create_index([('status', 1)]) 
     except Exception as e:
         logger.error(f"History index creation failed: {str(e)}")
 
 def validate_top_contributors(contributors):
-    """Ensure only top 5 contributors are saved."""
     if not contributors or not isinstance(contributors, list):
         return []
-    return contributors[:5]  # Take only the first 5 contributors
+    return contributors[:5]  
 
 def save_analysis(mongo, data):
     try:
@@ -38,7 +35,6 @@ def save_analysis(mongo, data):
         
         # Validate MongoDB connection
         try:
-            # Test MongoDB connection
             mongo.db.command('ping')
         except Exception as e:
             logger.error(f"MongoDB connection error: {str(e)}")
@@ -51,12 +47,11 @@ def save_analysis(mongo, data):
             data['top_neutral'] = validate_top_contributors(data['top_neutral'])
         except Exception as e:
             logger.error(f"Error validating contributors: {str(e)}")
-            # Set defaults if validation fails
+            
             data['top_positive'] = data.get('top_positive', [])[:5]
             data['top_negative'] = data.get('top_negative', [])[:5]
             data['top_neutral'] = data.get('top_neutral', [])[:5]
 
-        # Generate AI summary with robust error handling
         summary = "Summary generation failed. Please try again later."
         try:
             # Check if Gemini API key is configured
@@ -70,9 +65,7 @@ def save_analysis(mongo, data):
         except Exception as e:
             logger.error(f"Error generating summary: {str(e)}")
             logger.error(traceback.format_exc())
-            # Continue with the default error message
 
-        # Construct history document
         try:
             history = {
                 'user_id': ObjectId(data['user_id']),
@@ -109,11 +102,10 @@ def save_analysis(mongo, data):
     except Exception as e:
         logger.error(f"Unhandled error in save_analysis: {str(e)}")
         logger.error(traceback.format_exc())
-        raise  # Re-raise the exception for the caller to handle
+        raise  
 
 def get_user_history(mongo, user_id):
     try:
-        # Only return active (non-deleted) history items
         history = mongo.db.history.find({
             'user_id': ObjectId(user_id),
             'status': 'active'
@@ -132,11 +124,10 @@ def get_history_by_id(mongo, history_id):
 
 def delete_history(mongo, history_id, user_id):
     try:
-        # Soft delete by updating status to 'deleted'
         result = mongo.db.history.update_one(
             {
                 '_id': ObjectId(history_id),
-                'user_id': ObjectId(user_id)  # Ensure user owns this history item
+                'user_id': ObjectId(user_id) 
             },
             {
                 '$set': {

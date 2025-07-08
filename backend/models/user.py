@@ -7,7 +7,7 @@ from bson.objectid import ObjectId
 
 def create_user_schema(mongo):
     try:
-        # Create a unique index on email to prevent duplicate registrations
+
         mongo.db.users.create_index('email', unique=True)
     except Exception as e:
         print(f"Index creation failed: {str(e)}")
@@ -254,7 +254,6 @@ def update_user_by_admin(mongo, user_id, user_data):
         )
         
         if result.modified_count > 0:
-            # Return the updated user
             updated_user = mongo.db.users.find_one({'_id': ObjectId(user_id)})
             if updated_user:
                 updated_user['_id'] = str(updated_user['_id'])

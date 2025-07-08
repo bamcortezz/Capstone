@@ -7,10 +7,9 @@ logger.setLevel(logging.DEBUG)
 
 def create_logs_schema(mongo):
     try:
-        # Create indexes for efficient querying
-        mongo.db.logs.create_index([('user_id', 1)])  # Index for user_id
-        mongo.db.logs.create_index([('created_at', -1)])  # Index for sorting by date
-        mongo.db.logs.create_index([('activity', 1)])  # Index for filtering by activity
+        mongo.db.logs.create_index([('user_id', 1)])  
+        mongo.db.logs.create_index([('created_at', -1)])  
+        mongo.db.logs.create_index([('activity', 1)])  
     except Exception as e:
         logger.error(f"Logs index creation failed: {str(e)}")
 
@@ -32,16 +31,13 @@ def add_log(mongo, user_id, activity, details=None):
         return result.inserted_id
     except Exception as e:
         logger.error(f"Error adding log: {str(e)}")
-        # Don't raise the exception - logging should not block normal operation
         return None
 
 def get_logs(mongo, page=1, limit=10, search=None, sort_field='created_at', sort_direction='desc', activity=None):
 
     try:
-        # Build query
         query = {}
         
-        # Add search filter if provided
         if search:
             query['$or'] = [
                 {'user_name': {'$regex': search, '$options': 'i'}},
@@ -70,7 +66,6 @@ def get_logs(mongo, page=1, limit=10, search=None, sort_field='created_at', sort
         for log in logs:
             log['_id'] = str(log['_id'])
             log['user_id'] = str(log['user_id'])
-            # Convert created_at to ISO format string for easier frontend handling
             log['created_at'] = log['created_at'].isoformat() if log.get('created_at') else None
             logs_list.append(log)
         

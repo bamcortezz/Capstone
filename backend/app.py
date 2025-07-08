@@ -36,43 +36,34 @@ load_dotenv()
 
 app = Flask(__name__)
 frontend_url = os.getenv('FRONTEND_URL', 'http://localhost:5173')
-CORS(app, supports_credentials=True, origins=[frontend_url])  # Enable CORS for all routes with credentials
+CORS(app, supports_credentials=True, origins=[frontend_url])
 
-# MongoDB Configuration
 app.config["MONGO_URI"] = os.getenv('MONGO_URI')
-# Set a strong secret key for sessions
+# Session security settings
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', secrets.token_hex(32))
-# Configure session
-app.config['SESSION_COOKIE_SECURE'] = True  # Only send cookies over HTTPS in production
-app.config['SESSION_COOKIE_HTTPONLY'] = True  # Prevent JavaScript access to session cookie
-app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # Prevent CSRF
-app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30)  # Session lasts 30 days
+app.config['SESSION_COOKIE_SECURE'] = True
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30)
 
 mongo = PyMongo(app)
 
-# Initialize Socket.IO with CORS support and other necessary settings
 socketio = SocketIO(app, 
                    cors_allowed_origins="*", 
                    async_mode='threading',
                    ping_timeout=60,
                    ping_interval=25)
 
-# Store active bots
 active_bots = {}
-# Map user_id to list of channels they started
 user_bots = {}
 
-# MongoDB connection
 client = MongoClient('mongodb://localhost:27017/')
 db = client['twitch_sentiment']
 
 def broadcast_message(message_data):
-    """Broadcast a chat message to all connected clients"""
     socketio.emit('chat_message', message_data)
 
-# Ensure the MongoDB connection is established before creating schema
 with app.app_context():
-    # Initialize schemas
     create_user_schema(mongo)
     create_history_schema(mongo)
     create_logs_schema(mongo)

@@ -73,7 +73,6 @@ def generate_analysis_summary(analysis_data):
         print(f"Error type: {type(e)}")
         print(f"Error message: {str(e)}")
         
-        # Handle specific error cases
         error_msg = str(e)
         if "quota" in error_msg.lower() or "429" in error_msg:
             return "Unable to generate summary: API quota exceeded. Please try again later or upgrade to a paid plan."

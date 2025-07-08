@@ -3,7 +3,6 @@ import torch
 import warnings
 from transformers import logging
 
-# Disable specific warning about unused weights
 logging.set_verbosity_error()
 warnings.filterwarnings('ignore', message='Some weights of the model checkpoint')
 
@@ -43,5 +42,4 @@ class SentimentAnalyzer:
                 'text': text
             }
 
-# Create a singleton instance
 sentiment_analyzer = SentimentAnalyzer()
