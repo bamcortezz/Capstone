@@ -10,7 +10,6 @@ import { FixedSizeList as List } from 'react-window';
 // API URL
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
-// Helper function to format numbers with commas
 const formatNumber = (num) => {
   if (typeof num !== 'number') return num;
   return num.toLocaleString();
@@ -18,15 +17,14 @@ const formatNumber = (num) => {
 
 ChartJS.register(ArcElement, Tooltip, Legend);
 
-// Memoized Pie Chart Component
 const SentimentPieChart = React.memo(({ sentimentCounts }) => {
   const chartData = useMemo(() => ({
     labels: ['Positive', 'Neutral', 'Negative'],
     datasets: [
       {
         data: [sentimentCounts.positive, sentimentCounts.neutral, sentimentCounts.negative],
-        backgroundColor: ['#22c55e', '#6B7280', '#ef4444'],
-        borderColor: ['#16a34a', '#374151', '#b91c1c'],
+        backgroundColor: ['#22c55e', '#fde047', '#ef4444'], 
+        borderColor: ['#16a34a', '#facc15', '#b91c1c'], 
         borderWidth: 1,
       },
     ],
@@ -48,7 +46,6 @@ const SentimentPieChart = React.memo(({ sentimentCounts }) => {
   return <Pie data={chartData} options={chartOptions} />;
 });
 
-// Row renderer for react-window
 const ChatRow = ({ index, style, data }) => {
   const msg = data[index];
   const sentimentColor =
@@ -56,7 +53,7 @@ const ChatRow = ({ index, style, data }) => {
       ? 'text-green-400'
       : msg.sentiment === 'negative'
         ? 'text-red-400'
-        : 'text-gray-400';
+        : 'text-yellow-400';
   return (
     <div
       style={style}
@@ -81,7 +78,7 @@ const ChatRow = ({ index, style, data }) => {
           ? 'text-green-400'
           : msg.sentiment === 'negative'
             ? 'text-red-400'
-            : 'text-gray-400'
+            : 'text-yellow-400'
           }`}
       >
         {msg.sentiment}
@@ -114,10 +111,8 @@ const Analyze = () => {
   const [isDisconnecting, setIsDisconnecting] = useState(false);
   const [elapsed, setElapsed] = useState(0);
 
-  // Scroll to bottom whenever messages update
   useEffect(() => {
     if (autoScroll && chatContainerRef.current) {
-      // react-window List API: scrollToItem
       chatContainerRef.current.scrollToItem(
         messages.length - 1,
         'end'
@@ -125,7 +120,6 @@ const Analyze = () => {
     }
   }, [messages, autoScroll]);
 
-  // Handle chat container scroll
   const handleChatScroll = (e) => {
     const { scrollHeight, scrollTop, clientHeight } = e.target;
     const bottom = Math.abs(scrollHeight - scrollTop - clientHeight) < 100;
@@ -133,7 +127,6 @@ const Analyze = () => {
     setAutoScroll(bottom);
   };
 
-  // Scroll to bottom function
   const scrollToBottom = () => {
     if (chatContainerRef.current) {
       chatContainerRef.current.scrollToItem(
@@ -145,7 +138,6 @@ const Analyze = () => {
     }
   };
 
-  // Save analysis logic (remains local, but uses context state)
   const saveAnalysis = async () => {
     try {
       const getTopContributors = (sentimentType, limit = 5) => {
@@ -284,7 +276,6 @@ const Analyze = () => {
     }
   };
 
-  // Memoize filtered messages using context method
   const filteredMessages = useMemo(() => getFilteredMessages(selectedFilter), [getFilteredMessages, selectedFilter]);
 
   useEffect(() => {
@@ -367,10 +358,9 @@ const Analyze = () => {
           </div>
         )}
 
-        {/* Bottom Container - Analysis and Chat */}
+        {/* Bottom Container*/}
         {isConnected && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            {/* Left Side - Analysis Panels (35%) */}
             <div className="lg:col-span-4 space-y-6">
               {/* Overall Sentiment Analysis */}
               <div className="bg-black border border-gray-700 rounded-lg p-6 shadow-lg">
@@ -433,18 +423,18 @@ const Analyze = () => {
                     </div>
                     {/* Neutral */}
                     <div className="flex-1 bg-black border border-gray-700 rounded p-2 min-w-0 h-full flex flex-col overflow-y-auto max-h-72">
-                      <h3 className="text-gray-400 font-semibold text-center mb-2">Neutral</h3>
+                      <h3 className="text-yellow-400 font-semibold text-center mb-2">Neutral</h3>
                       {Object.entries(userSentiments.neutral || {})
                         .sort(([, a], [, b]) => b - a)
                         .slice(0, 5)
                         .map(([username, count], idx) => (
                           <div key={username} className="flex justify-between items-center py-1 px-2 rounded hover:bg-gray-900/10">
                             <span className="truncate text-twitch">{username}</span>
-                            <span className="text-gray-400 font-medium">{formatNumber(count)}</span>
+                            <span className="text-yellow-400 font-medium">{formatNumber(count)}</span>
                           </div>
                         ))}
                       {Object.keys(userSentiments.neutral || {}).length === 0 && (
-                        <div className="text-gray-400 text-center py-2">No data</div>
+                        <div className="text-yellow-400 text-center py-2">No data</div>
                       )}
                     </div>
                     {/* Negative */}
@@ -476,7 +466,7 @@ const Analyze = () => {
               </div>
             </div>
 
-            {/* Right Side - Chat Container (65%) */}
+            {/* Right Side */}
             <div className="lg:col-span-8">
               <div className="bg-black border border-gray-700 rounded-lg p-6 shadow-lg h-full min-h-[600px] relative">
                 <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-4">
@@ -563,16 +553,16 @@ const Analyze = () => {
                     <List
                       height={600}
                       itemCount={filteredMessages.length}
-                      itemSize={64} // Adjust for your message height + spacing
+                      itemSize={64}
                       width={"100%"}
                       itemData={filteredMessages}
                       ref={chatContainerRef}
                       onScroll={({ scrollOffset, scrollUpdateWasRequested }) => {
-                        // If user scrolls up, disable autoScroll
+
                         if (!scrollUpdateWasRequested) {
                           const atBottom =
                             scrollOffset >=
-                            filteredMessages.length * 64 - 600 - 10; // 10px leeway
+                            filteredMessages.length * 64 - 600 - 10;
                           setAutoScroll(atBottom);
                           setShowScrollButton(!atBottom);
                         }

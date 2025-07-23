@@ -10,14 +10,12 @@ const Settings = () => {
   const [isRemoving, setIsRemoving] = useState(false);
   const fileInputRef = useRef(null);
   
-  // Profile form state
   const [profileForm, setProfileForm] = useState({
     first_name: user?.first_name || '',
     last_name: user?.last_name || '',
     email: user?.email || ''
   });
 
-  // Change Password and Delete Account state
   const [changePasswordForm, setChangePasswordForm] = useState({
     oldPassword: '',
     newPassword: '',
@@ -28,23 +26,18 @@ const Settings = () => {
     confirmPassword: ''
   });
 
-  // Sidebar section state
   const [activeSection, setActiveSection] = useState('profile');
 
-  // Password visibility states
   const [showOldPassword, setShowOldPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [showDeletePassword, setShowDeletePassword] = useState(false);
   const [showDeleteConfirmPassword, setShowDeleteConfirmPassword] = useState(false);
 
-  // New state for changing password
   const [isChangingPassword, setIsChangingPassword] = useState(false);
 
-  // New state for deleting account
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
 
-  // Set preview image from user data if it exists
   useEffect(() => {
     if (user?.profile_image) {
       setPreviewImage(user.profile_image);
@@ -133,7 +126,7 @@ const Settings = () => {
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      if (file.size > 5 * 1024 * 1024) { // 5MB limit
+      if (file.size > 5 * 1024 * 1024) { 
         Swal.fire({
           icon: 'error',
           title: 'File too large',
@@ -261,7 +254,6 @@ const Settings = () => {
     setDeleteAccountForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  // Sidebar button style helper
   const sidebarBtn = (section) =>
     `w-full text-left px-4 py-2 rounded-lg transition-colors font-medium mb-2 ` +
     (activeSection === section
@@ -451,7 +443,6 @@ const Settings = () => {
         </div>
         {/* Content */}
         <div className="md:w-2/3 w-full space-y-8">
-          {/* Profile Section */}
           {activeSection === 'profile' && (
             <>
               {/* Profile Image Section */}
@@ -521,7 +512,6 @@ const Settings = () => {
                     )}
                   </div>
                 </div>
-                {/* Save Changes button for profile image - bottom right */}
                 {previewImage && previewImage !== user?.profile_image && (
                   <div className="flex justify-end mt-6">
                     <button

@@ -14,7 +14,7 @@ def create_user_schema(mongo):
 
 def generate_otp():
     secret = pyotp.random_base32()
-    # Create a TOTP object with 6-digit OTP that expires in 10 minutes
+    
     totp = pyotp.TOTP(secret, interval=600)  # 600 seconds = 10 minutes
     return secret, totp.now()
 

@@ -34,13 +34,13 @@ const ProtectedRoute = ({ children }) => {
   return children;
 };
 
-// Auth Route Component (redirects authenticated users)
+// Auth Route Component
 const AuthRoute = ({ children }) => {
   const { user } = useAuth();
   const location = useLocation();
   
   if (user) {
-    // Redirect admin to admin dashboard, regular users to home
+    // Redirect admin
     if (user.role === 'admin') {
       return <Navigate to="/admin/dashboard" replace />;
     }
@@ -50,7 +50,6 @@ const AuthRoute = ({ children }) => {
   return children;
 };
 
-// Admin pages wrapper
 const AdminPages = () => {
   return (
     <AdminLayout>
@@ -78,7 +77,7 @@ const AppContent = () => {
           }
         />
 
-        {/* Public routes with main layout */}
+        {/* Public routes */}
         <Route
           path="/*"
           element={

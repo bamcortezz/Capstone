@@ -21,7 +21,6 @@ export const AnalyzeProvider = ({ children }) => {
   const [sessionStart, setSessionStart] = useState(null);
   const sessionStartRef = useRef(null);
 
-  // Debounced effect for processing message queue
   useEffect(() => {
     const processQueue = () => {
       if (messageQueue.current.length === 0) return;
@@ -71,7 +70,7 @@ export const AnalyzeProvider = ({ children }) => {
     setUserSentiments({ positive: {}, neutral: {}, negative: {} });
     setIsConnected(false);
     setCurrentChannel(null);
-    // Connect to Twitch channel via backend
+
     const response = await fetch(`${API_URL}/api/twitch/connect`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -82,13 +81,13 @@ export const AnalyzeProvider = ({ children }) => {
     const data = await response.json();
     setIsConnected(true);
     setCurrentChannel(data.channel);
-    // Set session start if not already set
+
     if (!sessionStartRef.current) {
       const now = Date.now();
       setSessionStart(now);
       sessionStartRef.current = now;
     }
-    // Log analysis start if user
+
     if (user) {
       try {
         await fetch(`${API_URL}/api/log/analysis-start`, {
@@ -97,11 +96,10 @@ export const AnalyzeProvider = ({ children }) => {
           credentials: 'include',
           body: JSON.stringify({ streamer: data.channel }),
         });
-      } catch (e) { /* ignore */ }
+      } catch (e) {  }
     }
     // Setup socket listeners
     socketRef.current.on('connect', () => {
-      // Optionally: setIsConnected(true);
     });
     socketRef.current.on('chat_message', (msg) => {
       const messageId = `${msg.username}-${msg.message}`;
@@ -139,7 +137,7 @@ export const AnalyzeProvider = ({ children }) => {
           credentials: 'include',
           body: JSON.stringify({ channel: currentChannel }),
         });
-      } catch (e) { /* ignore */ }
+      } catch (e) {  }
     }
     if (socketRef.current) {
       socketRef.current.disconnect();
@@ -151,12 +149,11 @@ export const AnalyzeProvider = ({ children }) => {
     setSentimentCounts({ positive: 0, neutral: 0, negative: 0 });
     setUserSentiments({ positive: {}, neutral: {}, negative: {} });
     processedMessages.current.clear();
-    // Reset session start on disconnect
+
     setSessionStart(null);
     sessionStartRef.current = null;
   }, [currentChannel]);
 
-  // Clean up socket on unmount
   useEffect(() => {
     return () => {
       if (socketRef.current) {
@@ -166,7 +163,6 @@ export const AnalyzeProvider = ({ children }) => {
     };
   }, []);
 
-  // Memoized top users
   const topUsers = useMemo(() => {
     const sentiments = ['positive', 'neutral', 'negative'];
     const result = {};
@@ -181,7 +177,6 @@ export const AnalyzeProvider = ({ children }) => {
     return result;
   }, [userSentiments]);
 
-  // Memoized filtered messages
   const getFilteredMessages = useCallback((selectedFilter) => {
     if (selectedFilter === 'All') return messages;
     return messages.filter(msg => msg.sentiment.toLowerCase() === selectedFilter.toLowerCase());

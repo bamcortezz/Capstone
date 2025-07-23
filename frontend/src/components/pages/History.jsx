@@ -6,13 +6,11 @@ import { ClipLoader } from 'react-spinners';
 // API URL
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
-// Helper function to format numbers with commas
 const formatNumber = (num) => {
   if (typeof num !== 'number') return num;
   return num.toLocaleString();
 };
 
-// Add a helper to format duration
 function formatDuration(seconds) {
   const h = String(Math.floor(seconds / 3600)).padStart(2, '0');
   const m = String(Math.floor((seconds % 3600) / 60)).padStart(2, '0');
@@ -20,7 +18,6 @@ function formatDuration(seconds) {
   return `${h}:${m}:${s}`;
 }
 
-// Analysis Details Modal Component
 const AnalysisModal = ({ analysis, onClose }) => {
   if (!analysis) return null;
 
@@ -73,8 +70,8 @@ const AnalysisModal = ({ analysis, onClose }) => {
               </div>
               <div className="bg-black/50 p-4 rounded-lg border border-gray-700">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-gray-400">Neutral</span>
-                  <span className="text-2xl font-bold text-gray-400">
+                  <span className="text-yellow-400">Neutral</span>
+                  <span className="text-2xl font-bold text-yellow-400">
                     {formatNumber(analysis.sentiment_count.neutral)}
                   </span>
                 </div>
@@ -127,11 +124,11 @@ const AnalysisModal = ({ analysis, onClose }) => {
                   ))}
                 </div>
                 <div>
-                  <h4 className="font-medium text-gray-400 mb-2">Top Neutral</h4>
+                  <h4 className="font-medium text-yellow-400 mb-2">Top Neutral</h4>
                   {analysis.top_neutral.map((contributor, index) => (
                     <div key={index} className="text-sm py-1">
                       <span className="text-twitch">{contributor.username}</span>
-                      <span className="text-gray-300">: {formatNumber(contributor.count)} messages</span>
+                      <span className="text-yellow-400">: {formatNumber(contributor.count)} messages</span>
                     </div>
                   ))}
                 </div>
@@ -192,18 +189,15 @@ const History = () => {
     }
   };
 
-  // Handle items per page change
   const handleItemsPerPageChange = (newItemsPerPage) => {
     setItemsPerPage(Number(newItemsPerPage));
-    setCurrentPage(1); // Reset to first page when changing items per page
+    setCurrentPage(1); 
   };
 
-  // Filter analyses based on search term
   const filteredAnalyses = analyses.filter(analysis =>
     analysis.streamer_name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Pagination
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentItems = filteredAnalyses.slice(indexOfFirstItem, indexOfLastItem);
@@ -286,23 +280,17 @@ const History = () => {
         throw new Error('Failed to download PDF');
       }
 
-      // Get the blob from the response
       const blob = await response.blob();
-
-      // Create a URL for the blob
       const url = window.URL.createObjectURL(blob);
 
-      // Create a temporary link element
       const link = document.createElement('a');
       link.href = url;
       link.download = `chat_analysis_${analysisId}.pdf`;
 
-      // Append to body, click, and remove
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
 
-      // Clean up the URL
       window.URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Download failed:', error);
