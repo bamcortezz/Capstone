@@ -78,7 +78,7 @@ def register():
         data = request.get_json()
         required_fields = ['email', 'password', 'first_name', 'last_name']
         
-        # Check if all required fields are present
+        # Check if all required fields
         for field in required_fields:
             if not data.get(field):
                 return jsonify({'error': f'{field} is required'}), 400
@@ -87,12 +87,11 @@ def register():
         if mongo.db.users.find_one({'email': data['email']}):
             return jsonify({'error': 'Email already registered'}), 400
         
-        # Validate password with enhanced policy
+        # Validate password 
         is_valid, error_message = validate_password(data['password'])
         if not is_valid:
             return jsonify({'error': error_message}), 400
             
-        # Create new user with default role and status
         user_data = {
             'first_name': data['first_name'],
             'last_name': data['last_name'],
@@ -109,13 +108,12 @@ def register():
         email_sent = send_otp_email(data['email'], otp)
         
         if not email_sent:
-            # If email fails, delete the user and return error
             mongo.db.users.delete_one({'_id': result.inserted_id})
             return jsonify({'error': 'Failed to send verification email'}), 500
             
         return jsonify({
             'message': 'Registration successful. Please check your email for verification code.',
-            'email': data['email']  # Return email for OTP verification
+            'email': data['email'] 
         }), 201
 
     except Exception as e:
@@ -138,7 +136,6 @@ def login():
         if not verify_password(user, password):
             return jsonify({'error': 'Incorrect Password.'}), 401
 
-        # Check account status and return appropriate message
         if user['status'] == 'not_active':
             return jsonify({'error': 'Account is not active. Please verify your email.'}), 403
         elif user['status'] == 'suspended':
@@ -175,7 +172,6 @@ def authenticate():
         if 'user_id' not in session:
             return jsonify({'error': 'Not authenticated'}), 401
             
-        # Get user data to include profile image
         user = get_user_by_id(mongo, session['user_id'])
         if not user:
             return jsonify({'error': 'User not found'}), 404
@@ -197,7 +193,7 @@ def authenticate():
 def logout():
     try:
         user_id = session.get('user_id')
-        # Disconnect all bots started by this user
+
         if user_id and user_id in user_bots:
             channels = list(user_bots[user_id])
             for channel in channels:
@@ -233,7 +229,7 @@ def connect_to_twitch():
             
         # Check if a bot is already active for this channel
         if channel in active_bots:
-            # If already connected, just return success
+
             return jsonify({'message': f'Already connected to {channel}\'s chat', 'channel': channel}), 200
             
         import random
@@ -246,14 +242,13 @@ def connect_to_twitch():
                 channel=channel,
                 socket_handler=broadcast_message
             )
-            
-            # Start bot in a separate thread
+
             thread = threading.Thread(target=bot.start)
             thread.daemon = True
             thread.start()
             
             active_bots[channel] = (bot, thread)
-            # Track which user started this bot
+            
             user_id = session.get('user_id')
             if user_id:
                 user_bots.setdefault(user_id, set()).add(channel)
@@ -301,7 +296,6 @@ def save_analysis_history():
         current_user_id = session['user_id']
         data = request.get_json()
         
-        # Validate required fields
         required_fields = ['streamer_name', 'total_chats', 'sentiment_count', 
                          'top_positive', 'top_negative', 'top_neutral']
         
@@ -309,10 +303,8 @@ def save_analysis_history():
             if field not in data:
                 return jsonify({'error': f'Missing required field: {field}'}), 400
         
-        # Add user_id to the data
         data['user_id'] = current_user_id
         
-        # Optionally: Accept duration from frontend (if present)
         if 'duration' in data:
             try:
                 data['duration'] = int(data['duration'])
@@ -343,8 +335,7 @@ def get_user_analysis_history():
     try:
         current_user_id = session['user_id']
         history = get_user_history(mongo, current_user_id)
-        
-        # Convert ObjectId to string for JSON serialization
+
         for item in history:
             item['_id'] = str(item['_id'])
             item['user_id'] = str(item['user_id'])
@@ -363,11 +354,9 @@ def handle_history_by_id(history_id):
             if not history:
                 return jsonify({'error': 'History not found'}), 404
                 
-            # Convert ObjectId to string for JSON serialization
             history['_id'] = str(history['_id'])
             history['user_id'] = str(history['user_id'])
             
-            # Log that the user accessed this analysis if authenticated
             if 'user_id' in session:
                 add_log(
                     mongo, 
@@ -379,11 +368,9 @@ def handle_history_by_id(history_id):
             return jsonify(history), 200
         
         elif request.method == 'DELETE':
-            # Ensure user is authenticated
             if 'user_id' not in session:
                 return jsonify({'error': 'Unauthorized'}), 401
             
-            # Delete the history item
             success = delete_history(mongo, history_id, session['user_id'])
             
             if not success:
@@ -404,18 +391,16 @@ def verify_otp_route():
         if not email or not otp:
             return jsonify({'error': 'Email and OTP are required'}), 400
             
-        # Get user by email
         user = get_user_by_email(mongo, email)
         if not user:
             return jsonify({'error': 'User not found'}), 404
             
-        # Check if user is already verified
         if user['status'] == 'active':
             return jsonify({'error': 'User is already verified'}), 400
             
         # Verify OTP
         if verify_otp(user['otp'], otp):
-            # Activate user
+
             activate_user(mongo, email)
             return jsonify({'message': 'Email verified successfully'}), 200
         else:

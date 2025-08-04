@@ -128,7 +128,7 @@ const AnalysisModal = ({ analysis, onClose }) => {
                   {analysis.top_neutral.map((contributor, index) => (
                     <div key={index} className="text-sm py-1">
                       <span className="text-twitch">{contributor.username}</span>
-                      <span className="text-yellow-400">: {formatNumber(contributor.count)} messages</span>
+                      <span className="text-white">: {formatNumber(contributor.count)} messages</span>
                     </div>
                   ))}
                 </div>

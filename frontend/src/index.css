@@ -2,26 +2,26 @@
 
 /* Custom colors */
 .text-twitch {
-  color: #9146FF;
+  color: #9146ff;
 }
 
 .bg-twitch {
-  background-color: #9146FF;
+  background-color: #9146ff;
 }
 
 .hover\:bg-twitch-dark:hover {
-  background-color: #7B2BFF;
+  background-color: #7b2bff;
 }
 
 .hover\:text-twitch:hover {
-  color: #9146FF;
+  color: #9146ff;
 }
 
 /* Custom styles for dark theme */
 body {
   margin: 0;
   padding: 0;
-  font-family: 'Inter', 'Helvetica Neue', 'Segoe UI', Arial, sans-serif;
+  font-family: "Inter", "Helvetica Neue", "Segoe UI", Arial, sans-serif;
   background-color: #000000;
   color: #fff;
 }
@@ -36,12 +36,12 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #9146FF;
+  background: #9146ff;
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #7B2BFF;
+  background: #7b2bff;
 }
 
 /* Class for custom scrollbar */
@@ -54,17 +54,17 @@ body {
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #9146FF;
+  background: #9146ff;
   border-radius: 3px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #7B2BFF;
+  background: #7b2bff;
 }
 
 .custom-scrollbar {
   scrollbar-width: thin;
-  scrollbar-color: #9146FF #1f2937;
+  scrollbar-color: #9146ff #1f2937;
 }
 
 /* Smooth scrolling */
