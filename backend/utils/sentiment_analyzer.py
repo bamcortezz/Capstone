@@ -8,21 +8,20 @@ warnings.filterwarnings('ignore', message='Some weights of the model checkpoint'
 
 class SentimentAnalyzer:
     def __init__(self):
-        # Initialize the RoBERTa model for sentiment analysis
+
         self.analyzer = pipeline(
             "sentiment-analysis",
             model="cardiffnlp/twitter-roberta-base-sentiment-latest",
-            device=0 if torch.cuda.is_available() else -1  # Use GPU if available
+            device=0 if torch.cuda.is_available() else -1 
         )
 
     def analyze_text(self, text):
         try:
-            # Analyze the sentiment
+            
             result = self.analyzer(text)[0]
             label = result['label']
             score = result['score']
 
-            # Map labels to more readable format
             sentiment_map = {
                 'LABEL_0': 'negative',
                 'LABEL_1': 'neutral',

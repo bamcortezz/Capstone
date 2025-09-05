@@ -49,14 +49,12 @@ class TwitchChatBot(irc.bot.SingleServerIRCBot):
             self._should_disconnect = True
 
     def on_pubmsg(self, connection, event):
-        # Get the message
+
         message = event.arguments[0]
         username = event.source.split('!')[0]
-        
-        # Analyze sentiment
+
         sentiment_result = sentiment_analyzer.analyze_text(message)
         
-        # Create message data with sentiment
         message_data = {
             'username': username,
             'message': message,
@@ -64,11 +62,9 @@ class TwitchChatBot(irc.bot.SingleServerIRCBot):
             'confidence': sentiment_result['confidence']
         }
         
-        # Emit the message via WebSocket
         self.socket_handler(message_data)
 
 def extract_channel_name(url):
-    # Extract channel name from Twitch URL
     pattern = r'(?:https?:\/\/)?(?:www\.)?twitch\.tv\/([a-zA-Z0-9_]+)'
     match = re.match(pattern, url)
     if match:

@@ -1,13 +1,13 @@
-import React, { useState, useEffect } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { ClipLoader } from "react-spinners";
 import Swal from "sweetalert2";
 
 // API URL
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
 const OTPVerification = () => {
-  const [otp, setOtp] = useState(['', '', '', '', '', '']);
+  const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [isLoading, setIsLoading] = useState(false);
   const [timeLeft, setTimeLeft] = useState(120); // 2 minutes
   const location = useLocation();
@@ -21,9 +21,8 @@ const OTPVerification = () => {
     }
   }, [timeLeft]);
 
-  // If no email is provided, redirect to register
   if (!email) {
-    navigate('/register');
+    navigate("/register");
     return null;
   }
 
@@ -31,42 +30,42 @@ const OTPVerification = () => {
     try {
       setIsLoading(true);
       const response = await fetch(`${API_URL}/api/resend-otp`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({ email }),
       });
       const data = await response.json();
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to resend code');
+        throw new Error(data.error || "Failed to resend code");
       }
       setTimeLeft(120); // Reset timer to 2 minutes
       await Swal.fire({
-        position: 'top-end',
-        icon: 'success',
-        title: 'New code sent!',
+        position: "top-end",
+        icon: "success",
+        title: "New code sent!",
         toast: true,
         timerProgressBar: true,
         showConfirmButton: false,
         timer: 1000,
-        confirmButtonColor: '#9147ff',
-        background: '#18181b',
-        color: '#fff'
+        confirmButtonColor: "#9147ff",
+        background: "#18181b",
+        color: "#fff",
       });
     } catch (error) {
       Swal.fire({
-        position: 'top-end',
-        icon: 'error',
-        title: 'Failed to resend code',
+        position: "top-end",
+        icon: "error",
+        title: "Failed to resend code",
         text: error.message,
         toast: true,
         timerProgressBar: true,
         showConfirmButton: false,
         timer: 1000,
-        confirmButtonColor: '#9147ff',
-        background: '#18181b',
-        color: '#fff'
+        confirmButtonColor: "#9147ff",
+        background: "#18181b",
+        color: "#fff",
       });
     } finally {
       setIsLoading(false);
@@ -79,7 +78,7 @@ const OTPVerification = () => {
     setOtp([...otp.map((d, idx) => (idx === index ? element.value : d))]);
 
     // Focus next input
-    if (element.value !== '') {
+    if (element.value !== "") {
       if (index < 5) {
         element.nextElementSibling?.focus();
       }
@@ -91,11 +90,11 @@ const OTPVerification = () => {
     setIsLoading(true);
 
     try {
-      const otpString = otp.join('');
+      const otpString = otp.join("");
       const response = await fetch(`${API_URL}/api/verify-otp`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({ email, otp: otpString }),
       });
@@ -103,41 +102,40 @@ const OTPVerification = () => {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Verification failed');
+        throw new Error(data.error || "Verification failed");
       }
 
       await Swal.fire({
-        position: 'top-end',
-        icon: 'success',
-        title: 'Account Verified!',
-        text: 'Redirecting to login...',
+        position: "top-end",
+        icon: "success",
+        title: "Account Verified!",
+        text: "Redirecting to login...",
         toast: true,
         timerProgressBar: true,
         showConfirmButton: false,
         timer: 1000,
-        confirmButtonColor: '#9147ff',
-        background: '#18181b',
-        color: '#fff'
+        confirmButtonColor: "#9147ff",
+        background: "#18181b",
+        color: "#fff",
       });
 
       // Navigate to login after success
       setTimeout(() => {
-        navigate('/login');
+        navigate("/login");
       }, 1000);
-
     } catch (err) {
       Swal.fire({
-        position: 'top-end',
-        icon: 'error',
-        title: 'Verification Failed',
+        position: "top-end",
+        icon: "error",
+        title: "Verification Failed",
         text: err.message,
         toast: true,
         timerProgressBar: true,
         showConfirmButton: false,
         timer: 1000,
-        confirmButtonColor: '#9147ff',
-        background: '#18181b',
-        color: '#fff'
+        confirmButtonColor: "#9147ff",
+        background: "#18181b",
+        color: "#fff",
       });
     } finally {
       setIsLoading(false);
@@ -151,13 +149,16 @@ const OTPVerification = () => {
           <div className="max-w-md mx-auto">
             <div className="bg-black p-8 rounded border border-gray-700 shadow-xl">
               <div className="text-center mb-8">
-                <h1 className="text-3xl font-bold text-white mb-2">Verify Your Email</h1>
+                <h1 className="text-3xl font-bold text-white mb-2">
+                  Verify Your Email
+                </h1>
                 <p className="text-gray-400">
-                  We sent a verification code to<br />
+                  We sent a verification code to
+                  <br />
                   <span className="text-twitch font-medium">{email}</span>
                 </p>
               </div>
-              
+
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="space-y-4">
                   <div className="flex justify-between gap-2">
@@ -173,23 +174,23 @@ const OTPVerification = () => {
                       />
                     ))}
                   </div>
-                  
+
                   <div className="text-center">
                     <p className="text-gray-400">
-                      Time remaining: {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
+                      Time remaining: {Math.floor(timeLeft / 60)}:
+                      {(timeLeft % 60).toString().padStart(2, "0")}
                     </p>
                   </div>
                 </div>
 
                 <button
                   type="submit"
-                  disabled={isLoading || otp.some(digit => digit === '')}
+                  disabled={isLoading || otp.some((digit) => digit === "")}
                   className={`w-full py-3 rounded-lg font-medium transition-colors flex items-center justify-center ${
-                    isLoading || otp.some(digit => digit === '')
-                      ? 'bg-gray-600 cursor-not-allowed'
-                      : 'bg-twitch hover:bg-twitch-dark text-white'
-                  }`}
-                >
+                    isLoading || otp.some((digit) => digit === "")
+                      ? "bg-gray-600 cursor-not-allowed"
+                      : "bg-twitch hover:bg-twitch-dark text-white"
+                  }`}>
                   {isLoading ? (
                     <ClipLoader size={24} color="#9146FF" />
                   ) : (
@@ -199,15 +200,16 @@ const OTPVerification = () => {
 
                 <div className="text-center">
                   <p className="text-gray-400">
-                    Didn't receive the code?{' '}
+                    Didn't receive the code?{" "}
                     <button
                       type="button"
                       onClick={handleResendOTP}
                       disabled={timeLeft > 0 || isLoading}
                       className={`text-twitch hover:text-twitch-dark font-medium ${
-                        timeLeft > 0 || isLoading ? 'opacity-50 cursor-not-allowed' : ''
-                      }`}
-                    >
+                        timeLeft > 0 || isLoading
+                          ? "opacity-50 cursor-not-allowed"
+                          : ""
+                      }`}>
                       Resend Code
                     </button>
                   </p>

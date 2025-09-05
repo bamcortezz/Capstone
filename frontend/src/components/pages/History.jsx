@@ -105,7 +105,7 @@ const AnalysisModal = ({ analysis, onClose }) => {
                   <span className="text-white font-semibold text-base">{formatDuration(analysis.duration || 0)}</span>
                 </div>
               </div>
-              <p className="text-gray-300 whitespace-pre-line">
+              <p className="text-gray-300 whitespace-pre-line text-justify">
                 {analysis.summary || "No summary available"}
               </p>
             </div>

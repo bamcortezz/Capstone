@@ -57,9 +57,6 @@ socketio = SocketIO(app,
 active_bots = {}
 user_bots = {}
 
-client = MongoClient('mongodb://localhost:27017/')
-db = client['twitch_sentiment']
-
 def broadcast_message(message_data):
     socketio.emit('chat_message', message_data)
 
