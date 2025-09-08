@@ -35,13 +35,34 @@ from io import BytesIO
 load_dotenv()
 
 app = Flask(__name__)
+
+# Environment detection
+is_production = os.getenv('ENVIRONMENT') == 'production'
 frontend_url = os.getenv('FRONTEND_URL', 'http://localhost:5173')
-CORS(app, supports_credentials=True, origins=[frontend_url])
+print(f"Environment: {'Production' if is_production else 'Development'}")
+print(f"Frontend URL: {frontend_url}")
+
+# Environment-aware CORS configuration
+if is_production:
+    # Strict CORS for production
+    CORS(app, 
+         supports_credentials=True, 
+         origins=[frontend_url],  # Only allow specific frontend URL
+         allow_headers=["Content-Type", "Authorization"],
+         methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
+else:
+    # Permissive CORS for development
+    CORS(app, 
+         supports_credentials=True, 
+         origins="*",  # Allow all origins for local development
+         allow_headers=["Content-Type", "Authorization"],
+         methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
 
 app.config["MONGO_URI"] = os.getenv('MONGO_URI')
-# Session security settings
+
+# Environment-aware session security settings
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', secrets.token_hex(32))
-app.config['SESSION_COOKIE_SECURE'] = True
+app.config['SESSION_COOKIE_SECURE'] = is_production  # True for HTTPS in production, False for HTTP in dev
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30)
@@ -53,6 +74,9 @@ socketio = SocketIO(app,
                    async_mode='threading',
                    ping_timeout=60,
                    ping_interval=25)
+
+client = MongoClient('mongodb://localhost:27017/')
+db = client['twitch_sentiment']
 
 active_bots = {}
 user_bots = {}
@@ -67,7 +91,7 @@ with app.app_context():
 
 @app.route('/')
 def index():
-    return "Welcome to Flask MongoDB API"
+    return jsonify({"message": "Welcome to Flask MongoDB API", "status": "running"})
 
 @app.route('/api/register', methods=['POST'])
 def register():
