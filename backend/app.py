@@ -99,16 +99,16 @@ def broadcast_message(message_data):
 
 with app.app_context():
     # Check and create collections if they don't exist
-    if 'users' not in db.list_collection_names():
-        db.create_collection('users')
+    if 'users' not in mongo.db.list_collection_names():
+        mongo.db.create_collection('users')
         print("Created 'users' collection.")
-    if 'history' not in db.list_collection_names():
-        db.create_collection('history')
+    if 'history' not in mongo.db.list_collection_names():
+        mongo.db.create_collection('history')
         print("Created 'history' collection.")
-    if 'logs' not in db.list_collection_names():
-        db.create_collection('logs')
+    if 'logs' not in mongo.db.list_collection_names():
+        mongo.db.create_collection('logs')
         print("Created 'logs' collection.")
-    
+
     # Create indexes for collections
     create_user_schema(mongo)
     create_history_schema(mongo)
