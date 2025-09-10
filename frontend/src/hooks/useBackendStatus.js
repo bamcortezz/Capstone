@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 
 // API URL
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-
+const API_URL = import.meta.env.VITE_API_URL;
 const useBackendStatus = () => {
   const [isBackendReady, setIsBackendReady] = useState(false);
   const [isChecking, setIsChecking] = useState(true);

@@ -4,7 +4,7 @@ import Swal from 'sweetalert2';
 import { ClipLoader } from 'react-spinners';
 
 // API URL
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const API_URL = import.meta.env.VITE_API_URL;
 
 const formatNumber = (num) => {
   if (typeof num !== 'number') return num;

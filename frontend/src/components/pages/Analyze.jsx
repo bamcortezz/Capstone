@@ -8,7 +8,7 @@ import { useAnalyze } from '../../contexts/AnalyzeContext';
 import { FixedSizeList as List } from 'react-window';
 
 // API URL
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const API_URL = import.meta.env.VITE_API_URL;
 
 const formatNumber = (num) => {
   if (typeof num !== 'number') return num;

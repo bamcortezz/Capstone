@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useRef, useEffect, useMemo,
 import io from 'socket.io-client';
 import { useAuth } from './AuthContext';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const API_URL = import.meta.env.VITE_API_URL;
 
 const AnalyzeContext = createContext();
 
