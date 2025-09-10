@@ -75,7 +75,7 @@ socketio = SocketIO(app,
                    ping_timeout=60,
                    ping_interval=25)
 
-client = MongoClient('mongodb://localhost:27017/')
+client = MongoClient(os.getenv('MONGO_URI'))
 db = client['twitch_sentiment']
 
 active_bots = {}
