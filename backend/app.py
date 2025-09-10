@@ -77,7 +77,14 @@ socketio = SocketIO(app,
                    ping_interval=25)
 
 client = MongoClient(os.getenv('MONGO_URI'))
-db = client['twitch_sentiment']
+try:
+    client.server_info()  # This checks if the connection is successful
+    print("Connected to MongoDB successfully.")
+except Exception as e:
+    print(f"Failed to connect to MongoDB: {str(e)}")
+    exit(1)  # Exit if the MongoDB connection fails
+
+db = client.get_database()
 print("MONGO_URI:", os.getenv('MONGO_URI'))
 print("MongoClient:", client)
 active_bots = {}
@@ -87,15 +94,22 @@ def broadcast_message(message_data):
     socketio.emit('chat_message', message_data)
 
 with app.app_context():
-    if 'users' not in mongo.db.list_collection_names():
-        mongo.db.create_collection('users')
-    if 'history' not in mongo.db.list_collection_names():
-        mongo.db.create_collection('history')
-    if 'logs' not in mongo.db.list_collection_names():
-        mongo.db.create_collection('logs')
+    # Check and create collections if they don't exist
+    if 'users' not in db.list_collection_names():
+        db.create_collection('users')
+        print("Created 'users' collection.")
+    if 'history' not in db.list_collection_names():
+        db.create_collection('history')
+        print("Created 'history' collection.")
+    if 'logs' not in db.list_collection_names():
+        db.create_collection('logs')
+        print("Created 'logs' collection.")
+    
+    # Create indexes for collections
     create_user_schema(mongo)
     create_history_schema(mongo)
     create_logs_schema(mongo)
+
 
 @app.route('/')
 def index():
