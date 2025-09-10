@@ -83,24 +83,22 @@ user_bots = {}
 def broadcast_message(message_data):
     socketio.emit('chat_message', message_data)
 
-def initialize_database():
-    with app.app_context():
-        # Check and create collections if they don't exist
-        if 'users' not in mongo.db.list_collection_names():
-            mongo.db.create_collection('users')
-            print("Created 'users' collection.")
-        if 'history' not in mongo.db.list_collection_names():
-            mongo.db.create_collection('history')
-            print("Created 'history' collection.")
-        if 'logs' not in mongo.db.list_collection_names():
-            mongo.db.create_collection('logs')
-            print("Created 'logs' collection.")
-        
-        # Create indexes for collections
-        create_user_schema(mongo)
-        create_history_schema(mongo)
-        create_logs_schema(mongo)
-        print("Database initialized successfully.")
+with app.app_context():
+    # Check and create collections if they don't exist
+    if 'users' not in mongo.db.list_collection_names():
+        mongo.db.create_collection('users')
+        print("Created 'users' collection.")
+    if 'history' not in mongo.db.list_collection_names():
+        mongo.db.create_collection('history')
+        print("Created 'history' collection.")
+    if 'logs' not in mongo.db.list_collection_names():
+        mongo.db.create_collection('logs')
+        print("Created 'logs' collection.")
+
+    # Create indexes for collections
+    create_user_schema(mongo)
+    create_history_schema(mongo)
+    create_logs_schema(mongo)
 
 @app.route('/')
 def index():
@@ -1159,7 +1157,6 @@ def delete_account():
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
-    initialize_database()
     import os
     port = int(os.environ.get("PORT", 5000))
     socketio.run(app, host="0.0.0.0", port=port, debug=True, allow_unsafe_werkzeug=True)
