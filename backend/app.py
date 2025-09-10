@@ -84,7 +84,7 @@ except Exception as e:
     print(f"Failed to connect to MongoDB: {str(e)}")
     exit(1)  # Exit if the MongoDB connection fails
 
-db = client.get_database()
+db = client['twitch_sentiment']
 print("MONGO_URI:", os.getenv('MONGO_URI'))
 print("MongoClient:", client)
 active_bots = {}
