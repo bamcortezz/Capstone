@@ -77,7 +77,8 @@ socketio = SocketIO(app,
 
 client = MongoClient(os.getenv('MONGO_URI'))
 db = client['twitch_sentiment']
-
+print("MONGO_URI:", os.getenv('MONGO_URI'))
+print("MongoClient:", client)
 active_bots = {}
 user_bots = {}
 
