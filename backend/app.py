@@ -41,6 +41,7 @@ is_production = os.getenv('ENVIRONMENT') == 'production'
 frontend_url = os.getenv('FRONTEND_URL', 'http://localhost:5173')
 print(f"Environment: {'Production' if is_production else 'Development'}")
 print(f"Frontend URL: {frontend_url}")
+print(f"MongoDB URI: {os.getenv('MONGO_URI')}")
 
 # Environment-aware CORS configuration
 if is_production:
@@ -78,6 +79,8 @@ socketio = SocketIO(app,
 
 # Adjust the MongoClient to include a DNS resolver
 client = MongoClient(os.getenv('MONGO_URI'), serverSelectionTimeoutMS=30000, connectTimeoutMS=30000, socketTimeoutMS=30000, tls=True, tlsAllowInvalidCertificates=True)
+print("MongoClient:", client)
+
 try:
     client.server_info()  # This checks if the connection is successful
     print("Connected to MongoDB successfully.")
