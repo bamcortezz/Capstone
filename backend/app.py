@@ -59,6 +59,7 @@ else:
          methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
 
 app.config["MONGO_URI"] = os.getenv('MONGO_URI')
+app.config['MONGO_DBNAME'] = os.getenv('MONGO_DBNAME', 'twitch_sentiment')
 
 # Environment-aware session security settings
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', secrets.token_hex(32))
