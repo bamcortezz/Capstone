@@ -76,7 +76,8 @@ socketio = SocketIO(app,
                    ping_timeout=60,
                    ping_interval=25)
 
-client = MongoClient(os.getenv('MONGO_URI'))
+# Adjust the MongoClient to include a DNS resolver
+client = MongoClient(os.getenv('MONGO_URI'), serverSelectionTimeoutMS=30000, connectTimeoutMS=30000, socketTimeoutMS=30000, tls=True, tlsAllowInvalidCertificates=True)
 try:
     client.server_info()  # This checks if the connection is successful
     print("Connected to MongoDB successfully.")
@@ -109,7 +110,6 @@ with app.app_context():
     create_user_schema(mongo)
     create_history_schema(mongo)
     create_logs_schema(mongo)
-
 
 @app.route('/')
 def index():
