@@ -77,42 +77,30 @@ socketio = SocketIO(app,
                    ping_timeout=60,
                    ping_interval=25)
 
-# Adjust the MongoClient to include a DNS resolver
-client = MongoClient(os.getenv('MONGO_URI'), serverSelectionTimeoutMS=30000, connectTimeoutMS=30000, socketTimeoutMS=30000)
-print("MongoClient:", client)
-
-try:
-    client.server_info()  # This checks if the connection is successful
-    print("Connected to MongoDB successfully.")
-except Exception as e:
-    print(f"Failed to connect to MongoDB: {str(e)}")
-    exit(1)  # Exit if the MongoDB connection fails
-
-db = client['twitch_sentiment']
-print("MONGO_URI:", os.getenv('MONGO_URI'))
-print("MongoClient:", client)
 active_bots = {}
 user_bots = {}
 
 def broadcast_message(message_data):
     socketio.emit('chat_message', message_data)
 
-with app.app_context():
-    # Check and create collections if they don't exist
-    if 'users' not in mongo.db.list_collection_names():
-        mongo.db.create_collection('users')
-        print("Created 'users' collection.")
-    if 'history' not in mongo.db.list_collection_names():
-        mongo.db.create_collection('history')
-        print("Created 'history' collection.")
-    if 'logs' not in mongo.db.list_collection_names():
-        mongo.db.create_collection('logs')
-        print("Created 'logs' collection.")
-
-    # Create indexes for collections
-    create_user_schema(mongo)
-    create_history_schema(mongo)
-    create_logs_schema(mongo)
+def initialize_database():
+    with app.app_context():
+        # Check and create collections if they don't exist
+        if 'users' not in mongo.db.list_collection_names():
+            mongo.db.create_collection('users')
+            print("Created 'users' collection.")
+        if 'history' not in mongo.db.list_collection_names():
+            mongo.db.create_collection('history')
+            print("Created 'history' collection.")
+        if 'logs' not in mongo.db.list_collection_names():
+            mongo.db.create_collection('logs')
+            print("Created 'logs' collection.")
+        
+        # Create indexes for collections
+        create_user_schema(mongo)
+        create_history_schema(mongo)
+        create_logs_schema(mongo)
+        print("Database initialized successfully.")
 
 @app.route('/')
 def index():
@@ -1171,6 +1159,7 @@ def delete_account():
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
+    initialize_database()
     import os
     port = int(os.environ.get("PORT", 5000))
     socketio.run(app, host="0.0.0.0", port=port, debug=True, allow_unsafe_werkzeug=True)
