@@ -87,6 +87,12 @@ def broadcast_message(message_data):
     socketio.emit('chat_message', message_data)
 
 with app.app_context():
+    if 'users' not in mongo.db.list_collection_names():
+        mongo.db.create_collection('users')
+    if 'history' not in mongo.db.list_collection_names():
+        mongo.db.create_collection('history')
+    if 'logs' not in mongo.db.list_collection_names():
+        mongo.db.create_collection('logs')
     create_user_schema(mongo)
     create_history_schema(mongo)
     create_logs_schema(mongo)
