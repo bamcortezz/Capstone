@@ -78,7 +78,7 @@ socketio = SocketIO(app,
                    ping_interval=25)
 
 # Adjust the MongoClient to include a DNS resolver
-client = MongoClient(os.getenv('MONGO_URI'), serverSelectionTimeoutMS=30000, connectTimeoutMS=30000, socketTimeoutMS=30000, tls=True, tlsAllowInvalidCertificates=True)
+client = MongoClient(os.getenv('MONGO_URI'), serverSelectionTimeoutMS=30000, connectTimeoutMS=30000, socketTimeoutMS=30000)
 print("MongoClient:", client)
 
 try:
