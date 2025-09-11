@@ -79,15 +79,37 @@ socketio = SocketIO(
     app,
     cors_allowed_origins=cors_origins,
     async_mode=('eventlet' if is_production else 'threading'),
-    ping_timeout=60,
-    ping_interval=25
+    ping_timeout=90,
+    ping_interval=30
 )
 
 active_bots = {}
 user_bots = {}
 
+@socketio.on('connect')
+def on_connect():
+    print('Client connected')
+    # Send a welcome message to the client
+    socketio.emit('welcome', {'message': 'Welcome to the server!'})
+    # Add the client to active users list
+    active_bots[request.sid] = {'connected': True}
+    print(f'Client {request.sid} added to active users')
+
+@socketio.on('disconnect')
+def on_disconnect():
+    print('Client disconnected')
+    # Remove the client from active users list
+    if request.sid in active_bots:
+        del active_bots[request.sid]
+        print(f'Client {request.sid} removed from active users')
+    # Log the disconnection event
+    print(f'Client {request.sid} disconnected')
+
 def broadcast_message(message_data):
-    socketio.emit('chat_message', message_data)
+    try:
+        socketio.emit('chat_message', message_data)
+    except Exception as e:
+        print(f"Error emitting message: {e}")
 
 # Example of checking MongoDB URI configuration
 print("MongoDB URI:", mongo_uri)  # Check the MongoDB URI

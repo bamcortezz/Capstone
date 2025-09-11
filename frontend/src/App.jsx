@@ -145,7 +145,7 @@ function App() {
     withCredentials: true,     // Send cookies with requests if needed (useful for sessions)
     reconnection: true,       // Allow reconnection attempts if the connection drops
     reconnectionAttempts: 5,  // Max reconnection attempts
-    reconnectionDelay: 1000,  // Time delay between reconnection attempts (1 second)
+    reconnectionDelay: 2000,  // Time delay between reconnection attempts (1 second)
     reconnectionDelayMax: 5000, // Max time to wait between reconnection attempts (5 seconds)
     timeout: 20000,           // Set a timeout value for initial connection (20 seconds)
     autoConnect: true,        // Automatically start connection
