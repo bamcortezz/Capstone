@@ -58,25 +58,30 @@ else:
          allow_headers=["Content-Type", "Authorization"],
          methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
 
-app.config["MONGO_URI"] = os.getenv('MONGO_URI')
+db_name = os.getenv('MONGO_DBNAME', 'twitch_sentiment')
+mongo_uri = os.getenv('MONGO_URI') or f'mongodb://localhost:27017/{db_name}'
+app.config["MONGO_URI"] = mongo_uri
 
 # Environment-aware session security settings
-app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', secrets.token_hex(32))
-app.config['SESSION_COOKIE_SECURE'] = is_production  # True for HTTPS in production, False for HTTP in dev
+secret_key = os.getenv('SECRET_KEY')
+if is_production and not secret_key:
+    raise ValueError("SECRET_KEY environment variable is not set.")
+app.config['SECRET_KEY'] = secret_key or secrets.token_hex(32)
+app.config['SESSION_COOKIE_SECURE'] = is_production
 app.config['SESSION_COOKIE_HTTPONLY'] = True
-app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['SESSION_COOKIE_SAMESITE'] = 'None' if is_production else 'Lax'
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30)
 
 mongo = PyMongo(app)
 
-socketio = SocketIO(app, 
-                   cors_allowed_origins=frontend_url, 
-                   async_mode='threading',
-                   ping_timeout=60,
-                   ping_interval=25)
-                   
-client = MongoClient(os.getenv('MONGO_URI'))
-db = client['twitch_sentiment']
+cors_origins = [frontend_url] if is_production else "*"
+socketio = SocketIO(
+    app,
+    cors_allowed_origins=cors_origins,
+    async_mode=('eventlet' if is_production else 'threading'),
+    ping_timeout=60,
+    ping_interval=25
+)
 
 active_bots = {}
 user_bots = {}
@@ -85,7 +90,7 @@ def broadcast_message(message_data):
     socketio.emit('chat_message', message_data)
 
 # Example of checking MongoDB URI configuration
-print("MongoDB URI:", os.getenv('MONGO_URI'))  # Check the MongoDB URI
+print("MongoDB URI:", mongo_uri)  # Check the MongoDB URI
 
 with app.app_context():
     create_user_schema(mongo)
@@ -1158,8 +1163,6 @@ if __name__ == '__main__':
     print("App: ", app)
     print("SocketIO: ", socketio)
     print("Mongo: ", mongo)
-    print("Client: ", client)
-    print("DB: ", db)
     print("Active bots: ", active_bots)
     print("User bots: ", user_bots)
     import os
