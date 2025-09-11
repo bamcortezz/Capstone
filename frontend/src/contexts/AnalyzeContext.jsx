@@ -17,59 +17,40 @@ export const AnalyzeProvider = ({ children }) => {
   const [userSentiments, setUserSentiments] = useState({ positive: {}, neutral: {}, negative: {} });
   const socketRef = useRef(null);
   const processedMessages = useRef(new Set());
-  const messageQueue = useRef([]);
   const [sessionStart, setSessionStart] = useState(null);
   const sessionStartRef = useRef(null);
 
-  useEffect(() => {
-    const processQueue = () => {
-      if (messageQueue.current.length === 0) return;
-      const newMessages = [...messageQueue.current];
-      messageQueue.current = [];
-      setMessages((prev) => [...prev, ...newMessages]);
-      const newSentimentCounts = { positive: 0, neutral: 0, negative: 0 };
-      const newUserSentiments = {};
-      newMessages.forEach((msg) => {
-        newSentimentCounts[msg.sentiment] += 1;
-        if (!newUserSentiments[msg.sentiment]) newUserSentiments[msg.sentiment] = {};
-        if (!newUserSentiments[msg.sentiment][msg.username]) newUserSentiments[msg.sentiment][msg.username] = 0;
-        newUserSentiments[msg.sentiment][msg.username] += 1;
-      });
-      setSentimentCounts((prev) => ({
-        positive: prev.positive + newSentimentCounts.positive,
-        neutral: prev.neutral + newSentimentCounts.neutral,
-        negative: prev.negative + newSentimentCounts.negative
-      }));
-      setUserSentiments((prev) => {
-        const updated = JSON.parse(JSON.stringify(prev));
-        for (const sentiment in newUserSentiments) {
-          for (const username in newUserSentiments[sentiment]) {
-            if (!updated[sentiment]) updated[sentiment] = {};
-            if (!updated[sentiment][username]) updated[sentiment][username] = 0;
-            updated[sentiment][username] += newUserSentiments[sentiment][username];
-          }
-        }
-        return updated;
-      });
-    };
-    const intervalId = setInterval(processQueue, 1000);
-    return () => clearInterval(intervalId);
-  }, []);
+  // Process incoming messages and update state
+  const processMessage = useCallback((msg) => {
+    const messageId = `${msg.username}-${msg.message}`;
+    if (!processedMessages.current.has(messageId)) {
+      processedMessages.current.add(messageId);
+      setMessages((prev) => [...prev, msg]);
+
+      const updatedSentimentCounts = { ...sentimentCounts };
+      updatedSentimentCounts[msg.sentiment] += 1;
+      setSentimentCounts(updatedSentimentCounts);
+
+      const updatedUserSentiments = { ...userSentiments };
+      if (!updatedUserSentiments[msg.sentiment]) updatedUserSentiments[msg.sentiment] = {};
+      updatedUserSentiments[msg.sentiment][msg.username] = (updatedUserSentiments[msg.sentiment][msg.username] || 0) + 1;
+      setUserSentiments(updatedUserSentiments);
+    }
+  }, [sentimentCounts, userSentiments]);
 
   // Socket connection management
   const connectToChannel = useCallback(async (streamUrl) => {
     if (socketRef.current) {
+      socketRef.current.off('chat_message');  // Cleanup previous listeners
       socketRef.current.disconnect();
       socketRef.current = null;
     }
-    // Connect to backend socket
+
+    // Connect to the socket
     socketRef.current = io(API_URL);
-    processedMessages.current.clear();
     setMessages([]);
     setSentimentCounts({ positive: 0, neutral: 0, negative: 0 });
     setUserSentiments({ positive: {}, neutral: {}, negative: {} });
-    setIsConnected(false);
-    setCurrentChannel(null);
 
     const response = await fetch(`${API_URL}/api/twitch/connect`, {
       method: 'POST',
@@ -77,6 +58,7 @@ export const AnalyzeProvider = ({ children }) => {
       body: JSON.stringify({ url: streamUrl }),
       credentials: 'include',
     });
+
     if (!response.ok) throw new Error('Failed to connect to channel');
     const data = await response.json();
     setIsConnected(true);
@@ -88,6 +70,7 @@ export const AnalyzeProvider = ({ children }) => {
       sessionStartRef.current = now;
     }
 
+    // Log the start of the analysis if the user is authenticated
     if (user) {
       try {
         await fetch(`${API_URL}/api/log/analysis-start`, {
@@ -96,18 +79,16 @@ export const AnalyzeProvider = ({ children }) => {
           credentials: 'include',
           body: JSON.stringify({ streamer: data.channel }),
         });
-      } catch (e) {  }
-    }
-    // Setup socket listeners
-    socketRef.current.on('connect', () => {
-    });
-    socketRef.current.on('chat_message', (msg) => {
-      const messageId = `${msg.username}-${msg.message}`;
-      if (!processedMessages.current.has(messageId)) {
-        processedMessages.current.add(messageId);
-        messageQueue.current.push({ ...msg, id: messageId });
+      } catch (e) {
+        console.error("Error logging analysis start", e);
       }
-    });
+    }
+
+    // Setup socket listeners for new messages and disconnects
+    socketRef.current.on('connect', () => {});
+
+    socketRef.current.on('chat_message', processMessage);  // Process incoming chat messages
+
     socketRef.current.on('disconnect', () => {
       setIsConnected(false);
       setCurrentChannel(null);
@@ -116,6 +97,7 @@ export const AnalyzeProvider = ({ children }) => {
       setUserSentiments({ positive: {}, neutral: {}, negative: {} });
       processedMessages.current.clear();
     });
+
     socketRef.current.on('disconnect_notification', (data) => {
       if (data.channel === currentChannel) {
         setIsConnected(false);
@@ -126,7 +108,7 @@ export const AnalyzeProvider = ({ children }) => {
         processedMessages.current.clear();
       }
     });
-  }, [user]);
+  }, [user, currentChannel, processMessage]);
 
   const disconnectFromChannel = useCallback(async () => {
     if (currentChannel) {
@@ -137,12 +119,17 @@ export const AnalyzeProvider = ({ children }) => {
           credentials: 'include',
           body: JSON.stringify({ channel: currentChannel }),
         });
-      } catch (e) {  }
+      } catch (e) {
+        console.error("Error disconnecting from channel", e);
+      }
     }
+
     if (socketRef.current) {
+      socketRef.current.off('chat_message');  // Cleanup listeners
       socketRef.current.disconnect();
       socketRef.current = null;
     }
+
     setIsConnected(false);
     setCurrentChannel(null);
     setMessages([]);
@@ -157,6 +144,7 @@ export const AnalyzeProvider = ({ children }) => {
   useEffect(() => {
     return () => {
       if (socketRef.current) {
+        socketRef.current.off('chat_message');  // Cleanup listeners on unmount
         socketRef.current.disconnect();
         socketRef.current = null;
       }
@@ -200,4 +188,4 @@ export const AnalyzeProvider = ({ children }) => {
       {children}
     </AnalyzeContext.Provider>
   );
-}; 
+};

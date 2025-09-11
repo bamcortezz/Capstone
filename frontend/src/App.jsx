@@ -140,19 +140,33 @@ function App() {
   const { isBackendReady, isChecking } = useBackendStatus();
 
   // Create a connection to your backend
-  const socket = io("https://backend-production-a3893.up.railway.app", {
+  const socket = io(import.meta.env.VITE_API_URL, {
     transports: ["websocket"], // Prefer WebSocket transport
     withCredentials: true,     // Send cookies with requests if needed (useful for sessions)
     reconnection: true,       // Allow reconnection attempts if the connection drops
     reconnectionAttempts: 5,  // Max reconnection attempts
     reconnectionDelay: 1000,  // Time delay between reconnection attempts (1 second)
-    timeout: 10000            // Set a timeout value for initial connection (10 seconds)
+    timeout: 20000            // Set a timeout value for initial connection (20 seconds)
   });
 
-  // Listen for events (example)
-  socket.on('chat_message', (message) => {
-    console.log('Received message:', message);
+  socket.on('connect', () => {
+    console.log('Connected to the WebSocket server');
   });
+  
+  socket.on('disconnect', (reason) => {
+    console.log('Disconnected from WebSocket:', reason);
+    // Optionally attempt to reconnect or show a notification
+  });
+  
+  socket.on('connect_error', (error) => {
+    console.error('WebSocket connect error:', error);
+    // Show an error message to the user or attempt to reconnect
+  });
+  
+  socket.on('connect_timeout', () => {
+    console.error('WebSocket connection timed out');
+  });
+
 
   if (isChecking || !isBackendReady) {
     return (
