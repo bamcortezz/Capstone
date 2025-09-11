@@ -84,10 +84,17 @@ user_bots = {}
 def broadcast_message(message_data):
     socketio.emit('chat_message', message_data)
 
+# Example of checking MongoDB URI configuration
+print("MongoDB URI:", os.getenv('MONGO_URI'))  # Check the MongoDB URI
+
 with app.app_context():
     create_user_schema(mongo)
     create_history_schema(mongo)
     create_logs_schema(mongo)
+    print("MongoDB connection successful.")
+
+# Check environment type
+print(f"Running in {'Production' if is_production else 'Development'} environment.")
 
 
 @app.route('/')
@@ -1147,6 +1154,14 @@ def delete_account():
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
+    print("Starting Flask app...")
+    print("App: ", app)
+    print("SocketIO: ", socketio)
+    print("Mongo: ", mongo)
+    print("Client: ", client)
+    print("DB: ", db)
+    print("Active bots: ", active_bots)
+    print("User bots: ", user_bots)
     import os
     port = int(os.environ.get("PORT", 5000))
     socketio.run(app, host="0.0.0.0", port=port, debug=True, allow_unsafe_werkzeug=True)
