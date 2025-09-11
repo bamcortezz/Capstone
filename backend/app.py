@@ -41,7 +41,7 @@ is_production = os.getenv('ENVIRONMENT') == 'production'
 frontend_url = os.getenv('FRONTEND_URL', 'http://localhost:5173')
 print(f"Environment: {'Production' if is_production else 'Development'}")
 print(f"Frontend URL: {frontend_url}")
-
+print("Port: ", os.environ.get("PORT"))
 # Environment-aware CORS configuration
 if is_production:
     # Strict CORS for production
@@ -70,7 +70,7 @@ app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30)
 mongo = PyMongo(app)
 
 socketio = SocketIO(app, 
-                   cors_allowed_origins="*", 
+                   cors_allowed_origins=frontend_url, 
                    async_mode='threading',
                    ping_timeout=60,
                    ping_interval=25)
@@ -1163,7 +1163,8 @@ if __name__ == '__main__':
     print("Active bots: ", active_bots)
     print("User bots: ", user_bots)
     import os
-    port = int(os.environ.get("PORT", 5000))
+    port = int(os.environ.get("PORT", 8080))
     print("Port: ", os.environ.get("PORT"))
     print("Port: ", port)
+    app.debug = True
     socketio.run(app, host="0.0.0.0", port=port, debug=True, allow_unsafe_werkzeug=True)
