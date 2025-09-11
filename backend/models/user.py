@@ -7,7 +7,8 @@ from bson.objectid import ObjectId
 
 def create_user_schema(mongo):
     try:
-
+        if not mongo or not hasattr(mongo, 'db') or not hasattr(mongo.db, 'users'):
+            raise AttributeError("Mongo object is not properly configured or 'users' collection is missing")
         mongo.db.users.create_index('email', unique=True)
     except Exception as e:
         print(f"Index creation failed: {str(e)}")

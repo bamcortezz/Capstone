@@ -7,6 +7,9 @@ logger.setLevel(logging.DEBUG)
 
 def create_logs_schema(mongo):
     try:
+        if not mongo or not hasattr(mongo, 'db') or not hasattr(mongo.db, 'logs'):
+            raise AttributeError("Mongo object is not properly configured or 'logs' collection is missing")
+
         mongo.db.logs.create_index([('user_id', 1)])  
         mongo.db.logs.create_index([('created_at', -1)])  
         mongo.db.logs.create_index([('activity', 1)])  
