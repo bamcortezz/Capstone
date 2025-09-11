@@ -21,6 +21,7 @@ import useBackendStatus from "./hooks/useBackendStatus"
 import { AuthProvider, useAuth } from "./contexts/AuthContext"
 import { AnalyzeProvider } from "./contexts/AnalyzeContext"
 import AdminRoute from "./components/admin/AdminRoute"
+import { io } from "socket.io-client";
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
@@ -137,6 +138,21 @@ const AppContent = () => {
 
 function App() {
   const { isBackendReady, isChecking } = useBackendStatus();
+
+  // Create a connection to your backend
+  const socket = io("https://backend-production-a3893.up.railway.app", {
+    transports: ["websocket"], // Prefer WebSocket transport
+    withCredentials: true,     // Send cookies with requests if needed (useful for sessions)
+    reconnection: true,       // Allow reconnection attempts if the connection drops
+    reconnectionAttempts: 5,  // Max reconnection attempts
+    reconnectionDelay: 1000,  // Time delay between reconnection attempts (1 second)
+    timeout: 10000            // Set a timeout value for initial connection (10 seconds)
+  });
+
+  // Listen for events (example)
+  socket.on('chat_message', (message) => {
+    console.log('Received message:', message);
+  });
 
   if (isChecking || !isBackendReady) {
     return (

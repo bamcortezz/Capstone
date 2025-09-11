@@ -84,7 +84,7 @@ def send_password_reset_email(to_email, user_id, reset_token):
     message["To"] = to_email
     message["Subject"] = "Password Reset Request"
 
-    reset_link = f"http://localhost:5173/reset-password/{user_id}/{reset_token}"
+    reset_link = f"{os.getenv('VITE_API_URL')}/reset-password/{user_id}/{reset_token}"
 
     text = f"""
     You requested a password reset for your account.\n\nPlease click on the link below to reset your password:\n{reset_link}\n\nIf you didn't request a password reset, please ignore this email.
