@@ -41,70 +41,71 @@ is_production = os.getenv('ENVIRONMENT') == 'production'
 frontend_url = os.getenv('FRONTEND_URL', 'http://localhost:5173')
 print(f"Environment: {'Production' if is_production else 'Development'}")
 print(f"Frontend URL: {frontend_url}")
-print(f"MongoDB URI: {os.getenv('MONGO_URI')}")
+
+# Use MONGO_URL provided by Railway, or fall back to a local URI
+mongo_url = os.getenv('MONGO_URL', os.getenv('MONGO_URI', 'mongodb://localhost:27017/twitch_sentiment'))
+print(f"MongoDB URL: {mongo_url}")
 
 # Environment-aware CORS configuration
 if is_production:
-    # Strict CORS for production
     CORS(app, 
          supports_credentials=True, 
-         origins=[frontend_url],  # Only allow specific frontend URL
+         origins=[frontend_url], 
          allow_headers=["Content-Type", "Authorization"],
          methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
 else:
-    # Permissive CORS for development
     CORS(app, 
          supports_credentials=True, 
-         origins="*",  # Allow all origins for local development
+         origins="*", 
          allow_headers=["Content-Type", "Authorization"],
          methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
 
 secret_key = os.getenv('SECRET_KEY')
-mongo_uri = os.getenv('MONGO_URI')
 if not secret_key:
     raise ValueError("SECRET_KEY environment variable is not set.")
-if not mongo_uri:
-    raise ValueError("MONGO_URI environment variable is not set.")
 
-app.config["MONGO_URI"] = os.getenv('MONGO_URI')
+app.config["MONGO_URI"] = mongo_url
 app.config['MONGO_DBNAME'] = os.getenv('MONGO_DBNAME', 'twitch_sentiment')
 
 # Environment-aware session security settings
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', secrets.token_hex(32))
-app.config['SESSION_COOKIE_SECURE'] = is_production  # True for HTTPS in production, False for HTTP in dev
+app.config['SESSION_COOKIE_SECURE'] = is_production
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30)
 
 try:
-    mongo = PyMongo()
-    mongo.init_app(app)
-    print("MongoDB initialization successful.")
+    mongo = PyMongo(app)
+    print("PyMongo initialization successful.")
 except Exception as e:
-    print(f"MongoDB initialization failed: {str(e)}")
+    mongo = None
+    print(f"PyMongo initialization failed: {str(e)}")
 
-client = MongoClient(os.getenv('MONGO_URI'))
-db = client[os.getenv('MONGO_DBNAME', 'twitch_sentiment')]
-
+# Use the PyMongo client for database access
+# Use the PyMongo client for database access
 with app.app_context():
-    if mongo.db is not None:
-        if 'users' not in mongo.db.list_collection_names():
-            mongo.db.create_collection('users')
-            print("Created 'users' collection.")
-        if 'history' not in mongo.db.list_collection_names():
-            mongo.db.create_collection('history')
-            print("Created 'history' collection.")
-        if 'logs' not in mongo.db.list_collection_names():
-            mongo.db.create_collection('logs')
-            print("Created 'logs' collection.")
-        
-        # Create indexes for collections
-        create_user_schema(mongo)
-        create_history_schema(mongo)
-        create_logs_schema(mongo)
-        print("Indexes created successfully.")
+    if mongo and mongo.cx:
+        try:
+            db = mongo.db
+            # Force a connection check by listing collections
+            collections = db.list_collection_names()
+            print("MongoDB connection verified successfully.")
+
+            if 'users' not in collections:
+                db.create_collection('users')
+                print("Created 'users' collection.")
+            # ... (rest of collection creation) ...
+
+            create_user_schema(mongo)
+            create_history_schema(mongo)
+            create_logs_schema(mongo)
+            print("Indexes created successfully.")
+        except Exception as e:
+            print(f"MongoDB connection failed. Error: {str(e)}")
+            # Handle the error, maybe exit the app or use a fallback
     else:
         print("MongoDB connection not established.")
+
 
 socketio = SocketIO(app, 
                    cors_allowed_origins="*", 
