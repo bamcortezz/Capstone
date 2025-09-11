@@ -83,8 +83,11 @@ try:
 except Exception as e:
     print(f"MongoDB initialization failed: {str(e)}")
 
+client = MongoClient(os.getenv('MONGO_URI'))
+db = client[os.getenv('MONGO_DBNAME', 'twitch_sentiment')]
+
 with app.app_context():
-    if mongo.db:
+    if mongo.db is not None:
         if 'users' not in mongo.db.list_collection_names():
             mongo.db.create_collection('users')
             print("Created 'users' collection.")
@@ -99,6 +102,7 @@ with app.app_context():
         create_user_schema(mongo)
         create_history_schema(mongo)
         create_logs_schema(mongo)
+        print("Indexes created successfully.")
     else:
         print("MongoDB connection not established.")
 
