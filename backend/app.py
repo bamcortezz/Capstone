@@ -69,7 +69,31 @@ app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30)
 
-mongo = PyMongo(app)
+try:
+    mongo = PyMongo(app)
+    # Test the connection
+    mongo.db.command('ping')
+    print("MongoDB connection successful!")
+except Exception as e:
+    print(f"Error connecting to MongoDB: {e}")
+
+with app.app_context():
+    if mongo.db:
+        if 'users' not in mongo.db.list_collection_names():
+            mongo.db.create_collection('users')
+            print("Created 'users' collection.")
+        if 'history' not in mongo.db.list_collection_names():
+            mongo.db.create_collection('history')
+            print("Created 'history' collection.")
+        if 'logs' not in mongo.db.list_collection_names():
+            mongo.db.create_collection('logs')
+            print("Created 'logs' collection.")
+        # Create indexes for collections
+        create_user_schema(mongo)
+        create_history_schema(mongo)
+        create_logs_schema(mongo)
+    else:
+        print("MongoDB connection not established.")
 
 socketio = SocketIO(app, 
                    cors_allowed_origins="*", 
@@ -83,22 +107,6 @@ user_bots = {}
 def broadcast_message(message_data):
     socketio.emit('chat_message', message_data)
 
-with app.app_context():
-    # Check and create collections if they don't exist
-    if 'users' not in mongo.db.list_collection_names():
-        mongo.db.create_collection('users')
-        print("Created 'users' collection.")
-    if 'history' not in mongo.db.list_collection_names():
-        mongo.db.create_collection('history')
-        print("Created 'history' collection.")
-    if 'logs' not in mongo.db.list_collection_names():
-        mongo.db.create_collection('logs')
-        print("Created 'logs' collection.")
-
-    # Create indexes for collections
-    create_user_schema(mongo)
-    create_history_schema(mongo)
-    create_logs_schema(mongo)
 
 @app.route('/')
 def index():
