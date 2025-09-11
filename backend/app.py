@@ -83,6 +83,25 @@ try:
 except Exception as e:
     print(f"MongoDB initialization failed: {str(e)}")
 
+with app.app_context():
+    if mongo.db:
+        if 'users' not in mongo.db.list_collection_names():
+            mongo.db.create_collection('users')
+            print("Created 'users' collection.")
+        if 'history' not in mongo.db.list_collection_names():
+            mongo.db.create_collection('history')
+            print("Created 'history' collection.")
+        if 'logs' not in mongo.db.list_collection_names():
+            mongo.db.create_collection('logs')
+            print("Created 'logs' collection.")
+        
+        # Create indexes for collections
+        create_user_schema(mongo)
+        create_history_schema(mongo)
+        create_logs_schema(mongo)
+    else:
+        print("MongoDB connection not established.")
+
 socketio = SocketIO(app, 
                    cors_allowed_origins="*", 
                    async_mode='threading',
