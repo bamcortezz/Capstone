@@ -42,82 +42,52 @@ frontend_url = os.getenv('FRONTEND_URL', 'http://localhost:5173')
 print(f"Environment: {'Production' if is_production else 'Development'}")
 print(f"Frontend URL: {frontend_url}")
 
-# Use MONGO_URL provided by Railway, or fall back to a local URI
-mongo_url = os.getenv('MONGO_URL', os.getenv('MONGO_URI', 'mongodb://localhost:27017/twitch_sentiment'))
-print(f"MongoDB URL: {mongo_url}")
-
 # Environment-aware CORS configuration
 if is_production:
+    # Strict CORS for production
     CORS(app, 
          supports_credentials=True, 
-         origins=[frontend_url], 
+         origins=[frontend_url],  # Only allow specific frontend URL
          allow_headers=["Content-Type", "Authorization"],
          methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
 else:
+    # Permissive CORS for development
     CORS(app, 
          supports_credentials=True, 
-         origins="*", 
+         origins="*",  # Allow all origins for local development
          allow_headers=["Content-Type", "Authorization"],
          methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
 
-secret_key = os.getenv('SECRET_KEY')
-if not secret_key:
-    raise ValueError("SECRET_KEY environment variable is not set.")
-
-app.config["MONGO_URI"] = mongo_url
-app.config['MONGO_DBNAME'] = os.getenv('MONGO_DBNAME', 'twitch_sentiment')
+app.config["MONGO_URI"] = os.getenv('MONGO_URI')
 
 # Environment-aware session security settings
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', secrets.token_hex(32))
-app.config['SESSION_COOKIE_SECURE'] = is_production
+app.config['SESSION_COOKIE_SECURE'] = is_production  # True for HTTPS in production, False for HTTP in dev
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30)
 
-try:
-    mongo = PyMongo(app)
-    print("PyMongo initialization successful.")
-except Exception as e:
-    mongo = None
-    print(f"PyMongo initialization failed: {str(e)}")
-
-# Use the PyMongo client for database access
-# Use the PyMongo client for database access
-with app.app_context():
-    if mongo and mongo.cx:
-        try:
-            db = mongo.db
-            # Force a connection check by listing collections
-            collections = db.list_collection_names()
-            print("MongoDB connection verified successfully.")
-
-            if 'users' not in collections:
-                db.create_collection('users')
-                print("Created 'users' collection.")
-            # ... (rest of collection creation) ...
-
-            create_user_schema(mongo)
-            create_history_schema(mongo)
-            create_logs_schema(mongo)
-            print("Indexes created successfully.")
-        except Exception as e:
-            print(f"MongoDB connection failed. Error: {str(e)}")
-            # Handle the error, maybe exit the app or use a fallback
-    else:
-        print("MongoDB connection not established.")
-
+mongo = PyMongo(app)
 
 socketio = SocketIO(app, 
                    cors_allowed_origins="*", 
                    async_mode='threading',
                    ping_timeout=60,
                    ping_interval=25)
+                   
+client = MongoClient(os.getenv('MONGO_URI'))
+db = client['twitch_sentiment']
 
 active_bots = {}
 user_bots = {}
 
 def broadcast_message(message_data):
     socketio.emit('chat_message', message_data)
+
+with app.app_context():
+    create_user_schema(mongo)
+    create_history_schema(mongo)
+    create_logs_schema(mongo)
 
 
 @app.route('/')
