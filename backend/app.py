@@ -59,6 +59,13 @@ else:
          allow_headers=["Content-Type", "Authorization"],
          methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
 
+secret_key = os.getenv('SECRET_KEY')
+mongo_uri = os.getenv('MONGO_URI')
+if not secret_key:
+    raise ValueError("SECRET_KEY environment variable is not set.")
+if not mongo_uri:
+    raise ValueError("MONGO_URI environment variable is not set.")
+
 app.config["MONGO_URI"] = os.getenv('MONGO_URI')
 app.config['MONGO_DBNAME'] = os.getenv('MONGO_DBNAME', 'twitch_sentiment')
 
@@ -70,30 +77,11 @@ app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30)
 
 try:
-    mongo = PyMongo(app)
-    # Test the connection
-    mongo.db.command('ping')
-    print("MongoDB connection successful!")
+    mongo = PyMongo()
+    mongo.init_app(app)
+    print("MongoDB initialization successful.")
 except Exception as e:
-    print(f"Error connecting to MongoDB: {e}")
-
-with app.app_context():
-    if mongo.db:
-        if 'users' not in mongo.db.list_collection_names():
-            mongo.db.create_collection('users')
-            print("Created 'users' collection.")
-        if 'history' not in mongo.db.list_collection_names():
-            mongo.db.create_collection('history')
-            print("Created 'history' collection.")
-        if 'logs' not in mongo.db.list_collection_names():
-            mongo.db.create_collection('logs')
-            print("Created 'logs' collection.")
-        # Create indexes for collections
-        create_user_schema(mongo)
-        create_history_schema(mongo)
-        create_logs_schema(mongo)
-    else:
-        print("MongoDB connection not established.")
+    print(f"MongoDB initialization failed: {str(e)}")
 
 socketio = SocketIO(app, 
                    cors_allowed_origins="*", 
