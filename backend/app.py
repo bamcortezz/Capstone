@@ -78,11 +78,15 @@ socketio = SocketIO(
     app,
     cors_allowed_origins=cors_origins,
     async_mode=('eventlet' if is_production else 'threading'),
-    ping_timeout=60,  # Increased from 90 to 60 seconds
-    ping_interval=25,  # Increased from 30 to 25 seconds
-    max_http_buffer_size=1000000,  # 1MB buffer
-    logger=True,
-    engineio_logger=True
+    ping_timeout=60,
+    ping_interval=25,
+    max_http_buffer_size=1000000,
+    logger=False,  # Disable verbose logging in production
+    engineio_logger=False,  # Disable verbose logging in production
+    always_connect=True,
+    allow_upgrades=True,
+    compression=True,
+    cookie=None  # Disable cookies to reduce overhead
 )
 
 # Multi-user bot management
@@ -109,6 +113,10 @@ def on_disconnect():
         if user_id in user_bots:
             channels = list(user_bots[user_id])
             for channel in channels:
+                # Leave channel room
+                room_name = f"channel_{channel}"
+                socketio.leave_room(request.sid, room_name)
+                
                 if channel in active_bots:
                     active_bots[channel]['connected_users'].discard(user_id)
                     # If no users left, disconnect the bot
@@ -132,17 +140,23 @@ def handle_user_session_mapping(data):
     if user_id:
         user_sessions[request.sid] = user_id
         print(f'Mapped session {request.sid} to user {user_id}')
+        
+        # Join user to any channels they're connected to
+        if user_id in user_bots:
+            for channel in user_bots[user_id]:
+                room_name = f"channel_{channel}"
+                socketio.enter_room(request.sid, room_name)
+                print(f'User {user_id} joined room {room_name}')
 
 def broadcast_message(message_data, channel=None):
     try:
         if channel and channel in active_bots:
             # Send to all users connected to this specific channel
             connected_users = active_bots[channel]['connected_users']
-            for user_id in connected_users:
-                # Find session IDs for this user
-                for session_id, mapped_user_id in user_sessions.items():
-                    if mapped_user_id == user_id:
-                        socketio.emit('chat_message', message_data, room=session_id)
+            if connected_users:
+                # Create a room for this channel to make broadcasting more efficient
+                room_name = f"channel_{channel}"
+                socketio.emit('chat_message', message_data, room=room_name)
         else:
             # Fallback: broadcast to all (shouldn't happen in normal operation)
             socketio.emit('chat_message', message_data)
@@ -291,6 +305,12 @@ def logout():
         if user_id and user_id in user_bots:
             channels = list(user_bots[user_id])
             for channel in channels:
+                # Leave channel room for all sessions of this user
+                room_name = f"channel_{channel}"
+                for session_id, mapped_user_id in user_sessions.items():
+                    if mapped_user_id == user_id:
+                        socketio.leave_room(session_id, room_name)
+                
                 if channel in active_bots:
                     # Remove user from connected users
                     active_bots[channel]['connected_users'].discard(user_id)
@@ -343,6 +363,11 @@ def connect_to_twitch():
             active_bots[channel]['connected_users'].add(user_id)
             user_bots.setdefault(user_id, set()).add(channel)
             print(f'User {user_id} joined existing bot for channel {channel}')
+            
+            # Join user to channel room for efficient message broadcasting
+            room_name = f"channel_{channel}"
+            # Note: We'll join the room when the user's socket connects via map_user_session
+            
             return jsonify({'message': f'Connected to {channel}\'s chat', 'channel': channel}), 200
             
         import random
@@ -373,6 +398,10 @@ def connect_to_twitch():
             
             user_bots.setdefault(user_id, set()).add(channel)
             
+            # Join user to channel room for efficient message broadcasting
+            room_name = f"channel_{channel}"
+            # Note: We'll join the room when the user's socket connects via map_user_session
+            
             return jsonify({'message': f'Connected to {channel}\'s chat', 'channel': channel}), 200
         except Exception as e:
             print(f"Error creating Twitch bot: {e}")
@@ -396,6 +425,12 @@ def disconnect_from_twitch():
             return jsonify({'error': 'Authentication required'}), 401
         
         if channel in active_bots:
+            # Leave channel room for all sessions of this user
+            room_name = f"channel_{channel}"
+            for session_id, mapped_user_id in user_sessions.items():
+                if mapped_user_id == user_id:
+                    socketio.leave_room(session_id, room_name)
+            
             # Remove user from connected users
             active_bots[channel]['connected_users'].discard(user_id)
             

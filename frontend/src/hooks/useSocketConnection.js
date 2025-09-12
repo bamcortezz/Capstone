@@ -33,6 +33,11 @@ export const useSocketConnection = () => {
     }
     
     if (socketRef.current) {
+      // Clear health check interval
+      if (socketRef.current.healthCheckInterval) {
+        clearInterval(socketRef.current.healthCheckInterval);
+      }
+      
       socketRef.current.removeAllListeners();
       socketRef.current.disconnect();
       socketRef.current = null;
@@ -57,7 +62,11 @@ export const useSocketConnection = () => {
       pingTimeout: 30000,  // 30 seconds
       // Connection options
       forceNew: true,
-      multiplex: false
+      multiplex: false,
+      // Additional options for stability
+      upgrade: true,
+      rememberUpgrade: false,
+      perMessageDeflate: false
     });
 
     // Connection established
@@ -73,6 +82,18 @@ export const useSocketConnection = () => {
         socket.emit('map_user_session', { user_id: userId });
         console.log('Mapped user session:', userId);
       }
+      
+      // Set up periodic health check
+      const healthCheck = setInterval(() => {
+        if (socket.connected) {
+          socket.emit('ping');
+        } else {
+          clearInterval(healthCheck);
+        }
+      }, 30000); // Check every 30 seconds
+      
+      // Store health check interval for cleanup
+      socket.healthCheckInterval = healthCheck;
     });
 
     // Connection lost
