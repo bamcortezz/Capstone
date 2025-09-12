@@ -15,7 +15,7 @@ from werkzeug.security import generate_password_hash
 from utils.email_sender import send_otp_email, send_password_reset_email, send_contact_email
 from utils.twitch_chat import TwitchChatBot, extract_channel_name
 from utils.password_validator import validate_password
-from flask_socketio import SocketIO, emit, request
+from flask_socketio import SocketIO, emit
 from dotenv import load_dotenv
 from datetime import timedelta
 import threading
