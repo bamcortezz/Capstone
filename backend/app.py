@@ -1495,7 +1495,7 @@ if __name__ == '__main__':
         print("Active bots: ", active_bots)
         print("User bots: ", user_bots)
         import os
-        port = int(os.environ.get("PORT", 5000))
+        port = int(os.environ.get("PORT", 8080))
         print("Port: ", os.environ.get("PORT"))
         print("Port: ", port)
         print(f"Environment: {'Production' if is_production else 'Development'}")
