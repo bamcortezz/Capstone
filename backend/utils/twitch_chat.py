@@ -54,20 +54,15 @@ class TwitchChatBot(irc.bot.SingleServerIRCBot):
             message = event.arguments[0]
             username = event.source.split('!')[0]
 
-            print(f"DEBUG: Twitch bot received message from {username}: {message[:50]}...")
-
             # Skip empty messages or very long messages
             if not message or len(message.strip()) == 0:
-                print("DEBUG: Skipping empty message")
                 return
                 
             # Limit message length to prevent issues
             if len(message) > 1000:
                 message = message[:1000] + "..."
 
-            print(f"DEBUG: Analyzing sentiment for message: {message[:50]}...")
             sentiment_result = sentiment_analyzer.analyze_text(message)
-            print(f"DEBUG: Sentiment result: {sentiment_result}")
             
             message_data = {
                 'username': username,
@@ -76,9 +71,7 @@ class TwitchChatBot(irc.bot.SingleServerIRCBot):
                 'confidence': sentiment_result['confidence']
             }
             
-            print(f"DEBUG: Calling message handler for channel {self.channel_name}")
             self.message_handler(message_data, self.channel_name)
-            print(f"DEBUG: Message handler completed")
         except Exception as e:
             print(f"Error processing chat message: {e}")
             # Don't crash the bot, just skip this message

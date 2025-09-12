@@ -143,14 +143,6 @@ def remove_sse_connection(channel, connection_id):
 def broadcast_message_to_channel(channel, message_data):
     """Broadcast a message to all SSE connections for a channel"""
     with connection_lock:
-        print(f"DEBUG: Checking connections for channel {channel}")
-        print(f"DEBUG: sse_connections has channel: {channel in sse_connections}")
-        if channel in sse_connections:
-            print(f"DEBUG: sse_connections[{channel}] = {sse_connections[channel]}")
-        print(f"DEBUG: sse_message_queues has channel: {channel in sse_message_queues}")
-        if channel in sse_message_queues:
-            print(f"DEBUG: sse_message_queues[{channel}] = {list(sse_message_queues[channel].keys())}")
-        
         if channel in sse_connections and sse_connections[channel]:
             # Add message to queue for new connections
             message_queues[channel].append(message_data)
@@ -166,9 +158,7 @@ def broadcast_message_to_channel(channel, message_data):
                     if connection_id in sse_message_queues.get(channel, {}):
                         sse_message_queues[channel][connection_id].put(message_data, timeout=1)
                         successful_sends += 1
-                        print(f"DEBUG: Successfully queued message for connection {connection_id}")
                     else:
-                        print(f"DEBUG: Connection {connection_id} not found in sse_message_queues")
                         failed_sends += 1
                 except queue.Full:
                     failed_sends += 1
@@ -319,11 +309,9 @@ def sse_chat_stream(channel):
                     
                     if queue_ref:
                         message_data = queue_ref.get(timeout=1.0)
-                        print(f"DEBUG: SSE stream received message for connection {connection_id}")
                         yield f"data: {json.dumps({'type': 'message', 'data': message_data})}\n\n"
                     else:
                         # Connection queue not found, wait and retry
-                        print(f"DEBUG: Connection queue not found for {connection_id}, waiting...")
                         time.sleep(0.1)
                         continue
                 except queue.Empty:
@@ -607,10 +595,7 @@ def connect_to_twitch():
             # Create bot with channel-specific message handler
             def channel_message_handler(message_data, channel_name):
                 try:
-                    print(f"DEBUG: channel_message_handler called with data: {message_data}")
-                    print(f"DEBUG: Calling broadcast_message for channel: {channel_name}")
                     broadcast_message(message_data, channel_name)
-                    print(f"DEBUG: broadcast_message completed")
                 except Exception as e:
                     print(f"Error in channel_message_handler: {e}")
                 
