@@ -23,18 +23,28 @@ export const AnalyzeProvider = ({ children }) => {
     const messageId = `${msg.username}-${msg.message}`;
     if (!processedMessages.current.has(messageId)) {
       processedMessages.current.add(messageId);
+      
       setMessages((prev) => [...prev, msg]);
 
-      const updatedSentimentCounts = { ...sentimentCounts };
-      updatedSentimentCounts[msg.sentiment] += 1;
-      setSentimentCounts(updatedSentimentCounts);
+      // Use functional updates to avoid stale closure issues
+      setSentimentCounts((prev) => ({
+        ...prev,
+        [msg.sentiment]: (prev[msg.sentiment] || 0) + 1
+      }));
 
-      const updatedUserSentiments = { ...userSentiments };
-      if (!updatedUserSentiments[msg.sentiment]) updatedUserSentiments[msg.sentiment] = {};
-      updatedUserSentiments[msg.sentiment][msg.username] = (updatedUserSentiments[msg.sentiment][msg.username] || 0) + 1;
-      setUserSentiments(updatedUserSentiments);
+      setUserSentiments((prev) => {
+        const updated = { ...prev };
+        if (!updated[msg.sentiment]) {
+          updated[msg.sentiment] = {};
+        }
+        updated[msg.sentiment] = {
+          ...updated[msg.sentiment],
+          [msg.username]: (updated[msg.sentiment][msg.username] || 0) + 1
+        };
+        return updated;
+      });
     }
-  }, [sentimentCounts, userSentiments]);
+  }, []); // Remove dependencies to avoid stale closures
 
   // Socket connection management
   const connectToChannel = useCallback(async (streamUrl) => {

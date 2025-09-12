@@ -17,6 +17,19 @@ class SentimentAnalyzer:
 
     def analyze_text(self, text):
         try:
+            # Truncate text to prevent tensor size issues
+            # Most sentiment models work best with shorter text
+            max_length = 512  # Safe length for most models
+            if len(text) > max_length:
+                text = text[:max_length]
+            
+            # Skip empty or very short text
+            if len(text.strip()) < 2:
+                return {
+                    'sentiment': 'neutral',
+                    'confidence': 0.0,
+                    'text': text
+                }
             
             result = self.analyzer(text)[0]
             label = result['label']

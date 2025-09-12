@@ -49,20 +49,31 @@ class TwitchChatBot(irc.bot.SingleServerIRCBot):
             self._should_disconnect = True
 
     def on_pubmsg(self, connection, event):
+        try:
+            message = event.arguments[0]
+            username = event.source.split('!')[0]
 
-        message = event.arguments[0]
-        username = event.source.split('!')[0]
+            # Skip empty messages or very long messages
+            if not message or len(message.strip()) == 0:
+                return
+                
+            # Limit message length to prevent issues
+            if len(message) > 1000:
+                message = message[:1000] + "..."
 
-        sentiment_result = sentiment_analyzer.analyze_text(message)
-        
-        message_data = {
-            'username': username,
-            'message': message,
-            'sentiment': sentiment_result['sentiment'],
-            'confidence': sentiment_result['confidence']
-        }
-        
-        self.socket_handler(message_data)
+            sentiment_result = sentiment_analyzer.analyze_text(message)
+            
+            message_data = {
+                'username': username,
+                'message': message,
+                'sentiment': sentiment_result['sentiment'],
+                'confidence': sentiment_result['confidence']
+            }
+            
+            self.socket_handler(message_data)
+        except Exception as e:
+            print(f"Error processing chat message: {e}")
+            # Don't crash the bot, just skip this message
 
 def extract_channel_name(url):
     pattern = r'(?:https?:\/\/)?(?:www\.)?twitch\.tv\/([a-zA-Z0-9_]+)'

@@ -219,6 +219,31 @@ def health_check():
             'error': str(e)
         }), 500
 
+# Debug endpoint for checking bot and session status
+@app.route('/debug/status', methods=['GET'])
+def debug_status():
+    try:
+        if 'user_id' not in session:
+            return jsonify({'error': 'Not authenticated'}), 401
+            
+        current_user = get_user_by_id(mongo, session['user_id'])
+        if not current_user or current_user.get('role') != 'admin':
+            return jsonify({'error': 'Admin privileges required'}), 403
+        
+        return jsonify({
+            'active_bots': {
+                channel: {
+                    'connected_users': list(bot_data['connected_users']),
+                    'bot_active': bot_data['bot']._should_disconnect == False if hasattr(bot_data['bot'], '_should_disconnect') else 'unknown'
+                } for channel, bot_data in active_bots.items()
+            },
+            'user_sessions': user_sessions,
+            'user_bots': {user_id: list(channels) for user_id, channels in user_bots.items()},
+            'timestamp': datetime.now().isoformat()
+        }), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @socketio.on('connect')
 def on_connect():
     try:
@@ -312,7 +337,7 @@ def handle_keepalive():
         print(f'Error in handle_keepalive: {e}')
 
 @socketio.on('client_keepalive_ack')
-def handle_client_keepalive_ack():
+def handle_client_keepalive_ack(data=None):
     try:
         client_sid = request.sid
         print(f'Client {client_sid} acknowledged keepalive')
@@ -357,19 +382,29 @@ def broadcast_message(message_data, channel=None):
         if channel and channel in active_bots:
             # Send to all users connected to this specific channel
             connected_users = active_bots[channel]['connected_users'].copy()  # Create a copy to avoid iteration issues
+            print(f"Broadcasting to {len(connected_users)} users for channel {channel}")
+            
             for user_id in connected_users:
                 # Find session IDs for this user - create a copy of user_sessions to avoid iteration issues
                 user_sessions_copy = dict(user_sessions)  # Create a copy to avoid "dictionary changed size during iteration"
+                user_sessions_found = False
+                
                 for session_id, mapped_user_id in user_sessions_copy.items():
                     if mapped_user_id == user_id:
+                        user_sessions_found = True
                         try:
                             socketio.emit('chat_message', message_data, room=session_id)
+                            print(f"Sent message to session {session_id} for user {user_id}")
                         except Exception as emit_error:
                             print(f"Error emitting to session {session_id}: {emit_error}")
+                
+                if not user_sessions_found:
+                    print(f"Warning: No active session found for user {user_id} in channel {channel}")
         else:
             # Fallback: broadcast to all (shouldn't happen in normal operation)
             try:
                 socketio.emit('chat_message', message_data)
+                print("Broadcasted message to all clients (fallback)")
             except Exception as emit_error:
                 print(f"Error broadcasting message: {emit_error}")
     except Exception as e:

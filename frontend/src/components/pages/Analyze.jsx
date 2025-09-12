@@ -19,17 +19,39 @@ const formatNumber = (num) => {
 ChartJS.register(ArcElement, Tooltip, Legend);
 
 const SentimentPieChart = React.memo(({ sentimentCounts }) => {
-  const chartData = useMemo(() => ({
-    labels: ['Positive', 'Neutral', 'Negative'],
-    datasets: [
-      {
-        data: [sentimentCounts.positive, sentimentCounts.neutral, sentimentCounts.negative],
-        backgroundColor: ['#22c55e', '#fde047', '#ef4444'], 
-        borderColor: ['#16a34a', '#facc15', '#b91c1c'], 
-        borderWidth: 1,
-      },
-    ],
-  }), [sentimentCounts]);
+  const chartData = useMemo(() => {
+    const positive = sentimentCounts.positive || 0;
+    const neutral = sentimentCounts.neutral || 0;
+    const negative = sentimentCounts.negative || 0;
+    const total = positive + neutral + negative;
+    
+    // If no data, show a placeholder
+    if (total === 0) {
+      return {
+        labels: ['No Data'],
+        datasets: [
+          {
+            data: [1],
+            backgroundColor: ['#6B7280'],
+            borderColor: ['#4B5563'],
+            borderWidth: 1,
+          },
+        ],
+      };
+    }
+    
+    return {
+      labels: ['Positive', 'Neutral', 'Negative'],
+      datasets: [
+        {
+          data: [positive, neutral, negative],
+          backgroundColor: ['#22c55e', '#fde047', '#ef4444'], 
+          borderColor: ['#16a34a', '#facc15', '#b91c1c'], 
+          borderWidth: 1,
+        },
+      ],
+    };
+  }, [sentimentCounts]);
 
   const chartOptions = useMemo(() => ({
     plugins: {
@@ -39,9 +61,21 @@ const SentimentPieChart = React.memo(({ sentimentCounts }) => {
           color: '#D1D5DB',
           font: { size: 12 }
         }
+      },
+      tooltip: {
+        callbacks: {
+          label: function(context) {
+            const label = context.label || '';
+            const value = context.parsed || 0;
+            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+            const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+            return `${label}: ${value} (${percentage}%)`;
+          }
+        }
       }
     },
-    maintainAspectRatio: false
+    maintainAspectRatio: false,
+    responsive: true
   }), []);
 
   return <Pie data={chartData} options={chartOptions} />;
