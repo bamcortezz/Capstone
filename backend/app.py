@@ -2,7 +2,6 @@ from flask import Flask, request, jsonify, session, make_response
 from flask_pymongo import PyMongo
 import os
 from flask_cors import CORS
-from flask_socketio import request
 from models.user import (
     create_user_schema, create_user, verify_otp, activate_user, 
     verify_password, get_user_by_email, get_user_by_id,
@@ -91,6 +90,7 @@ user_sessions = {}  # session_id -> user_id mapping
 
 @socketio.on('connect')
 def on_connect():
+    from flask_socketio import request
     print(f'Client {request.sid} connected')
     # Send a welcome message to the specific client
     socketio.emit('welcome', {'message': 'Welcome to the server!'}, room=request.sid)
@@ -98,6 +98,7 @@ def on_connect():
 
 @socketio.on('disconnect')
 def on_disconnect():
+    from flask_socketio import request
     print(f'Client {request.sid} disconnected')
     # Clean up user session mapping
     if request.sid in user_sessions:
@@ -123,6 +124,14 @@ def on_disconnect():
                             socketio.emit('disconnect_notification', {'channel': channel})
             del user_bots[user_id]
     print(f'Client {request.sid} removed from active users')
+
+@socketio.on('map_user_session')
+def handle_user_session_mapping(data):
+    from flask_socketio import request
+    user_id = data.get('user_id')
+    if user_id:
+        user_sessions[request.sid] = user_id
+        print(f'Mapped session {request.sid} to user {user_id}')
 
 def broadcast_message(message_data, channel=None):
     try:
@@ -299,9 +308,9 @@ def logout():
                             socketio.emit('disconnect_notification', {'channel': channel})
             del user_bots[user_id]
             
-        # Clean up session mapping
-        if request.sid in user_sessions:
-            del user_sessions[request.sid]
+        # Clean up session mapping (handled in Socket.IO disconnect)
+        # if request.sid in user_sessions:
+        #     del user_sessions[request.sid]
             
         session.clear()
         return jsonify({"message": "Successfully logged out"}), 200
@@ -325,8 +334,8 @@ def connect_to_twitch():
         if not user_id:
             return jsonify({'error': 'Authentication required'}), 401
             
-        # Map session to user for Socket.IO
-        user_sessions[request.sid] = user_id
+        # Map session to user for Socket.IO (will be set when Socket.IO connects)
+        # user_sessions[request.sid] = user_id  # This will be handled in Socket.IO connect
         
         # Check if a bot is already active for this channel
         if channel in active_bots:

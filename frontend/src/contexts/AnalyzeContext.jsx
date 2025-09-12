@@ -61,6 +61,11 @@ export const AnalyzeProvider = ({ children }) => {
       pingTimeout: 5000
     });
     
+    // Map user session for Socket.IO
+    if (user) {
+      socketRef.current.emit('map_user_session', { user_id: user.id });
+    }
+    
     setMessages([]);
     setSentimentCounts({ positive: 0, neutral: 0, negative: 0 });
     setUserSentiments({ positive: {}, neutral: {}, negative: {} });
