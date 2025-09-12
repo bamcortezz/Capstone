@@ -123,9 +123,10 @@ def add_sse_connection(channel, connection_id):
             sse_connections[channel] = set()
             sse_message_queues[channel] = {}
         sse_connections[channel].add(connection_id)
-        sse_message_queues[channel][connection_id] = queue.Queue()
+        sse_message_queues[channel][connection_id] = queue.Queue(maxsize=100)  # Limit queue size
         print(f"Added SSE connection {connection_id} for channel {channel}")
         print(f"Total SSE connections for {channel}: {len(sse_connections[channel])}")
+        print(f"SSE message queues for {channel}: {list(sse_message_queues[channel].keys())}")
 
 def remove_sse_connection(channel, connection_id):
     """Remove an SSE connection for a channel"""
@@ -153,19 +154,37 @@ def broadcast_message_to_channel(channel, message_data):
             # Send message to all individual SSE connection queues
             successful_sends = 0
             failed_sends = 0
-            for connection_id in sse_connections[channel]:
+            connections_to_remove = []
+            
+            for connection_id in list(sse_connections[channel]):  # Create a copy to avoid modification during iteration
                 try:
-                    if connection_id in sse_message_queues.get(channel, {}):
+                    if (channel in sse_message_queues and 
+                        connection_id in sse_message_queues[channel]):
                         sse_message_queues[channel][connection_id].put(message_data, timeout=1)
                         successful_sends += 1
                     else:
                         failed_sends += 1
+                        connections_to_remove.append(connection_id)
                 except queue.Full:
                     failed_sends += 1
                     print(f"SSE message queue full for connection {connection_id} in channel {channel}")
+                    connections_to_remove.append(connection_id)
                 except Exception as e:
                     failed_sends += 1
                     print(f"Error queuing message for connection {connection_id}: {e}")
+                    connections_to_remove.append(connection_id)
+            
+            # Remove failed connections
+            for connection_id in connections_to_remove:
+                sse_connections[channel].discard(connection_id)
+                if channel in sse_message_queues and connection_id in sse_message_queues[channel]:
+                    del sse_message_queues[channel][connection_id]
+            
+            # Clean up empty channel entries
+            if not sse_connections[channel]:
+                del sse_connections[channel]
+                if channel in sse_message_queues:
+                    del sse_message_queues[channel]
             
             print(f"Broadcasted message to {successful_sends} SSE connections for channel {channel} (failed: {failed_sends})")
         else:
@@ -206,6 +225,28 @@ def test_sse():
     response.headers['Access-Control-Allow-Origin'] = frontend_url if is_production else '*'
     response.headers['Access-Control-Allow-Credentials'] = 'true'
     return response
+
+# Debug endpoint for SSE connections
+@app.route('/api/debug/sse')
+def debug_sse():
+    """Debug endpoint to check SSE connection status"""
+    with connection_lock:
+        debug_info = {
+            'channels': {},
+            'total_connections': 0
+        }
+        
+        for channel, connections in sse_connections.items():
+            debug_info['channels'][channel] = {
+                'connection_count': len(connections),
+                'connection_ids': list(connections),
+                'has_message_queues': channel in sse_message_queues,
+                'queue_count': len(sse_message_queues.get(channel, {})),
+                'message_history_count': len(message_queues.get(channel, []))
+            }
+            debug_info['total_connections'] += len(connections)
+    
+    return jsonify(debug_info)
 
 # Global error handlers
 @app.errorhandler(500)
@@ -300,27 +341,36 @@ def sse_chat_stream(channel):
             last_heartbeat = time.time()
             while True:
                 try:
-                    # Try to get a new message from this connection's queue
+                    # Get queue reference with proper locking
+                    queue_ref = None
                     with connection_lock:
-                        if channel in sse_message_queues and connection_id in sse_message_queues[channel]:
+                        if (channel in sse_message_queues and 
+                            connection_id in sse_message_queues[channel] and
+                            channel in sse_connections and 
+                            connection_id in sse_connections[channel]):
                             queue_ref = sse_message_queues[channel][connection_id]
-                        else:
-                            queue_ref = None
                     
                     if queue_ref:
-                        message_data = queue_ref.get(timeout=1.0)
-                        yield f"data: {json.dumps({'type': 'message', 'data': message_data})}\n\n"
+                        try:
+                            message_data = queue_ref.get(timeout=1.0)
+                            yield f"data: {json.dumps({'type': 'message', 'data': message_data})}\n\n"
+                        except queue.Empty:
+                            # No new messages, send heartbeat if needed
+                            current_time = time.time()
+                            if current_time - last_heartbeat >= 30:  # Send heartbeat every 30 seconds
+                                yield f"data: {json.dumps({'type': 'heartbeat', 'timestamp': datetime.now().isoformat()})}\n\n"
+                                last_heartbeat = current_time
+                            continue
                     else:
-                        # Connection queue not found, wait and retry
+                        # Connection queue not found or connection removed, check if we should continue
+                        with connection_lock:
+                            if (channel not in sse_connections or 
+                                connection_id not in sse_connections[channel]):
+                                print(f"SSE connection {connection_id} for channel {channel} no longer exists, exiting")
+                                break
+                        # Wait a bit before retrying
                         time.sleep(0.1)
                         continue
-                except queue.Empty:
-                    # No new messages, send heartbeat if needed
-                    current_time = time.time()
-                    if current_time - last_heartbeat >= 30:  # Send heartbeat every 30 seconds
-                        yield f"data: {json.dumps({'type': 'heartbeat', 'timestamp': datetime.now().isoformat()})}\n\n"
-                        last_heartbeat = current_time
-                    continue
                 
         except GeneratorExit:
             # Client disconnected
