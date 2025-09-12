@@ -114,14 +114,16 @@ user_sessions = {}  # session_id -> user_id mapping
 sse_connections = {}  # channel -> set of SSE connections
 message_queues = defaultdict(deque)  # channel -> deque of messages
 connection_lock = threading.Lock()
-sse_message_queues = defaultdict(queue.Queue)  # channel -> queue for real-time messages
+sse_message_queues = {}  # channel -> {connection_id: queue.Queue()}
 
 def add_sse_connection(channel, connection_id):
     """Add an SSE connection for a channel"""
     with connection_lock:
         if channel not in sse_connections:
             sse_connections[channel] = set()
+            sse_message_queues[channel] = {}
         sse_connections[channel].add(connection_id)
+        sse_message_queues[channel][connection_id] = queue.Queue()
         print(f"Added SSE connection {connection_id} for channel {channel}")
         print(f"Total SSE connections for {channel}: {len(sse_connections[channel])}")
 
@@ -130,8 +132,12 @@ def remove_sse_connection(channel, connection_id):
     with connection_lock:
         if channel in sse_connections:
             sse_connections[channel].discard(connection_id)
+            if connection_id in sse_message_queues.get(channel, {}):
+                del sse_message_queues[channel][connection_id]
             if not sse_connections[channel]:
                 del sse_connections[channel]
+                if channel in sse_message_queues:
+                    del sse_message_queues[channel]
         print(f"Removed SSE connection {connection_id} for channel {channel}")
 
 def broadcast_message_to_channel(channel, message_data):
@@ -144,14 +150,19 @@ def broadcast_message_to_channel(channel, message_data):
             if len(message_queues[channel]) > 100:
                 message_queues[channel].popleft()
             
-            # Send message immediately to SSE queue for real-time delivery
-            try:
-                sse_message_queues[channel].put(message_data, timeout=1)
-                print(f"Message queued for {len(sse_connections[channel])} SSE connections for channel {channel}")
-            except queue.Full:
-                print(f"SSE message queue full for channel {channel}, dropping message")
+            # Send message to all individual SSE connection queues
+            successful_sends = 0
+            failed_sends = 0
+            for connection_id in sse_connections[channel]:
+                try:
+                    if connection_id in sse_message_queues.get(channel, {}):
+                        sse_message_queues[channel][connection_id].put(message_data, timeout=1)
+                        successful_sends += 1
+                except queue.Full:
+                    failed_sends += 1
+                    print(f"SSE message queue full for connection {connection_id} in channel {channel}")
             
-            print(f"Broadcasting message to {len(sse_connections[channel])} SSE connections for channel {channel}")
+            print(f"Broadcasted message to {successful_sends} SSE connections for channel {channel} (failed: {failed_sends})")
         else:
             print(f"No SSE connections found for channel {channel}, message not broadcasted")
 
@@ -280,13 +291,18 @@ def sse_chat_stream(channel):
             for message in existing_messages:
                 yield f"data: {json.dumps({'type': 'message', 'data': message})}\n\n"
             
-            # Real-time message delivery using queue
+            # Real-time message delivery using individual connection queue
             last_heartbeat = time.time()
             while True:
                 try:
-                    # Try to get a new message with a short timeout
-                    message_data = sse_message_queues[channel].get(timeout=1.0)
-                    yield f"data: {json.dumps({'type': 'message', 'data': message_data})}\n\n"
+                    # Try to get a new message from this connection's queue
+                    if connection_id in sse_message_queues.get(channel, {}):
+                        message_data = sse_message_queues[channel][connection_id].get(timeout=1.0)
+                        yield f"data: {json.dumps({'type': 'message', 'data': message_data})}\n\n"
+                    else:
+                        # Connection queue not found, wait and retry
+                        time.sleep(0.1)
+                        continue
                 except queue.Empty:
                     # No new messages, send heartbeat if needed
                     current_time = time.time()

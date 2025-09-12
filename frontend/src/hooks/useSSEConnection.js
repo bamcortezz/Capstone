@@ -9,6 +9,9 @@ export const useSSEConnection = () => {
   
   const eventSourceRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
+  const reconnectAttemptsRef = useRef(0);
+  const currentChannelRef = useRef(null);
+  const currentCallbackRef = useRef(null);
   const maxReconnectAttempts = 10;
   const baseReconnectDelay = 1000; // 1 second
   const maxReconnectDelay = 30000; // 30 seconds
@@ -40,6 +43,11 @@ export const useSSEConnection = () => {
   const connect = useCallback((channel, onMessage) => {
     cleanup();
     
+    // Store current connection details for reconnection
+    currentChannelRef.current = channel;
+    currentCallbackRef.current = onMessage;
+    reconnectAttemptsRef.current = 0;
+    
     setConnectionStatus('connecting');
     setLastError(null);
 
@@ -52,6 +60,7 @@ export const useSSEConnection = () => {
       setIsConnected(true);
       setConnectionStatus('connected');
       setLastError(null);
+      reconnectAttemptsRef.current = 0; // Reset reconnection attempts on successful connection
     };
 
     // Handle messages
@@ -83,16 +92,23 @@ export const useSSEConnection = () => {
       setConnectionStatus('disconnected');
       setLastError('Connection lost');
       
-      // Attempt reconnection
-      if (eventSource.readyState === EventSource.CLOSED) {
-        console.log('SSE connection closed, attempting reconnection...');
+      // Attempt reconnection if we have connection details and haven't exceeded max attempts
+      if (currentChannelRef.current && currentCallbackRef.current && 
+          reconnectAttemptsRef.current < maxReconnectAttempts) {
+        
+        reconnectAttemptsRef.current++;
+        console.log(`SSE connection lost, attempting reconnection ${reconnectAttemptsRef.current}/${maxReconnectAttempts}...`);
         setConnectionStatus('reconnecting');
         
         // Use exponential backoff for reconnection
-        const delay = getReconnectDelay(0); // Start with first attempt
+        const delay = getReconnectDelay(reconnectAttemptsRef.current - 1);
         reconnectTimeoutRef.current = setTimeout(() => {
-          connect(channel, onMessage);
+          connect(currentChannelRef.current, currentCallbackRef.current);
         }, delay);
+      } else if (reconnectAttemptsRef.current >= maxReconnectAttempts) {
+        console.log('Max reconnection attempts reached, giving up');
+        setLastError('Connection failed after multiple attempts');
+        setConnectionStatus('failed');
       }
     };
 
@@ -102,15 +118,20 @@ export const useSSEConnection = () => {
   // Disconnect SSE
   const disconnect = useCallback(() => {
     cleanup();
+    currentChannelRef.current = null;
+    currentCallbackRef.current = null;
+    reconnectAttemptsRef.current = 0;
     setIsConnected(false);
     setConnectionStatus('disconnected');
     setLastError(null);
   }, [cleanup]);
 
   // Force reconnection
-  const reconnect = useCallback((channel) => {
-    disconnect();
-    setTimeout(() => connect(channel), 1000);
+  const reconnect = useCallback(() => {
+    if (currentChannelRef.current && currentCallbackRef.current) {
+      disconnect();
+      setTimeout(() => connect(currentChannelRef.current, currentCallbackRef.current), 1000);
+    }
   }, [connect, disconnect]);
 
   // Cleanup on unmount
