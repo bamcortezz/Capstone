@@ -112,8 +112,8 @@ socketio = SocketIO(
     app,
     cors_allowed_origins=cors_origins,
     async_mode=('eventlet' if is_production else 'threading'),
-    ping_timeout=30,  # Reduced from 60 to 30 seconds
-    ping_interval=15,  # Reduced from 25 to 15 seconds
+    ping_timeout=60,  # Increased to 60 seconds for better stability
+    ping_interval=25,  # Increased to 25 seconds for better stability
     max_http_buffer_size=1000000,
     logger=False,  # Disable verbose logging in production
     engineio_logger=False,  # Disable verbose logging in production
@@ -122,7 +122,12 @@ socketio = SocketIO(
     compression=True,
     cookie=None,  # Disable cookies to reduce overhead
     transports=['websocket', 'polling'],  # Explicitly set transports
-    resource='socket.io'  # Explicit resource path
+    resource='socket.io',  # Explicit resource path
+    reconnection=True,  # Enable reconnection
+    reconnection_attempts=10,  # Max reconnection attempts
+    reconnection_delay=1000,  # Initial delay in ms
+    reconnection_delay_max=5000,  # Max delay in ms
+    timeout=20000  # Connection timeout in ms
 )
 
 # Multi-user bot management
@@ -160,7 +165,22 @@ def handle_preflight(path):
 # Health check endpoint
 @app.route('/health', methods=['GET'])
 def health_check():
-    return jsonify({'status': 'healthy', 'timestamp': datetime.now().isoformat()}), 200
+    try:
+        # Test MongoDB connection
+        mongo.db.command('ping')
+        return jsonify({
+            'status': 'healthy', 
+            'timestamp': datetime.now().isoformat(),
+            'database': 'connected',
+            'active_bots': len(active_bots),
+            'active_sessions': len(user_sessions)
+        }), 200
+    except Exception as e:
+        return jsonify({
+            'status': 'unhealthy', 
+            'timestamp': datetime.now().isoformat(),
+            'error': str(e)
+        }), 500
 
 @socketio.on('connect')
 def on_connect():
@@ -169,6 +189,8 @@ def on_connect():
         print(f'Client {client_sid} connected')
         # Send a welcome message to the specific client
         socketio.emit('welcome', {'message': 'Welcome to the server!'}, room=client_sid)
+        # Send connection status
+        socketio.emit('connection_status', {'status': 'connected', 'timestamp': datetime.now().isoformat()}, room=client_sid)
         print(f'Client {client_sid} added to active users')
     except Exception as e:
         print(f'Error in on_connect: {e}')
@@ -178,9 +200,14 @@ def on_disconnect(reason):
     try:
         client_sid = request.sid
         print(f'Client {client_sid} disconnected: {reason}')
-        # Clean up user session mapping
+        
+        # Send disconnection notification to other clients if this was a user session
         if client_sid in user_sessions:
             user_id = user_sessions[client_sid]
+            # Notify other clients about the disconnection
+            socketio.emit('user_disconnected', {'user_id': user_id, 'reason': reason})
+            
+            # Clean up user session mapping
             del user_sessions[client_sid]
             
             # Remove user from bot connections
@@ -224,14 +251,48 @@ def handle_ping():
     except Exception as e:
         print(f'Error in handle_ping: {e}')
 
+@socketio.on('connection_error')
+def handle_connection_error(data):
+    try:
+        client_sid = request.sid
+        error_info = data.get('error', 'Unknown error')
+        print(f'Client {client_sid} reported connection error: {error_info}')
+        
+        # Send acknowledgment and try to help with reconnection
+        emit('connection_error_ack', {
+            'status': 'acknowledged',
+            'timestamp': datetime.now().isoformat(),
+            'suggestion': 'Attempting to restore connection...'
+        })
+    except Exception as e:
+        print(f'Error in handle_connection_error: {e}')
+
+@socketio.on('request_connection_status')
+def handle_connection_status_request():
+    try:
+        client_sid = request.sid
+        user_id = user_sessions.get(client_sid)
+        
+        status_data = {
+            'status': 'connected',
+            'timestamp': datetime.now().isoformat(),
+            'user_id': user_id,
+            'active_channels': list(user_bots.get(user_id, set())) if user_id else []
+        }
+        
+        emit('connection_status_response', status_data)
+    except Exception as e:
+        print(f'Error in handle_connection_status_request: {e}')
+
 def broadcast_message(message_data, channel=None):
     try:
         if channel and channel in active_bots:
             # Send to all users connected to this specific channel
-            connected_users = active_bots[channel]['connected_users']
+            connected_users = active_bots[channel]['connected_users'].copy()  # Create a copy to avoid iteration issues
             for user_id in connected_users:
-                # Find session IDs for this user
-                for session_id, mapped_user_id in user_sessions.items():
+                # Find session IDs for this user - create a copy of user_sessions to avoid iteration issues
+                user_sessions_copy = dict(user_sessions)  # Create a copy to avoid "dictionary changed size during iteration"
+                for session_id, mapped_user_id in user_sessions_copy.items():
                     if mapped_user_id == user_id:
                         try:
                             socketio.emit('chat_message', message_data, room=session_id)
@@ -1052,24 +1113,35 @@ def log_analysis_start():
             return jsonify({'error': 'Not authenticated'}), 401
         
         data = request.get_json()
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+            
         streamer = data.get('streamer')
         
         if not streamer:
             return jsonify({'error': 'Streamer name is required'}), 400
         
-        # Log the activity
-        add_log(
-            mongo, 
-            session['user_id'], 
-            'Started an analysis', 
-            f"Channel: {streamer}"
-        )
-        
-        return jsonify({'message': 'Activity logged successfully'}), 200
+        # Log the activity with error handling
+        try:
+            log_id = add_log(
+                mongo, 
+                session['user_id'], 
+                'Started an analysis', 
+                f"Channel: {streamer}"
+            )
+            
+            if log_id:
+                return jsonify({'message': 'Activity logged successfully'}), 200
+            else:
+                return jsonify({'error': 'Failed to log activity'}), 500
+                
+        except Exception as log_error:
+            print(f"Error adding log entry: {str(log_error)}")
+            return jsonify({'error': 'Failed to log activity'}), 500
         
     except Exception as e:
         print(f"Error logging analysis start: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Internal server error'}), 500
 
 @app.route('/api/history/<history_id>/pdf', methods=['GET'])
 def generate_analysis_pdf(history_id):

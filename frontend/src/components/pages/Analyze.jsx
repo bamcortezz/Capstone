@@ -6,6 +6,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useAnalyze } from '../../contexts/AnalyzeContext';
 import { FixedSizeList as List } from 'react-window';
 import ConnectionStatus from '../ConnectionStatus';
+import ConnectionStatusModal from '../ConnectionStatusModal';
 
 // API URL
 const API_URL = import.meta.env.VITE_API_URL;
@@ -639,6 +640,36 @@ const Analyze = () => {
           ) : 'Disconnected'}
         </span>
       </div>
+
+      {/* Connection Status Modal */}
+      <ConnectionStatusModal
+        isAnalyzing={isAnalyzing}
+        onSaveAnalysis={saveAnalysis}
+        onDiscardAnalysis={() => {
+          setIsAnalyzing(false);
+          disconnectFromChannel();
+          setSessionStart(null);
+          setElapsed(0);
+        }}
+        analysisData={{
+          streamer_name: currentChannel,
+          total_chats: messages.length,
+          sentiment_count: sentimentCounts,
+          top_positive: Object.entries(userSentiments.positive)
+            .map(([username, count]) => ({ username, count }))
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 5),
+          top_negative: Object.entries(userSentiments.negative)
+            .map(([username, count]) => ({ username, count }))
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 5),
+          top_neutral: Object.entries(userSentiments.neutral)
+            .map(([username, count]) => ({ username, count }))
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 5),
+          duration: elapsed
+        }}
+      />
     </div>
   );
 };

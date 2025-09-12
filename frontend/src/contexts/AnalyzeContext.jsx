@@ -72,14 +72,19 @@ export const AnalyzeProvider = ({ children }) => {
     // Log the start of the analysis if the user is authenticated
     if (user) {
       try {
-        await fetch(`${API_URL}/api/log/analysis-start`, {
+        const logResponse = await fetch(`${API_URL}/api/log/analysis-start`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
           body: JSON.stringify({ streamer: data.channel }),
         });
+        
+        if (!logResponse.ok) {
+          console.warn("Failed to log analysis start:", logResponse.status, logResponse.statusText);
+        }
       } catch (e) {
-        console.error("Error logging analysis start", e);
+        console.warn("Error logging analysis start (non-critical):", e.message);
+        // Don't throw error as this is not critical for the main functionality
       }
     }
 

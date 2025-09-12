@@ -51,26 +51,26 @@ export const useSocketConnection = () => {
     setConnectionStatus('connecting');
     setLastError(null);
 
-        const socket = io(API_URL, {
-          transports: ['websocket', 'polling'], // Fallback to polling if websocket fails
-          withCredentials: true,
-          reconnection: false, // We'll handle reconnection manually
-          timeout: 30000, // Increased timeout
-          autoConnect: true,
-          // More conservative ping settings
-          pingInterval: 30000, // 30 seconds - reduced from 60
-          pingTimeout: 15000,  // 15 seconds - reduced from 30
-          // Connection options
-          forceNew: true,
-          multiplex: false,
-          // Additional options for stability
-          upgrade: true,
-          rememberUpgrade: false,
-          perMessageDeflate: false,
-          // Additional stability options
-          closeOnBeforeunload: false,
-          rejectUnauthorized: false // For development/testing
-        });
+    const socket = io(API_URL, {
+      transports: ['websocket', 'polling'], // Fallback to polling if websocket fails
+      withCredentials: true,
+      reconnection: false, // We'll handle reconnection manually
+      timeout: 20000, // 20 seconds timeout
+      autoConnect: true,
+      // More conservative ping settings to match backend
+      pingInterval: 25000, // 25 seconds to match backend
+      pingTimeout: 60000,  // 60 seconds to match backend
+      // Connection options
+      forceNew: true,
+      multiplex: false,
+      // Additional options for stability
+      upgrade: true,
+      rememberUpgrade: false,
+      perMessageDeflate: false,
+      // Additional stability options
+      closeOnBeforeunload: false,
+      rejectUnauthorized: false // For development/testing
+    });
 
     // Connection established
     socket.on('connect', () => {
@@ -87,13 +87,15 @@ export const useSocketConnection = () => {
       }
       
           // Set up periodic health check
-          const healthCheck = setInterval(() => {
-            if (socket.connected) {
-              socket.emit('ping');
-            } else {
-              clearInterval(healthCheck);
-            }
-          }, 20000); // Check every 20 seconds
+      const healthCheck = setInterval(() => {
+        if (socket.connected) {
+          socket.emit('ping');
+          // Also request connection status periodically
+          socket.emit('request_connection_status');
+        } else {
+          clearInterval(healthCheck);
+        }
+      }, 30000); // Check every 30 seconds
       
       // Store health check interval for cleanup
       socket.healthCheckInterval = healthCheck;
@@ -133,11 +135,38 @@ export const useSocketConnection = () => {
       console.log('Received pong:', data);
     });
 
+    // Handle connection status updates
+    socket.on('connection_status', (data) => {
+      console.log('Connection status update:', data);
+      if (data.status === 'connected') {
+        setIsConnected(true);
+        setConnectionStatus('connected');
+        setLastError(null);
+      }
+    });
+
+    // Handle connection error acknowledgment
+    socket.on('connection_error_ack', (data) => {
+      console.log('Connection error acknowledged:', data);
+    });
+
+    // Handle connection status response
+    socket.on('connection_status_response', (data) => {
+      console.log('Connection status response:', data);
+      setIsConnected(data.status === 'connected');
+      setConnectionStatus(data.status);
+    });
+
     // Connection errors
     socket.on('connect_error', (error) => {
       console.error('Socket connection error:', error);
       setLastError(error.message || 'Connection failed');
       setConnectionStatus('error');
+      
+      // Report the error to the server
+      if (socket.connected) {
+        socket.emit('connection_error', { error: error.message || 'Connection failed' });
+      }
     });
 
     // Reconnection events
@@ -182,6 +211,20 @@ export const useSocketConnection = () => {
     connect(userId);
   }, [connect]);
 
+  // Request connection status
+  const requestConnectionStatus = useCallback(() => {
+    if (socketRef.current && socketRef.current.connected) {
+      socketRef.current.emit('request_connection_status');
+    }
+  }, []);
+
+  // Report connection error
+  const reportConnectionError = useCallback((error) => {
+    if (socketRef.current && socketRef.current.connected) {
+      socketRef.current.emit('connection_error', { error });
+    }
+  }, []);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -197,6 +240,8 @@ export const useSocketConnection = () => {
     lastError,
     connect,
     disconnect,
-    reconnect
+    reconnect,
+    requestConnectionStatus,
+    reportConnectionError
   };
 };
