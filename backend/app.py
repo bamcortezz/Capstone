@@ -553,9 +553,9 @@ def connect_to_twitch():
         
         try:
             # Create bot with channel-specific message handler
-            def channel_message_handler(message_data):
+            def channel_message_handler(message_data, channel_name):
                 try:
-                    broadcast_message(message_data, channel)
+                    broadcast_message(message_data, channel_name)
                 except Exception as e:
                     print(f"Error in channel_message_handler: {e}")
                 
