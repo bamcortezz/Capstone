@@ -130,7 +130,6 @@ socketio = SocketIO(
     timeout=30000,  # Increased connection timeout in ms
     # Railway-specific optimizations
     http_compression=True,
-    max_http_buffer_size=1000000,
     # Disable problematic features for Railway
     per_message_deflate=False,
     # Add keepalive settings
