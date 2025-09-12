@@ -371,6 +371,9 @@ def sse_chat_stream(channel):
                         # Wait a bit before retrying
                         time.sleep(0.1)
                         continue
+                except Exception as e:
+                    print(f"Error in inner SSE loop for channel {channel}: {e}")
+                    break
                 
         except GeneratorExit:
             # Client disconnected
