@@ -1,5 +1,6 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import Swal from 'sweetalert2';
+import { useSocketConnection } from '../hooks/useSocketConnection';
 
 // API URL
 const API_URL = import.meta.env.VITE_API_URL;
@@ -11,6 +12,7 @@ export const useAuth = () => useContext(AuthContext);
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const { socket, isConnected, connectionStatus, connect, disconnect } = useSocketConnection();
 
   useEffect(() => {
     const initializeAuth = async () => {
@@ -40,40 +42,19 @@ export const AuthProvider = ({ children }) => {
     setUser(userData);
     
     // Establish Socket.IO connection for the logged-in user
-    if (typeof window !== 'undefined') {
-      const { io } = await import('socket.io-client');
-      const API_URL = import.meta.env.VITE_API_URL;
-      
-      // Create a global socket connection for the user
-      const socket = io(API_URL, {
-        transports: ["websocket"],
-        withCredentials: true,
-        reconnection: true,
-        reconnectionAttempts: 5,
-        reconnectionDelay: 2000,
-        reconnectionDelayMax: 5000,
-        timeout: 20000,
-        autoConnect: true,
-        pingInterval: 25000,
-        pingTimeout: 5000
-      });
-      
-      // Map user session when connected
-      socket.on('connect', () => {
-        socket.emit('map_user_session', { user_id: userData.id });
-        console.log('Global socket connected and mapped for user:', userData.id);
-      });
-      
-      // Store socket globally for cleanup on logout
+    connect(userData.id);
+    
+    // Store socket globally for compatibility with existing code
+    if (socket) {
       window.userSocket = socket;
     }
   };
   
   const logout = async () => {
     try {
-      // Clean up global socket connection
-      if (typeof window !== 'undefined' && window.userSocket) {
-        window.userSocket.disconnect();
+      // Clean up socket connection
+      disconnect();
+      if (typeof window !== 'undefined') {
         window.userSocket = null;
       }
       
@@ -242,7 +223,10 @@ export const AuthProvider = ({ children }) => {
       updateProfileImage,
       removeProfileImage,
       changePassword,
-      deleteAccount
+      deleteAccount,
+      socket,
+      isConnected,
+      connectionStatus
     }}>
       {!loading && children}
     </AuthContext.Provider>

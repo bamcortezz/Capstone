@@ -15,7 +15,7 @@ from werkzeug.security import generate_password_hash
 from utils.email_sender import send_otp_email, send_password_reset_email, send_contact_email
 from utils.twitch_chat import TwitchChatBot, extract_channel_name
 from utils.password_validator import validate_password
-from flask_socketio import SocketIO, emit
+from flask_socketio import SocketIO, emit, request
 from dotenv import load_dotenv
 from datetime import timedelta
 import threading
@@ -78,8 +78,11 @@ socketio = SocketIO(
     app,
     cors_allowed_origins=cors_origins,
     async_mode=('eventlet' if is_production else 'threading'),
-    ping_timeout=90,
-    ping_interval=30
+    ping_timeout=60,  # Increased from 90 to 60 seconds
+    ping_interval=25,  # Increased from 30 to 25 seconds
+    max_http_buffer_size=1000000,  # 1MB buffer
+    logger=True,
+    engineio_logger=True
 )
 
 # Multi-user bot management
@@ -113,7 +116,8 @@ def on_disconnect():
                         try:
                             bot, thread = active_bots[channel]['bot'], active_bots[channel]['thread']
                             bot.disconnect()
-                            bot.die()
+                            # Don't call bot.die() as it calls sys.exit() which kills the worker
+                            # The bot will be garbage collected when the reference is removed
                         except Exception as e:
                             print(f"Error disconnecting bot: {e}")
                         finally:
@@ -296,7 +300,7 @@ def logout():
                         try:
                             bot = active_bots[channel]['bot']
                             bot.disconnect()
-                            bot.die()
+                            # Don't call bot.die() as it calls sys.exit() which kills the worker
                         except Exception as e:
                             print(f"Error during bot disconnection on logout: {e}")
                         finally:
@@ -406,7 +410,7 @@ def disconnect_from_twitch():
                 try:
                     bot = active_bots[channel]['bot']
                     bot.disconnect()
-                    bot.die()
+                    # Don't call bot.die() as it calls sys.exit() which kills the worker
                 except Exception as e:
                     print(f"Error during bot disconnection: {e}")
                 finally:

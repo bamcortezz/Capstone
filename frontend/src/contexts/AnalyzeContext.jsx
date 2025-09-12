@@ -1,5 +1,4 @@
 import React, { createContext, useContext, useState, useRef, useEffect, useMemo, useCallback } from 'react';
-import io from 'socket.io-client';
 import { useAuth } from './AuthContext';
 
 const API_URL = import.meta.env.VITE_API_URL;
@@ -9,13 +8,12 @@ const AnalyzeContext = createContext();
 export const useAnalyze = () => useContext(AnalyzeContext);
 
 export const AnalyzeProvider = ({ children }) => {
-  const { user } = useAuth();
+  const { user, socket, isConnected: socketConnected, connectionStatus } = useAuth();
   const [isConnected, setIsConnected] = useState(false);
   const [currentChannel, setCurrentChannel] = useState(null);
   const [messages, setMessages] = useState([]);
   const [sentimentCounts, setSentimentCounts] = useState({ positive: 0, neutral: 0, negative: 0 });
   const [userSentiments, setUserSentiments] = useState({ positive: {}, neutral: {}, negative: {} });
-  const socketRef = useRef(null);
   const processedMessages = useRef(new Set());
   const [sessionStart, setSessionStart] = useState(null);
   const sessionStartRef = useRef(null);
@@ -40,44 +38,14 @@ export const AnalyzeProvider = ({ children }) => {
 
   // Socket connection management
   const connectToChannel = useCallback(async (streamUrl) => {
-    if (socketRef.current) {
-      socketRef.current.off('chat_message');  // Cleanup previous listeners
-      socketRef.current.off('disconnect_notification');
-      
-      // Only disconnect if it's not the global socket
-      if (socketRef.current !== window.userSocket) {
-        socketRef.current.disconnect();
-      }
-      socketRef.current = null;
+    // Check if socket is available and connected
+    if (!socket || !socketConnected) {
+      throw new Error('Socket connection not available. Please ensure you are logged in.');
     }
 
-    // Use the global socket connection if available, otherwise create a new one
-    if (window.userSocket && window.userSocket.connected) {
-      socketRef.current = window.userSocket;
-      console.log('Using existing global socket connection');
-    } else {
-      // Connect to the socket with proper configuration for multiple users
-      socketRef.current = io(API_URL, {
-        transports: ["websocket"],
-        withCredentials: true,
-        reconnection: true,
-        reconnectionAttempts: 5,
-        reconnectionDelay: 2000,
-        reconnectionDelayMax: 5000,
-        timeout: 20000,
-        autoConnect: true,
-        pingInterval: 25000,
-        pingTimeout: 5000
-      });
-      
-      // Map user session for Socket.IO when connection is established
-      socketRef.current.on('connect', () => {
-        if (user) {
-          socketRef.current.emit('map_user_session', { user_id: user.id });
-          console.log('Mapped user session:', user.id);
-        }
-      });
-    }
+    // Cleanup previous listeners
+    socket.off('chat_message');
+    socket.off('disconnect_notification');
     
     setMessages([]);
     setSentimentCounts({ positive: 0, neutral: 0, negative: 0 });
@@ -116,23 +84,9 @@ export const AnalyzeProvider = ({ children }) => {
     }
 
     // Setup socket listeners for new messages and disconnects
-    socketRef.current.on('connect', () => {
-      console.log('Connected to Socket.IO server');
-    });
+    socket.on('chat_message', processMessage);  // Process incoming chat messages
 
-    socketRef.current.on('chat_message', processMessage);  // Process incoming chat messages
-
-    socketRef.current.on('disconnect', (reason) => {
-      console.log('Socket disconnected:', reason);
-      setIsConnected(false);
-      setCurrentChannel(null);
-      setMessages([]);
-      setSentimentCounts({ positive: 0, neutral: 0, negative: 0 });
-      setUserSentiments({ positive: {}, neutral: {}, negative: {} });
-      processedMessages.current.clear();
-    });
-
-    socketRef.current.on('disconnect_notification', (data) => {
+    socket.on('disconnect_notification', (data) => {
       if (data.channel === currentChannel) {
         console.log('Received disconnect notification for channel:', data.channel);
         setIsConnected(false);
@@ -143,15 +97,7 @@ export const AnalyzeProvider = ({ children }) => {
         processedMessages.current.clear();
       }
     });
-
-    socketRef.current.on('connect_error', (error) => {
-      console.error('Socket connection error:', error);
-    });
-
-    socketRef.current.on('reconnect', (attemptNumber) => {
-      console.log(`Reconnected after ${attemptNumber} attempts`);
-    });
-  }, [user, currentChannel, processMessage]);
+  }, [user, currentChannel, processMessage, socket, socketConnected]);
 
   const disconnectFromChannel = useCallback(async () => {
     if (currentChannel) {
@@ -167,17 +113,9 @@ export const AnalyzeProvider = ({ children }) => {
       }
     }
 
-    if (socketRef.current) {
-      socketRef.current.off('chat_message');  // Cleanup listeners
-      socketRef.current.off('disconnect_notification');
-      socketRef.current.off('connect_error');
-      socketRef.current.off('reconnect');
-      
-      // Only disconnect if it's not the global socket
-      if (socketRef.current !== window.userSocket) {
-        socketRef.current.disconnect();
-      }
-      socketRef.current = null;
+    if (socket) {
+      socket.off('chat_message');  // Cleanup listeners
+      socket.off('disconnect_notification');
     }
 
     setIsConnected(false);
@@ -193,20 +131,12 @@ export const AnalyzeProvider = ({ children }) => {
 
   useEffect(() => {
     return () => {
-      if (socketRef.current) {
-        socketRef.current.off('chat_message');  // Cleanup listeners on unmount
-        socketRef.current.off('disconnect_notification');
-        socketRef.current.off('connect_error');
-        socketRef.current.off('reconnect');
-        
-        // Only disconnect if it's not the global socket
-        if (socketRef.current !== window.userSocket) {
-          socketRef.current.disconnect();
-        }
-        socketRef.current = null;
+      if (socket) {
+        socket.off('chat_message');  // Cleanup listeners on unmount
+        socket.off('disconnect_notification');
       }
     };
-  }, []);
+  }, [socket]);
 
   const topUsers = useMemo(() => {
     const sentiments = ['positive', 'neutral', 'negative'];
@@ -234,13 +164,14 @@ export const AnalyzeProvider = ({ children }) => {
       messages,
       sentimentCounts,
       userSentiments,
-      socketRef,
       connectToChannel,
       disconnectFromChannel,
       topUsers,
       getFilteredMessages,
       sessionStart,
       setSessionStart,
+      socketConnected,
+      connectionStatus,
     }}>
       {children}
     </AnalyzeContext.Provider>

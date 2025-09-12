@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import io from 'socket.io-client';
 import { Pie } from 'react-chartjs-2';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
 import Swal from 'sweetalert2';
 import { useAuth } from '../../contexts/AuthContext';
 import { useAnalyze } from '../../contexts/AnalyzeContext';
 import { FixedSizeList as List } from 'react-window';
+import ConnectionStatus from '../ConnectionStatus';
 
 // API URL
 const API_URL = import.meta.env.VITE_API_URL;
@@ -259,14 +259,30 @@ const Analyze = () => {
       }
     } catch (error) {
       console.error('Action failed:', error);
+      
+      // Provide more specific error messages based on error type
+      let errorTitle = 'Connection Failed';
+      let errorMessage = error.message || 'Failed to connect to channel';
+      
+      if (error.message.includes('Socket connection not available')) {
+        errorTitle = 'Connection Error';
+        errorMessage = 'Please ensure you are logged in and try again.';
+      } else if (error.message.includes('Invalid Twitch URL')) {
+        errorTitle = 'Invalid Link';
+        errorMessage = 'Please enter a valid Twitch channel URL.';
+      } else if (error.message.includes('Failed to connect to channel')) {
+        errorTitle = 'Channel Connection Failed';
+        errorMessage = 'Unable to connect to the Twitch channel. Please check the URL and try again.';
+      }
+      
       Swal.fire({
-        title: 'Invalid Link',
-        text: error.message || 'Failed to connect to channel',
+        title: errorTitle,
+        text: errorMessage,
         icon: 'error',
         toast: true,
         position: 'top-end',
         showConfirmButton: false,
-        timer: 1000,
+        timer: 3000,
         timerProgressBar: true,
         background: '#18181b',
         color: '#fff'
@@ -307,6 +323,18 @@ const Analyze = () => {
             <p className="text-xl text-gray-300 mb-6 max-w-3xl mx-auto">
               Connect to a Twitch channel to begin real-time sentiment analysis.
             </p>
+          </div>
+        )}
+
+        {/* Connection Status - Show when connected */}
+        {isConnected && (
+          <div className="flex justify-between items-center mb-4">
+            <div className="flex items-center space-x-4">
+              <h2 className="text-2xl font-bold text-white">
+                Analyzing: <span className="text-twitch">{currentChannel}</span>
+              </h2>
+            </div>
+            <ConnectionStatus />
           </div>
         )}
 
