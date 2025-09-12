@@ -37,7 +37,7 @@ export const useSSEConnection = () => {
   }, []);
 
   // Connect to SSE stream
-  const connect = useCallback((channel) => {
+  const connect = useCallback((channel, onMessage) => {
     cleanup();
     
     setConnectionStatus('connecting');
@@ -66,8 +66,10 @@ export const useSSEConnection = () => {
         } else if (data.type === 'heartbeat') {
           console.log('SSE heartbeat received');
         } else if (data.type === 'message') {
-          // This will be handled by the calling component
-          return data.data;
+          // Call the message callback if provided
+          if (onMessage && typeof onMessage === 'function') {
+            onMessage(data.data);
+          }
         }
       } catch (error) {
         console.error('Error parsing SSE message:', error);
@@ -89,7 +91,7 @@ export const useSSEConnection = () => {
         // Use exponential backoff for reconnection
         const delay = getReconnectDelay(0); // Start with first attempt
         reconnectTimeoutRef.current = setTimeout(() => {
-          connect(channel);
+          connect(channel, onMessage);
         }, delay);
       }
     };

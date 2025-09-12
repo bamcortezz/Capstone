@@ -99,31 +99,12 @@ export const AnalyzeProvider = ({ children }) => {
       }
     }
 
-    // Setup SSE connection for the channel
-    const sseEventSource = connectSSE(data.channel);
+    // Setup SSE connection for the channel with message callback
+    const messageHandler = (messageData) => {
+      processMessage(messageData);
+    };
     
-    if (sseEventSource) {
-      // Handle SSE messages
-      sseEventSource.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          
-          if (data.type === 'message') {
-            processMessage(data.data);
-          } else if (data.type === 'disconnect') {
-            console.log('Received disconnect notification for channel:', data.channel);
-            setIsConnected(false);
-            setCurrentChannel(null);
-            setMessages([]);
-            setSentimentCounts({ positive: 0, neutral: 0, negative: 0 });
-            setUserSentiments({ positive: {}, neutral: {}, negative: {} });
-            processedMessages.current.clear();
-          }
-        } catch (error) {
-          console.error('Error processing SSE message:', error);
-        }
-      };
-    }
+    const sseEventSource = connectSSE(data.channel, messageHandler);
   }, [user, processMessage, connectSSE, disconnectSSE]);
 
   const disconnectFromChannel = useCallback(async () => {

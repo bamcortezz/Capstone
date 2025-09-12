@@ -123,6 +123,7 @@ def add_sse_connection(channel, connection_id):
             sse_connections[channel] = set()
         sse_connections[channel].add(connection_id)
         print(f"Added SSE connection {connection_id} for channel {channel}")
+        print(f"Total SSE connections for {channel}: {len(sse_connections[channel])}")
 
 def remove_sse_connection(channel, connection_id):
     """Remove an SSE connection for a channel"""
@@ -136,7 +137,7 @@ def remove_sse_connection(channel, connection_id):
 def broadcast_message_to_channel(channel, message_data):
     """Broadcast a message to all SSE connections for a channel"""
     with connection_lock:
-        if channel in sse_connections:
+        if channel in sse_connections and sse_connections[channel]:
             # Add message to queue for new connections
             message_queues[channel].append(message_data)
             # Keep only last 100 messages to prevent memory issues
@@ -146,10 +147,13 @@ def broadcast_message_to_channel(channel, message_data):
             # Send message immediately to SSE queue for real-time delivery
             try:
                 sse_message_queues[channel].put(message_data, timeout=1)
+                print(f"Message queued for {len(sse_connections[channel])} SSE connections for channel {channel}")
             except queue.Full:
                 print(f"SSE message queue full for channel {channel}, dropping message")
             
             print(f"Broadcasting message to {len(sse_connections[channel])} SSE connections for channel {channel}")
+        else:
+            print(f"No SSE connections found for channel {channel}, message not broadcasted")
 
 def get_messages_for_channel(channel, last_message_id=None):
     """Get messages for a channel, optionally starting from a specific message ID"""
