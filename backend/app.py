@@ -1,3 +1,11 @@
+# Eventlet monkey patching must be done before any other imports
+import eventlet
+eventlet.monkey_patch()
+
+# Configure eventlet for better performance
+import eventlet.wsgi
+import eventlet.green.threading
+
 from flask import Flask, request, jsonify, session, make_response
 from flask_pymongo import PyMongo
 import os
@@ -18,7 +26,6 @@ from utils.password_validator import validate_password
 from flask_socketio import SocketIO, emit
 from dotenv import load_dotenv
 from datetime import timedelta
-import threading
 import secrets
 from pymongo import MongoClient
 from bson import ObjectId
@@ -133,21 +140,23 @@ def health_check():
 @socketio.on('connect')
 def on_connect():
     try:
-        print(f'Client {request.sid} connected')
+        client_sid = request.sid
+        print(f'Client {client_sid} connected')
         # Send a welcome message to the specific client
-        socketio.emit('welcome', {'message': 'Welcome to the server!'}, room=request.sid)
-        print(f'Client {request.sid} added to active users')
+        socketio.emit('welcome', {'message': 'Welcome to the server!'}, room=client_sid)
+        print(f'Client {client_sid} added to active users')
     except Exception as e:
         print(f'Error in on_connect: {e}')
 
 @socketio.on('disconnect')
 def on_disconnect(reason):
     try:
-        print(f'Client {request.sid} disconnected: {reason}')
+        client_sid = request.sid
+        print(f'Client {client_sid} disconnected: {reason}')
         # Clean up user session mapping
-        if request.sid in user_sessions:
-            user_id = user_sessions[request.sid]
-            del user_sessions[request.sid]
+        if client_sid in user_sessions:
+            user_id = user_sessions[client_sid]
+            del user_sessions[client_sid]
             
             # Remove user from bot connections
             if user_id in user_bots:
@@ -168,7 +177,7 @@ def on_disconnect(reason):
                                 del active_bots[channel]
                                 socketio.emit('disconnect_notification', {'channel': channel})
                 del user_bots[user_id]
-        print(f'Client {request.sid} removed from active users')
+        print(f'Client {client_sid} removed from active users')
     except Exception as e:
         print(f'Error in on_disconnect: {e}')
 
@@ -177,8 +186,9 @@ def handle_user_session_mapping(data):
     try:
         user_id = data.get('user_id')
         if user_id:
-            user_sessions[request.sid] = user_id
-            print(f'Mapped session {request.sid} to user {user_id}')
+            client_sid = request.sid
+            user_sessions[client_sid] = user_id
+            print(f'Mapped session {client_sid} to user {user_id}')
     except Exception as e:
         print(f'Error in handle_user_session_mapping: {e}')
 
@@ -198,21 +208,32 @@ def broadcast_message(message_data, channel=None):
                 # Find session IDs for this user
                 for session_id, mapped_user_id in user_sessions.items():
                     if mapped_user_id == user_id:
-                        socketio.emit('chat_message', message_data, room=session_id)
+                        try:
+                            socketio.emit('chat_message', message_data, room=session_id)
+                        except Exception as emit_error:
+                            print(f"Error emitting to session {session_id}: {emit_error}")
         else:
             # Fallback: broadcast to all (shouldn't happen in normal operation)
-            socketio.emit('chat_message', message_data)
+            try:
+                socketio.emit('chat_message', message_data)
+            except Exception as emit_error:
+                print(f"Error broadcasting message: {emit_error}")
     except Exception as e:
-        print(f"Error emitting message: {e}")
+        print(f"Error in broadcast_message: {e}")
 
 # Example of checking MongoDB URI configuration
 print("MongoDB URI:", mongo_uri)  # Check the MongoDB URI
 
-with app.app_context():
-    create_user_schema(mongo)
-    create_history_schema(mongo)
-    create_logs_schema(mongo)
-    print("MongoDB connection successful.")
+# Initialize database schemas
+def init_database():
+    with app.app_context():
+        create_user_schema(mongo)
+        create_history_schema(mongo)
+        create_logs_schema(mongo)
+        print("MongoDB connection successful.")
+
+# Call the initialization function
+init_database()
 
 # Check environment type
 print(f"Running in {'Production' if is_production else 'Development'} environment.")
@@ -419,7 +440,7 @@ def connect_to_twitch():
                 socket_handler=channel_message_handler
             )
 
-            thread = threading.Thread(target=bot.start)
+            thread = eventlet.green.threading.Thread(target=bot.start)
             thread.daemon = True
             thread.start()
             
