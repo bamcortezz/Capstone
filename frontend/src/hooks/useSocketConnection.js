@@ -51,23 +51,26 @@ export const useSocketConnection = () => {
     setConnectionStatus('connecting');
     setLastError(null);
 
-    const socket = io(API_URL, {
-      transports: ['websocket', 'polling'], // Fallback to polling if websocket fails
-      withCredentials: true,
-      reconnection: false, // We'll handle reconnection manually
-      timeout: 20000,
-      autoConnect: true,
-      // More conservative ping settings
-      pingInterval: 60000, // 60 seconds
-      pingTimeout: 30000,  // 30 seconds
-      // Connection options
-      forceNew: true,
-      multiplex: false,
-      // Additional options for stability
-      upgrade: true,
-      rememberUpgrade: false,
-      perMessageDeflate: false
-    });
+        const socket = io(API_URL, {
+          transports: ['websocket', 'polling'], // Fallback to polling if websocket fails
+          withCredentials: true,
+          reconnection: false, // We'll handle reconnection manually
+          timeout: 30000, // Increased timeout
+          autoConnect: true,
+          // More conservative ping settings
+          pingInterval: 30000, // 30 seconds - reduced from 60
+          pingTimeout: 15000,  // 15 seconds - reduced from 30
+          // Connection options
+          forceNew: true,
+          multiplex: false,
+          // Additional options for stability
+          upgrade: true,
+          rememberUpgrade: false,
+          perMessageDeflate: false,
+          // Additional stability options
+          closeOnBeforeunload: false,
+          rejectUnauthorized: false // For development/testing
+        });
 
     // Connection established
     socket.on('connect', () => {
@@ -83,14 +86,14 @@ export const useSocketConnection = () => {
         console.log('Mapped user session:', userId);
       }
       
-      // Set up periodic health check
-      const healthCheck = setInterval(() => {
-        if (socket.connected) {
-          socket.emit('ping');
-        } else {
-          clearInterval(healthCheck);
-        }
-      }, 30000); // Check every 30 seconds
+          // Set up periodic health check
+          const healthCheck = setInterval(() => {
+            if (socket.connected) {
+              socket.emit('ping');
+            } else {
+              clearInterval(healthCheck);
+            }
+          }, 20000); // Check every 20 seconds
       
       // Store health check interval for cleanup
       socket.healthCheckInterval = healthCheck;
@@ -123,6 +126,11 @@ export const useSocketConnection = () => {
         setConnectionStatus('failed');
         console.error('Max reconnection attempts reached');
       }
+    });
+
+    // Handle pong responses
+    socket.on('pong', (data) => {
+      console.log('Received pong:', data);
     });
 
     // Connection errors

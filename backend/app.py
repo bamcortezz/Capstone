@@ -47,15 +47,17 @@ if is_production:
     CORS(app, 
          supports_credentials=True, 
          origins=[frontend_url],  # Only allow specific frontend URL
-         allow_headers=["Content-Type", "Authorization"],
-         methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
+         allow_headers=["Content-Type", "Authorization", "X-Requested-With"],
+         methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+         expose_headers=["Content-Type"])
 else:
     # Permissive CORS for development
     CORS(app, 
          supports_credentials=True, 
          origins="*",  # Allow all origins for local development
-         allow_headers=["Content-Type", "Authorization"],
-         methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
+         allow_headers=["Content-Type", "Authorization", "X-Requested-With"],
+         methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+         expose_headers=["Content-Type"])
 
 db_name = os.getenv('MONGO_DBNAME', 'twitch_sentiment')
 mongo_uri = os.getenv('MONGO_URI') or f'mongodb://localhost:27017/{db_name}'
@@ -73,20 +75,35 @@ app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30)
 
 mongo = PyMongo(app)
 
+# Manual CORS handler for additional security
+@app.after_request
+def after_request(response):
+    if is_production:
+        response.headers.add('Access-Control-Allow-Origin', frontend_url)
+    else:
+        response.headers.add('Access-Control-Allow-Origin', '*')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization,X-Requested-With')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+    response.headers.add('Access-Control-Allow-Credentials', 'true')
+    response.headers.add('Access-Control-Expose-Headers', 'Content-Type')
+    return response
+
 cors_origins = [frontend_url] if is_production else "*"
 socketio = SocketIO(
     app,
     cors_allowed_origins=cors_origins,
     async_mode=('eventlet' if is_production else 'threading'),
-    ping_timeout=60,
-    ping_interval=25,
+    ping_timeout=30,  # Reduced from 60 to 30 seconds
+    ping_interval=15,  # Reduced from 25 to 15 seconds
     max_http_buffer_size=1000000,
     logger=False,  # Disable verbose logging in production
     engineio_logger=False,  # Disable verbose logging in production
     always_connect=True,
     allow_upgrades=True,
     compression=True,
-    cookie=None  # Disable cookies to reduce overhead
+    cookie=None,  # Disable cookies to reduce overhead
+    transports=['websocket', 'polling'],  # Explicitly set transports
+    resource='socket.io'  # Explicit resource path
 )
 
 # Multi-user bot management
@@ -94,48 +111,83 @@ active_bots = {}  # channel -> {bot, thread, connected_users}
 user_bots = {}    # user_id -> set of channels
 user_sessions = {}  # session_id -> user_id mapping
 
+# Global error handlers
+@app.errorhandler(500)
+def internal_error(error):
+    print(f"Internal server error: {error}")
+    return jsonify({'error': 'Internal server error'}), 500
+
+@app.errorhandler(404)
+def not_found(error):
+    return jsonify({'error': 'Not found'}), 404
+
+@app.errorhandler(400)
+def bad_request(error):
+    return jsonify({'error': 'Bad request'}), 400
+
+# Health check endpoint
+@app.route('/health', methods=['GET'])
+def health_check():
+    return jsonify({'status': 'healthy', 'timestamp': datetime.now().isoformat()}), 200
+
 @socketio.on('connect')
 def on_connect():
-    print(f'Client {request.sid} connected')
-    # Send a welcome message to the specific client
-    socketio.emit('welcome', {'message': 'Welcome to the server!'}, room=request.sid)
-    print(f'Client {request.sid} added to active users')
+    try:
+        print(f'Client {request.sid} connected')
+        # Send a welcome message to the specific client
+        socketio.emit('welcome', {'message': 'Welcome to the server!'}, room=request.sid)
+        print(f'Client {request.sid} added to active users')
+    except Exception as e:
+        print(f'Error in on_connect: {e}')
 
 @socketio.on('disconnect')
 def on_disconnect(reason):
-    print(f'Client {request.sid} disconnected: {reason}')
-    # Clean up user session mapping
-    if request.sid in user_sessions:
-        user_id = user_sessions[request.sid]
-        del user_sessions[request.sid]
-        
-        # Remove user from bot connections
-        if user_id in user_bots:
-            channels = list(user_bots[user_id])
-            for channel in channels:
-                if channel in active_bots:
-                    active_bots[channel]['connected_users'].discard(user_id)
-                    # If no users left, disconnect the bot
-                    if not active_bots[channel]['connected_users']:
-                        try:
-                            bot, thread = active_bots[channel]['bot'], active_bots[channel]['thread']
-                            bot.disconnect()
-                            # Don't call bot.die() as it calls sys.exit() which kills the worker
-                            # The bot will be garbage collected when the reference is removed
-                        except Exception as e:
-                            print(f"Error disconnecting bot: {e}")
-                        finally:
-                            del active_bots[channel]
-                            socketio.emit('disconnect_notification', {'channel': channel})
-            del user_bots[user_id]
-    print(f'Client {request.sid} removed from active users')
+    try:
+        print(f'Client {request.sid} disconnected: {reason}')
+        # Clean up user session mapping
+        if request.sid in user_sessions:
+            user_id = user_sessions[request.sid]
+            del user_sessions[request.sid]
+            
+            # Remove user from bot connections
+            if user_id in user_bots:
+                channels = list(user_bots[user_id])
+                for channel in channels:
+                    if channel in active_bots:
+                        active_bots[channel]['connected_users'].discard(user_id)
+                        # If no users left, disconnect the bot
+                        if not active_bots[channel]['connected_users']:
+                            try:
+                                bot, thread = active_bots[channel]['bot'], active_bots[channel]['thread']
+                                bot.disconnect()
+                                # Don't call bot.die() as it calls sys.exit() which kills the worker
+                                # The bot will be garbage collected when the reference is removed
+                            except Exception as e:
+                                print(f"Error disconnecting bot: {e}")
+                            finally:
+                                del active_bots[channel]
+                                socketio.emit('disconnect_notification', {'channel': channel})
+                del user_bots[user_id]
+        print(f'Client {request.sid} removed from active users')
+    except Exception as e:
+        print(f'Error in on_disconnect: {e}')
 
 @socketio.on('map_user_session')
 def handle_user_session_mapping(data):
-    user_id = data.get('user_id')
-    if user_id:
-        user_sessions[request.sid] = user_id
-        print(f'Mapped session {request.sid} to user {user_id}')
+    try:
+        user_id = data.get('user_id')
+        if user_id:
+            user_sessions[request.sid] = user_id
+            print(f'Mapped session {request.sid} to user {user_id}')
+    except Exception as e:
+        print(f'Error in handle_user_session_mapping: {e}')
+
+@socketio.on('ping')
+def handle_ping():
+    try:
+        emit('pong', {'timestamp': datetime.now().isoformat()})
+    except Exception as e:
+        print(f'Error in handle_ping: {e}')
 
 def broadcast_message(message_data, channel=None):
     try:
@@ -355,7 +407,10 @@ def connect_to_twitch():
         try:
             # Create bot with channel-specific message handler
             def channel_message_handler(message_data):
-                broadcast_message(message_data, channel)
+                try:
+                    broadcast_message(message_data, channel)
+                except Exception as e:
+                    print(f"Error in channel_message_handler: {e}")
                 
             bot = TwitchChatBot(
                 token="SCHMOOPIIE",
@@ -380,6 +435,11 @@ def connect_to_twitch():
             return jsonify({'message': f'Connected to {channel}\'s chat', 'channel': channel}), 200
         except Exception as e:
             print(f"Error creating Twitch bot: {e}")
+            # Clean up any partial state
+            if channel in active_bots:
+                del active_bots[channel]
+            if user_id in user_bots and channel in user_bots[user_id]:
+                user_bots[user_id].discard(channel)
             return jsonify({'error': f'Failed to connect to Twitch chat: {str(e)}'}), 500
         
     except Exception as e:
@@ -1264,15 +1324,26 @@ def delete_account():
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
-    print("Starting Flask app...")
-    print("App: ", app)
-    print("SocketIO: ", socketio)
-    print("Mongo: ", mongo)
-    print("Active bots: ", active_bots)
-    print("User bots: ", user_bots)
-    import os
-    port = int(os.environ.get("PORT", 8080))
-    print("Port: ", os.environ.get("PORT"))
-    print("Port: ", port)
-    app.debug = True
-    socketio.run(app, host="0.0.0.0", port=port, debug=True, allow_unsafe_werkzeug=True)
+    try:
+        print("Starting Flask app...")
+        print("App: ", app)
+        print("SocketIO: ", socketio)
+        print("Mongo: ", mongo)
+        print("Active bots: ", active_bots)
+        print("User bots: ", user_bots)
+        import os
+        port = int(os.environ.get("PORT", 8080))
+        print("Port: ", os.environ.get("PORT"))
+        print("Port: ", port)
+        print(f"Environment: {'Production' if is_production else 'Development'}")
+        print(f"Frontend URL: {frontend_url}")
+        
+        if is_production:
+            app.debug = False
+            socketio.run(app, host="0.0.0.0", port=port, debug=False)
+        else:
+            app.debug = True
+            socketio.run(app, host="0.0.0.0", port=port, debug=True, allow_unsafe_werkzeug=True)
+    except Exception as e:
+        print(f"Failed to start server: {e}")
+        raise
