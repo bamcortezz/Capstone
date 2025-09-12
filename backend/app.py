@@ -42,12 +42,20 @@ load_dotenv()
 
 app = Flask(__name__)
 
-# Environment detection
-is_production = os.getenv('ENVIRONMENT') == 'production'
+# Environment detection - check multiple possible environment variables
+is_production = (
+    os.getenv('ENVIRONMENT') == 'production' or 
+    os.getenv('RAILWAY_ENVIRONMENT') == 'production' or
+    os.getenv('NODE_ENV') == 'production' or
+    'railway' in os.getenv('HOSTNAME', '').lower()
+)
 frontend_url = os.getenv('FRONTEND_URL', 'http://localhost:5173')
 print(f"Environment: {'Production' if is_production else 'Development'}")
 print(f"Frontend URL: {frontend_url}")
 print("Port: ", os.environ.get("PORT"))
+
+# Debug CORS configuration
+print(f"CORS will allow origins: {[frontend_url] if is_production else '*'}")
 # Environment-aware CORS configuration
 if is_production:
     # Strict CORS for production
@@ -56,7 +64,8 @@ if is_production:
          origins=[frontend_url],  # Only allow specific frontend URL
          allow_headers=["Content-Type", "Authorization", "X-Requested-With"],
          methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-         expose_headers=["Content-Type"])
+         expose_headers=["Content-Type"],
+         vary_header=True)
 else:
     # Permissive CORS for development
     CORS(app, 
@@ -64,7 +73,8 @@ else:
          origins="*",  # Allow all origins for local development
          allow_headers=["Content-Type", "Authorization", "X-Requested-With"],
          methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-         expose_headers=["Content-Type"])
+         expose_headers=["Content-Type"],
+         vary_header=True)
 
 db_name = os.getenv('MONGO_DBNAME', 'twitch_sentiment')
 mongo_uri = os.getenv('MONGO_URI') or f'mongodb://localhost:27017/{db_name}'
@@ -85,14 +95,16 @@ mongo = PyMongo(app)
 # Manual CORS handler for additional security
 @app.after_request
 def after_request(response):
-    if is_production:
-        response.headers.add('Access-Control-Allow-Origin', frontend_url)
-    else:
-        response.headers.add('Access-Control-Allow-Origin', '*')
-    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization,X-Requested-With')
-    response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
-    response.headers.add('Access-Control-Allow-Credentials', 'true')
-    response.headers.add('Access-Control-Expose-Headers', 'Content-Type')
+    # Only add CORS headers if they're not already set by Flask-CORS
+    if 'Access-Control-Allow-Origin' not in response.headers:
+        if is_production:
+            response.headers.add('Access-Control-Allow-Origin', frontend_url)
+        else:
+            response.headers.add('Access-Control-Allow-Origin', '*')
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization,X-Requested-With')
+        response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+        response.headers.add('Access-Control-Allow-Credentials', 'true')
+        response.headers.add('Access-Control-Expose-Headers', 'Content-Type')
     return response
 
 cors_origins = [frontend_url] if is_production else "*"
@@ -131,6 +143,19 @@ def not_found(error):
 @app.errorhandler(400)
 def bad_request(error):
     return jsonify({'error': 'Bad request'}), 400
+
+# Handle preflight OPTIONS requests
+@app.route('/<path:path>', methods=['OPTIONS'])
+def handle_preflight(path):
+    response = make_response()
+    if is_production:
+        response.headers['Access-Control-Allow-Origin'] = frontend_url
+    else:
+        response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Requested-With'
+    response.headers['Access-Control-Allow-Credentials'] = 'true'
+    return response
 
 # Health check endpoint
 @app.route('/health', methods=['GET'])
