@@ -38,10 +38,45 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (userData) => {
     setUser(userData);
+    
+    // Establish Socket.IO connection for the logged-in user
+    if (typeof window !== 'undefined') {
+      const { io } = await import('socket.io-client');
+      const API_URL = import.meta.env.VITE_API_URL;
+      
+      // Create a global socket connection for the user
+      const socket = io(API_URL, {
+        transports: ["websocket"],
+        withCredentials: true,
+        reconnection: true,
+        reconnectionAttempts: 5,
+        reconnectionDelay: 2000,
+        reconnectionDelayMax: 5000,
+        timeout: 20000,
+        autoConnect: true,
+        pingInterval: 25000,
+        pingTimeout: 5000
+      });
+      
+      // Map user session when connected
+      socket.on('connect', () => {
+        socket.emit('map_user_session', { user_id: userData.id });
+        console.log('Global socket connected and mapped for user:', userData.id);
+      });
+      
+      // Store socket globally for cleanup on logout
+      window.userSocket = socket;
+    }
   };
   
   const logout = async () => {
     try {
+      // Clean up global socket connection
+      if (typeof window !== 'undefined' && window.userSocket) {
+        window.userSocket.disconnect();
+        window.userSocket = null;
+      }
+      
       const response = await fetch(`${API_URL}/api/logout`, {
         method: 'POST',
         credentials: 'include'

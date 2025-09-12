@@ -89,6 +89,7 @@ user_sessions = {}  # session_id -> user_id mapping
 
 @socketio.on('connect')
 def on_connect():
+    from flask_socketio import request
     print(f'Client {request.sid} connected')
     # Send a welcome message to the specific client
     socketio.emit('welcome', {'message': 'Welcome to the server!'}, room=request.sid)
@@ -96,6 +97,7 @@ def on_connect():
 
 @socketio.on('disconnect')
 def on_disconnect():
+    from flask_socketio import request
     print(f'Client {request.sid} disconnected')
     # Clean up user session mapping
     if request.sid in user_sessions:
@@ -124,6 +126,7 @@ def on_disconnect():
 
 @socketio.on('map_user_session')
 def handle_user_session_mapping(data):
+    from flask_socketio import request
     user_id = data.get('user_id')
     if user_id:
         user_sessions[request.sid] = user_id
@@ -338,6 +341,7 @@ def connect_to_twitch():
             # Add user to existing bot connection
             active_bots[channel]['connected_users'].add(user_id)
             user_bots.setdefault(user_id, set()).add(channel)
+            print(f'User {user_id} joined existing bot for channel {channel}')
             return jsonify({'message': f'Connected to {channel}\'s chat', 'channel': channel}), 200
             
         import random

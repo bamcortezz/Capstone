@@ -43,27 +43,40 @@ export const AnalyzeProvider = ({ children }) => {
     if (socketRef.current) {
       socketRef.current.off('chat_message');  // Cleanup previous listeners
       socketRef.current.off('disconnect_notification');
-      socketRef.current.disconnect();
+      
+      // Only disconnect if it's not the global socket
+      if (socketRef.current !== window.userSocket) {
+        socketRef.current.disconnect();
+      }
       socketRef.current = null;
     }
 
-    // Connect to the socket with proper configuration for multiple users
-    socketRef.current = io(API_URL, {
-      transports: ["websocket"],
-      withCredentials: true,
-      reconnection: true,
-      reconnectionAttempts: 5,
-      reconnectionDelay: 2000,
-      reconnectionDelayMax: 5000,
-      timeout: 20000,
-      autoConnect: true,
-      pingInterval: 25000,
-      pingTimeout: 5000
-    });
-    
-    // Map user session for Socket.IO
-    if (user) {
-      socketRef.current.emit('map_user_session', { user_id: user.id });
+    // Use the global socket connection if available, otherwise create a new one
+    if (window.userSocket && window.userSocket.connected) {
+      socketRef.current = window.userSocket;
+      console.log('Using existing global socket connection');
+    } else {
+      // Connect to the socket with proper configuration for multiple users
+      socketRef.current = io(API_URL, {
+        transports: ["websocket"],
+        withCredentials: true,
+        reconnection: true,
+        reconnectionAttempts: 5,
+        reconnectionDelay: 2000,
+        reconnectionDelayMax: 5000,
+        timeout: 20000,
+        autoConnect: true,
+        pingInterval: 25000,
+        pingTimeout: 5000
+      });
+      
+      // Map user session for Socket.IO when connection is established
+      socketRef.current.on('connect', () => {
+        if (user) {
+          socketRef.current.emit('map_user_session', { user_id: user.id });
+          console.log('Mapped user session:', user.id);
+        }
+      });
     }
     
     setMessages([]);
@@ -159,7 +172,11 @@ export const AnalyzeProvider = ({ children }) => {
       socketRef.current.off('disconnect_notification');
       socketRef.current.off('connect_error');
       socketRef.current.off('reconnect');
-      socketRef.current.disconnect();
+      
+      // Only disconnect if it's not the global socket
+      if (socketRef.current !== window.userSocket) {
+        socketRef.current.disconnect();
+      }
       socketRef.current = null;
     }
 
@@ -181,7 +198,11 @@ export const AnalyzeProvider = ({ children }) => {
         socketRef.current.off('disconnect_notification');
         socketRef.current.off('connect_error');
         socketRef.current.off('reconnect');
-        socketRef.current.disconnect();
+        
+        // Only disconnect if it's not the global socket
+        if (socketRef.current !== window.userSocket) {
+          socketRef.current.disconnect();
+        }
         socketRef.current = null;
       }
     };
