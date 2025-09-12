@@ -32,6 +32,7 @@ from io import BytesIO
 import json
 import threading
 import time
+import queue
 from collections import defaultdict, deque
 load_dotenv()
 
@@ -113,6 +114,7 @@ user_sessions = {}  # session_id -> user_id mapping
 sse_connections = {}  # channel -> set of SSE connections
 message_queues = defaultdict(deque)  # channel -> deque of messages
 connection_lock = threading.Lock()
+sse_message_queues = defaultdict(queue.Queue)  # channel -> queue for real-time messages
 
 def add_sse_connection(channel, connection_id):
     """Add an SSE connection for a channel"""
@@ -140,6 +142,12 @@ def broadcast_message_to_channel(channel, message_data):
             # Keep only last 100 messages to prevent memory issues
             if len(message_queues[channel]) > 100:
                 message_queues[channel].popleft()
+            
+            # Send message immediately to SSE queue for real-time delivery
+            try:
+                sse_message_queues[channel].put(message_data, timeout=1)
+            except queue.Full:
+                print(f"SSE message queue full for channel {channel}, dropping message")
             
             print(f"Broadcasting message to {len(sse_connections[channel])} SSE connections for channel {channel}")
 
@@ -268,19 +276,20 @@ def sse_chat_stream(channel):
             for message in existing_messages:
                 yield f"data: {json.dumps({'type': 'message', 'data': message})}\n\n"
             
-            # Keep connection alive and send new messages
-            last_message_count = len(existing_messages)
+            # Real-time message delivery using queue
+            last_heartbeat = time.time()
             while True:
-                current_messages = get_messages_for_channel(channel)
-                if len(current_messages) > last_message_count:
-                    # Send new messages
-                    for message in current_messages[last_message_count:]:
-                        yield f"data: {json.dumps({'type': 'message', 'data': message})}\n\n"
-                    last_message_count = len(current_messages)
-                
-                # Send heartbeat every 30 seconds
-                yield f"data: {json.dumps({'type': 'heartbeat', 'timestamp': datetime.now().isoformat()})}\n\n"
-                time.sleep(30)
+                try:
+                    # Try to get a new message with a short timeout
+                    message_data = sse_message_queues[channel].get(timeout=1.0)
+                    yield f"data: {json.dumps({'type': 'message', 'data': message_data})}\n\n"
+                except queue.Empty:
+                    # No new messages, send heartbeat if needed
+                    current_time = time.time()
+                    if current_time - last_heartbeat >= 30:  # Send heartbeat every 30 seconds
+                        yield f"data: {json.dumps({'type': 'heartbeat', 'timestamp': datetime.now().isoformat()})}\n\n"
+                        last_heartbeat = current_time
+                    continue
                 
         except GeneratorExit:
             # Client disconnected
