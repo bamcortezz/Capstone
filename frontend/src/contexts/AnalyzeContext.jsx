@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from './AuthContext';
+import { useSSEConnection } from '../hooks/useSSEConnection';
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -8,7 +9,8 @@ const AnalyzeContext = createContext();
 export const useAnalyze = () => useContext(AnalyzeContext);
 
 export const AnalyzeProvider = ({ children }) => {
-  const { user, socket, isConnected: socketConnected, connectionStatus } = useAuth();
+  const { user } = useAuth();
+  const { eventSource, isConnected: sseConnected, connectionStatus, connect: connectSSE, disconnect: disconnectSSE } = useSSEConnection();
   const [isConnected, setIsConnected] = useState(false);
   const [currentChannel, setCurrentChannel] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -46,16 +48,15 @@ export const AnalyzeProvider = ({ children }) => {
     }
   }, []); // Remove dependencies to avoid stale closures
 
-  // Socket connection management
+  // SSE connection management
   const connectToChannel = useCallback(async (streamUrl) => {
-    // Check if socket is available and connected
-    if (!socket || !socketConnected) {
-      throw new Error('Socket connection not available. Please ensure you are logged in.');
+    // Check if user is logged in
+    if (!user) {
+      throw new Error('User not logged in. Please log in to analyze chat.');
     }
 
-    // Cleanup previous listeners
-    socket.off('chat_message');
-    socket.off('disconnect_notification');
+    // Cleanup previous SSE connection
+    disconnectSSE();
     
     setMessages([]);
     setSentimentCounts({ positive: 0, neutral: 0, negative: 0 });
@@ -98,21 +99,32 @@ export const AnalyzeProvider = ({ children }) => {
       }
     }
 
-    // Setup socket listeners for new messages and disconnects
-    socket.on('chat_message', processMessage);  // Process incoming chat messages
-
-    socket.on('disconnect_notification', (data) => {
-      if (data.channel === currentChannel) {
-        console.log('Received disconnect notification for channel:', data.channel);
-        setIsConnected(false);
-        setCurrentChannel(null);
-        setMessages([]);
-        setSentimentCounts({ positive: 0, neutral: 0, negative: 0 });
-        setUserSentiments({ positive: {}, neutral: {}, negative: {} });
-        processedMessages.current.clear();
-      }
-    });
-  }, [user, currentChannel, processMessage, socket, socketConnected]);
+    // Setup SSE connection for the channel
+    const sseEventSource = connectSSE(data.channel);
+    
+    if (sseEventSource) {
+      // Handle SSE messages
+      sseEventSource.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          
+          if (data.type === 'message') {
+            processMessage(data.data);
+          } else if (data.type === 'disconnect') {
+            console.log('Received disconnect notification for channel:', data.channel);
+            setIsConnected(false);
+            setCurrentChannel(null);
+            setMessages([]);
+            setSentimentCounts({ positive: 0, neutral: 0, negative: 0 });
+            setUserSentiments({ positive: {}, neutral: {}, negative: {} });
+            processedMessages.current.clear();
+          }
+        } catch (error) {
+          console.error('Error processing SSE message:', error);
+        }
+      };
+    }
+  }, [user, processMessage, connectSSE, disconnectSSE]);
 
   const disconnectFromChannel = useCallback(async () => {
     if (currentChannel) {
@@ -128,10 +140,8 @@ export const AnalyzeProvider = ({ children }) => {
       }
     }
 
-    if (socket) {
-      socket.off('chat_message');  // Cleanup listeners
-      socket.off('disconnect_notification');
-    }
+    // Disconnect SSE connection
+    disconnectSSE();
 
     setIsConnected(false);
     setCurrentChannel(null);
@@ -146,12 +156,10 @@ export const AnalyzeProvider = ({ children }) => {
 
   useEffect(() => {
     return () => {
-      if (socket) {
-        socket.off('chat_message');  // Cleanup listeners on unmount
-        socket.off('disconnect_notification');
-      }
+      // Cleanup SSE connection on unmount
+      disconnectSSE();
     };
-  }, [socket]);
+  }, [disconnectSSE]);
 
   const topUsers = useMemo(() => {
     const sentiments = ['positive', 'neutral', 'negative'];
@@ -185,7 +193,7 @@ export const AnalyzeProvider = ({ children }) => {
       getFilteredMessages,
       sessionStart,
       setSessionStart,
-      socketConnected,
+      sseConnected,
       connectionStatus,
     }}>
       {children}

@@ -1,8 +1,8 @@
 import React from 'react';
-import { useAuth } from '../contexts/AuthContext';
+import { useAnalyze } from '../contexts/AnalyzeContext';
 
 const ConnectionStatus = () => {
-  const { connectionStatus, isConnected } = useAuth();
+  const { connectionStatus, sseConnected } = useAnalyze();
 
   const getStatusColor = () => {
     switch (connectionStatus) {

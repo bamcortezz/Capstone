@@ -1,12 +1,4 @@
-# Eventlet monkey patching must be done before any other imports
-import eventlet
-eventlet.monkey_patch()
-
-# Configure eventlet for better performance
-import eventlet.wsgi
-import eventlet.green.threading
-
-from flask import Flask, request, jsonify, session, make_response
+from flask import Flask, request, jsonify, session, make_response, Response
 from flask_pymongo import PyMongo
 import os
 from flask_cors import CORS
@@ -23,7 +15,6 @@ from werkzeug.security import generate_password_hash
 from utils.email_sender import send_otp_email, send_password_reset_email, send_contact_email
 from utils.twitch_chat import TwitchChatBot, extract_channel_name
 from utils.password_validator import validate_password
-from flask_socketio import SocketIO, emit
 from dotenv import load_dotenv
 from datetime import timedelta
 import secrets
@@ -38,6 +29,10 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 from io import BytesIO
+import json
+import threading
+import time
+from collections import defaultdict, deque
 load_dotenv()
 
 app = Flask(__name__)
@@ -108,69 +103,81 @@ def after_request(response):
     return response
 
 cors_origins = [frontend_url] if is_production else "*"
-socketio = SocketIO(
-    app,
-    cors_allowed_origins=cors_origins,
-    async_mode=('eventlet' if is_production else 'threading'),
-    ping_timeout=120,  # Increased to 120 seconds for Railway stability
-    ping_interval=30,  # Increased to 30 seconds for Railway stability
-    max_http_buffer_size=1000000,
-    logger=False,  # Disable verbose logging in production
-    engineio_logger=False,  # Disable verbose logging in production
-    always_connect=True,
-    allow_upgrades=True,
-    compression=True,
-    cookie=None,  # Disable cookies to reduce overhead
-    transports=['websocket', 'polling'],  # Explicitly set transports
-    resource='socket.io',  # Explicit resource path
-    reconnection=True,  # Enable reconnection
-    reconnection_attempts=10,  # Max reconnection attempts
-    reconnection_delay=1000,  # Initial delay in ms
-    reconnection_delay_max=5000,  # Max delay in ms
-    timeout=30000,  # Increased connection timeout in ms
-    # Railway-specific optimizations
-    http_compression=True,
-    # Disable problematic features for Railway
-    per_message_deflate=False,
-    # Add keepalive settings
-    keepalive=True,
-    keepalive_interval=30
-)
 
 # Multi-user bot management
 active_bots = {}  # channel -> {bot, thread, connected_users}
 user_bots = {}    # user_id -> set of channels
 user_sessions = {}  # session_id -> user_id mapping
 
-# Keepalive mechanism
-def send_keepalive():
-    """Send keepalive messages to all connected clients"""
-    try:
-        socketio.emit('server_keepalive', {
-            'timestamp': datetime.now().isoformat(),
-            'message': 'Server is alive'
-        })
-        print(f"Sent keepalive to all clients at {datetime.now().isoformat()}")
-    except Exception as e:
-        print(f"Error sending keepalive: {e}")
+# SSE infrastructure
+sse_connections = {}  # channel -> set of SSE connections
+message_queues = defaultdict(deque)  # channel -> deque of messages
+connection_lock = threading.Lock()
 
-# Start keepalive task
-if is_production:
-    import threading
-    import time
-    
-    def keepalive_worker():
-        while True:
+def add_sse_connection(channel, connection_id):
+    """Add an SSE connection for a channel"""
+    with connection_lock:
+        if channel not in sse_connections:
+            sse_connections[channel] = set()
+        sse_connections[channel].add(connection_id)
+        print(f"Added SSE connection {connection_id} for channel {channel}")
+
+def remove_sse_connection(channel, connection_id):
+    """Remove an SSE connection for a channel"""
+    with connection_lock:
+        if channel in sse_connections:
+            sse_connections[channel].discard(connection_id)
+            if not sse_connections[channel]:
+                del sse_connections[channel]
+        print(f"Removed SSE connection {connection_id} for channel {channel}")
+
+def broadcast_message_to_channel(channel, message_data):
+    """Broadcast a message to all SSE connections for a channel"""
+    with connection_lock:
+        if channel in sse_connections:
+            # Add message to queue for new connections
+            message_queues[channel].append(message_data)
+            # Keep only last 100 messages to prevent memory issues
+            if len(message_queues[channel]) > 100:
+                message_queues[channel].popleft()
+            
+            print(f"Broadcasting message to {len(sse_connections[channel])} SSE connections for channel {channel}")
+
+def get_messages_for_channel(channel, last_message_id=None):
+    """Get messages for a channel, optionally starting from a specific message ID"""
+    with connection_lock:
+        if channel not in message_queues:
+            return []
+        
+        messages = list(message_queues[channel])
+        if last_message_id is not None:
+            # Find the index of the last message ID and return messages after it
             try:
-                send_keepalive()
-                time.sleep(20)  # Send keepalive every 20 seconds
-            except Exception as e:
-                print(f"Keepalive worker error: {e}")
-                time.sleep(5)
+                last_index = next(i for i, msg in enumerate(messages) if msg.get('id') == last_message_id)
+                return messages[last_index + 1:]
+            except StopIteration:
+                return messages
+        
+        return messages
+
+# SSE doesn't need keepalive - it has built-in reconnection
+
+# Test endpoint for SSE
+@app.route('/api/test/sse')
+def test_sse():
+    """Test endpoint to verify SSE is working"""
+    def generate():
+        for i in range(5):
+            yield f"data: {json.dumps({'type': 'test', 'message': f'Test message {i+1}', 'timestamp': datetime.now().isoformat()})}\n\n"
+            time.sleep(1)
+        yield f"data: {json.dumps({'type': 'test', 'message': 'Test completed', 'timestamp': datetime.now().isoformat()})}\n\n"
     
-    keepalive_thread = threading.Thread(target=keepalive_worker, daemon=True)
-    keepalive_thread.start()
-    print("Keepalive worker started")
+    response = Response(generate(), mimetype='text/event-stream')
+    response.headers['Cache-Control'] = 'no-cache'
+    response.headers['Connection'] = 'keep-alive'
+    response.headers['Access-Control-Allow-Origin'] = frontend_url if is_production else '*'
+    response.headers['Access-Control-Allow-Credentials'] = 'true'
+    return response
 
 # Global error handlers
 @app.errorhandler(500)
@@ -244,169 +251,93 @@ def debug_status():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@socketio.on('connect')
-def on_connect():
-    try:
-        client_sid = request.sid
-        print(f'Client {client_sid} connected')
-        # Send a welcome message to the specific client
-        socketio.emit('welcome', {'message': 'Welcome to the server!'}, room=client_sid)
-        # Send connection status
-        socketio.emit('connection_status', {'status': 'connected', 'timestamp': datetime.now().isoformat()}, room=client_sid)
-        print(f'Client {client_sid} added to active users')
-    except Exception as e:
-        print(f'Error in on_connect: {e}')
-
-@socketio.on('disconnect')
-def on_disconnect(reason):
-    try:
-        client_sid = request.sid
-        print(f'Client {client_sid} disconnected: {reason}')
+# SSE endpoint for chat messages
+@app.route('/api/sse/chat/<channel>')
+def sse_chat_stream(channel):
+    """Server-Sent Events endpoint for real-time chat messages"""
+    def generate():
+        connection_id = f"{channel}_{datetime.now().timestamp()}_{secrets.token_hex(4)}"
+        add_sse_connection(channel, connection_id)
         
-        # Send disconnection notification to other clients if this was a user session
-        if client_sid in user_sessions:
-            user_id = user_sessions[client_sid]
-            # Notify other clients about the disconnection
-            socketio.emit('user_disconnected', {'user_id': user_id, 'reason': reason})
+        try:
+            # Send initial connection message
+            yield f"data: {json.dumps({'type': 'connection', 'status': 'connected', 'channel': channel, 'timestamp': datetime.now().isoformat()})}\n\n"
             
-            # Clean up user session mapping
-            del user_sessions[client_sid]
+            # Send any existing messages in the queue
+            existing_messages = get_messages_for_channel(channel)
+            for message in existing_messages:
+                yield f"data: {json.dumps({'type': 'message', 'data': message})}\n\n"
             
-            # Remove user from bot connections
-            if user_id in user_bots:
-                channels = list(user_bots[user_id])
-                for channel in channels:
-                    if channel in active_bots:
-                        active_bots[channel]['connected_users'].discard(user_id)
-                        # If no users left, disconnect the bot
-                        if not active_bots[channel]['connected_users']:
-                            try:
-                                bot, thread = active_bots[channel]['bot'], active_bots[channel]['thread']
-                                bot.disconnect()
-                                # Don't call bot.die() as it calls sys.exit() which kills the worker
-                                # The bot will be garbage collected when the reference is removed
-                            except Exception as e:
-                                print(f"Error disconnecting bot: {e}")
-                            finally:
-                                del active_bots[channel]
-                                socketio.emit('disconnect_notification', {'channel': channel})
-                del user_bots[user_id]
-        print(f'Client {client_sid} removed from active users')
-    except Exception as e:
-        print(f'Error in on_disconnect: {e}')
+            # Keep connection alive and send new messages
+            last_message_count = len(existing_messages)
+            while True:
+                current_messages = get_messages_for_channel(channel)
+                if len(current_messages) > last_message_count:
+                    # Send new messages
+                    for message in current_messages[last_message_count:]:
+                        yield f"data: {json.dumps({'type': 'message', 'data': message})}\n\n"
+                    last_message_count = len(current_messages)
+                
+                # Send heartbeat every 30 seconds
+                yield f"data: {json.dumps({'type': 'heartbeat', 'timestamp': datetime.now().isoformat()})}\n\n"
+                time.sleep(30)
+                
+        except GeneratorExit:
+            # Client disconnected
+            remove_sse_connection(channel, connection_id)
+            print(f"SSE connection {connection_id} for channel {channel} closed")
+        except Exception as e:
+            print(f"Error in SSE stream for channel {channel}: {e}")
+            remove_sse_connection(channel, connection_id)
+    
+    response = Response(generate(), mimetype='text/event-stream')
+    response.headers['Cache-Control'] = 'no-cache'
+    response.headers['Connection'] = 'keep-alive'
+    response.headers['Access-Control-Allow-Origin'] = frontend_url if is_production else '*'
+    response.headers['Access-Control-Allow-Credentials'] = 'true'
+    return response
 
-@socketio.on('map_user_session')
-def handle_user_session_mapping(data):
-    try:
-        user_id = data.get('user_id')
-        if user_id:
-            client_sid = request.sid
-            user_sessions[client_sid] = user_id
-            print(f'Mapped session {client_sid} to user {user_id}')
-    except Exception as e:
-        print(f'Error in handle_user_session_mapping: {e}')
-
-@socketio.on('ping')
-def handle_ping():
-    try:
-        emit('pong', {'timestamp': datetime.now().isoformat()})
-    except Exception as e:
-        print(f'Error in handle_ping: {e}')
-
-@socketio.on('heartbeat')
-def handle_heartbeat():
-    try:
-        client_sid = request.sid
-        emit('heartbeat_ack', {
-            'timestamp': datetime.now().isoformat(),
-            'server_time': datetime.now().timestamp()
-        })
-        print(f'Heartbeat received from {client_sid}')
-    except Exception as e:
-        print(f'Error in handle_heartbeat: {e}')
-
-@socketio.on('keepalive')
-def handle_keepalive():
-    try:
-        client_sid = request.sid
-        emit('keepalive_ack', {
-            'timestamp': datetime.now().isoformat(),
-            'status': 'alive'
-        })
-    except Exception as e:
-        print(f'Error in handle_keepalive: {e}')
-
-@socketio.on('client_keepalive_ack')
-def handle_client_keepalive_ack(data=None):
-    try:
-        client_sid = request.sid
-        print(f'Client {client_sid} acknowledged keepalive')
-    except Exception as e:
-        print(f'Error in handle_client_keepalive_ack: {e}')
-
-@socketio.on('connection_error')
-def handle_connection_error(data):
-    try:
-        client_sid = request.sid
-        error_info = data.get('error', 'Unknown error')
-        print(f'Client {client_sid} reported connection error: {error_info}')
+# SSE endpoint for connection status
+@app.route('/api/sse/status')
+def sse_status_stream():
+    """Server-Sent Events endpoint for connection status updates"""
+    def generate():
+        connection_id = f"status_{datetime.now().timestamp()}_{secrets.token_hex(4)}"
         
-        # Send acknowledgment and try to help with reconnection
-        emit('connection_error_ack', {
-            'status': 'acknowledged',
-            'timestamp': datetime.now().isoformat(),
-            'suggestion': 'Attempting to restore connection...'
-        })
-    except Exception as e:
-        print(f'Error in handle_connection_error: {e}')
-
-@socketio.on('request_connection_status')
-def handle_connection_status_request():
-    try:
-        client_sid = request.sid
-        user_id = user_sessions.get(client_sid)
-        
-        status_data = {
-            'status': 'connected',
-            'timestamp': datetime.now().isoformat(),
-            'user_id': user_id,
-            'active_channels': list(user_bots.get(user_id, set())) if user_id else []
-        }
-        
-        emit('connection_status_response', status_data)
-    except Exception as e:
-        print(f'Error in handle_connection_status_request: {e}')
+        try:
+            # Send initial status
+            yield f"data: {json.dumps({'type': 'status', 'status': 'connected', 'timestamp': datetime.now().isoformat()})}\n\n"
+            
+            # Send periodic status updates
+            while True:
+                yield f"data: {json.dumps({'type': 'status', 'status': 'alive', 'timestamp': datetime.now().isoformat()})}\n\n"
+                time.sleep(60)  # Send status every minute
+                
+        except GeneratorExit:
+            print(f"SSE status connection {connection_id} closed")
+        except Exception as e:
+            print(f"Error in SSE status stream: {e}")
+    
+    response = Response(generate(), mimetype='text/event-stream')
+    response.headers['Cache-Control'] = 'no-cache'
+    response.headers['Connection'] = 'keep-alive'
+    response.headers['Access-Control-Allow-Origin'] = frontend_url if is_production else '*'
+    response.headers['Access-Control-Allow-Credentials'] = 'true'
+    return response
 
 def broadcast_message(message_data, channel=None):
+    """Broadcast message using SSE instead of SocketIO"""
     try:
-        if channel and channel in active_bots:
-            # Send to all users connected to this specific channel
-            connected_users = active_bots[channel]['connected_users'].copy()  # Create a copy to avoid iteration issues
-            print(f"Broadcasting to {len(connected_users)} users for channel {channel}")
+        if channel:
+            # Add unique ID to message for tracking
+            message_data['id'] = f"{channel}_{datetime.now().timestamp()}_{secrets.token_hex(4)}"
+            message_data['timestamp'] = datetime.now().isoformat()
             
-            for user_id in connected_users:
-                # Find session IDs for this user - create a copy of user_sessions to avoid iteration issues
-                user_sessions_copy = dict(user_sessions)  # Create a copy to avoid "dictionary changed size during iteration"
-                user_sessions_found = False
-                
-                for session_id, mapped_user_id in user_sessions_copy.items():
-                    if mapped_user_id == user_id:
-                        user_sessions_found = True
-                        try:
-                            socketio.emit('chat_message', message_data, room=session_id)
-                            print(f"Sent message to session {session_id} for user {user_id}")
-                        except Exception as emit_error:
-                            print(f"Error emitting to session {session_id}: {emit_error}")
-                
-                if not user_sessions_found:
-                    print(f"Warning: No active session found for user {user_id} in channel {channel}")
+            # Broadcast to SSE connections for this channel
+            broadcast_message_to_channel(channel, message_data)
+            print(f"Broadcasted message to SSE connections for channel {channel}")
         else:
-            # Fallback: broadcast to all (shouldn't happen in normal operation)
-            try:
-                socketio.emit('chat_message', message_data)
-                print("Broadcasted message to all clients (fallback)")
-            except Exception as emit_error:
-                print(f"Error broadcasting message: {emit_error}")
+            print("No channel specified for message broadcast")
     except Exception as e:
         print(f"Error in broadcast_message: {e}")
 
@@ -571,7 +502,13 @@ def logout():
                             print(f"Error during bot disconnection on logout: {e}")
                         finally:
                             del active_bots[channel]
-                            socketio.emit('disconnect_notification', {'channel': channel})
+                            # Send disconnect notification via SSE
+                            disconnect_data = {
+                                'type': 'disconnect',
+                                'channel': channel,
+                                'timestamp': datetime.now().isoformat()
+                            }
+                            broadcast_message_to_channel(channel, disconnect_data)
             del user_bots[user_id]
             
         # Clean up session mapping (handled in Socket.IO disconnect)
@@ -626,10 +563,10 @@ def connect_to_twitch():
                 token="SCHMOOPIIE",
                 username=bot_username,
                 channel=channel,
-                socket_handler=channel_message_handler
+                message_handler=channel_message_handler
             )
 
-            thread = eventlet.green.threading.Thread(target=bot.start)
+            thread = threading.Thread(target=bot.start)
             thread.daemon = True
             thread.start()
             
@@ -689,7 +626,13 @@ def disconnect_from_twitch():
                     print(f"Error during bot disconnection: {e}")
                 finally:
                     del active_bots[channel]
-                    socketio.emit('disconnect_notification', {'channel': channel})
+                    # Send disconnect notification via SSE
+                    disconnect_data = {
+                        'type': 'disconnect',
+                        'channel': channel,
+                        'timestamp': datetime.now().isoformat()
+                    }
+                    broadcast_message_to_channel(channel, disconnect_data)
         else:
             return jsonify({'message': 'Already disconnected'}), 200
         
@@ -1548,7 +1491,6 @@ if __name__ == '__main__':
     try:
         print("Starting Flask app...")
         print("App: ", app)
-        print("SocketIO: ", socketio)
         print("Mongo: ", mongo)
         print("Active bots: ", active_bots)
         print("User bots: ", user_bots)
@@ -1561,10 +1503,10 @@ if __name__ == '__main__':
         
         if is_production:
             app.debug = False
-            socketio.run(app, host="0.0.0.0", port=port, debug=False)
+            app.run(host="0.0.0.0", port=port, debug=False)
         else:
             app.debug = True
-            socketio.run(app, host="0.0.0.0", port=port, debug=True, allow_unsafe_werkzeug=True)
+            app.run(host="0.0.0.0", port=port, debug=True)
     except Exception as e:
         print(f"Failed to start server: {e}")
         raise

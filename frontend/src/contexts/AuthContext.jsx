@@ -1,6 +1,5 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import Swal from 'sweetalert2';
-import { useSocketConnection } from '../hooks/useSocketConnection';
 
 // API URL
 const API_URL = import.meta.env.VITE_API_URL;
@@ -12,7 +11,6 @@ export const useAuth = () => useContext(AuthContext);
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const { socket, isConnected, connectionStatus, connect, disconnect } = useSocketConnection();
 
   useEffect(() => {
     const initializeAuth = async () => {
@@ -41,19 +39,15 @@ export const AuthProvider = ({ children }) => {
   const login = async (userData) => {
     setUser(userData);
     
-    // Establish Socket.IO connection for the logged-in user
-    connect(userData.id);
+    // SSE connections are established per component as needed
     
-    // Store socket globally for compatibility with existing code
-    if (socket) {
-      window.userSocket = socket;
-    }
+    // SSE connections are managed per component now
   };
   
   const logout = async () => {
     try {
-      // Clean up socket connection
-      disconnect();
+      // SSE connections are cleaned up per component
+      // Clean up any global references
       if (typeof window !== 'undefined') {
         window.userSocket = null;
       }
@@ -224,9 +218,7 @@ export const AuthProvider = ({ children }) => {
       removeProfileImage,
       changePassword,
       deleteAccount,
-      socket,
-      isConnected,
-      connectionStatus
+      // SSE connections are managed per component
     }}>
       {!loading && children}
     </AuthContext.Provider>

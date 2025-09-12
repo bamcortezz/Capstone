@@ -4,13 +4,14 @@ import re
 from .sentiment_analyzer import sentiment_analyzer
 
 class TwitchChatBot(irc.bot.SingleServerIRCBot):
-    def __init__(self, token, username, channel, socket_handler):
+    def __init__(self, token, username, channel, message_handler):
         if not token.startswith('oauth:'):
             token = 'oauth:' + token
             
         self.token = token
         self.channel = '#' + channel.lower()
-        self.socket_handler = socket_handler
+        self.channel_name = channel.lower()
+        self.message_handler = message_handler
         self._should_disconnect = False
         
         # Create IRC bot connection
@@ -70,7 +71,7 @@ class TwitchChatBot(irc.bot.SingleServerIRCBot):
                 'confidence': sentiment_result['confidence']
             }
             
-            self.socket_handler(message_data)
+            self.message_handler(message_data, self.channel_name)
         except Exception as e:
             print(f"Error processing chat message: {e}")
             # Don't crash the bot, just skip this message
