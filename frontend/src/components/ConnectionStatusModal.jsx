@@ -1,17 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import { useSocketConnection } from '../hooks/useSocketConnection';
+import { useAnalyze } from '../contexts/AnalyzeContext';
 import { useAuth } from '../contexts/AuthContext';
 import Swal from 'sweetalert2';
 
 const ConnectionStatusModal = ({ isAnalyzing, onSaveAnalysis, onDiscardAnalysis, analysisData }) => {
-  const { connectionStatus, isConnected, reconnectAttempts, lastError, reconnect } = useSocketConnection();
+  const { connectionStatus, sseConnected, reconnect } = useAnalyze();
   const { user } = useAuth();
+  
+  // For SSE, we don't have reconnectAttempts or lastError in the same way
+  const reconnectAttempts = 0; // SSE handles reconnection automatically
+  const lastError = null; // SSE errors are handled differently
+  const isConnected = sseConnected;
   const [showDisconnectModal, setShowDisconnectModal] = useState(false);
   const [disconnectTimer, setDisconnectTimer] = useState(null);
 
   // Monitor connection status changes
   useEffect(() => {
-    if (isAnalyzing && !isConnected && connectionStatus === 'failed') {
+    if (isAnalyzing && !isConnected && connectionStatus === 'disconnected') {
       // Show disconnect modal after a short delay to allow for reconnection attempts
       const timer = setTimeout(() => {
         if (!isConnected) {
@@ -89,17 +94,19 @@ const ConnectionStatusModal = ({ isAnalyzing, onSaveAnalysis, onDiscardAnalysis,
 
   // Handle manual reconnection
   const handleReconnect = () => {
-    if (user) {
-      reconnect(user.id);
+    // For SSE, reconnection is handled automatically by the browser
+    // We can trigger a page refresh or reconnect the SSE connection
+    if (reconnect) {
+      reconnect(); // This will reconnect the SSE connection
     }
   };
 
   // Show connection status notification
   useEffect(() => {
-    if (connectionStatus === 'reconnecting' && reconnectAttempts > 0) {
+    if (connectionStatus === 'reconnecting') {
       Swal.fire({
         title: 'Reconnecting...',
-        text: `Attempting to reconnect (${reconnectAttempts}/10)`,
+        text: 'Attempting to reconnect to the server',
         icon: 'info',
         background: '#18181b',
         color: '#fff',
@@ -109,7 +116,7 @@ const ConnectionStatusModal = ({ isAnalyzing, onSaveAnalysis, onDiscardAnalysis,
         timerProgressBar: true
       });
     }
-  }, [connectionStatus, reconnectAttempts]);
+  }, [connectionStatus]);
 
   // Don't render anything if not analyzing or if connected
   if (!isAnalyzing || isConnected) {
@@ -127,8 +134,7 @@ const ConnectionStatusModal = ({ isAnalyzing, onSaveAnalysis, onDiscardAnalysis,
             </svg>
             <span className="font-medium">
               Connection Lost
-              {connectionStatus === 'reconnecting' && ` - Reconnecting... (${reconnectAttempts}/10)`}
-              {lastError && ` - ${lastError}`}
+              {connectionStatus === 'reconnecting' && ' - Reconnecting...'}
             </span>
             <button
               onClick={handleReconnect}

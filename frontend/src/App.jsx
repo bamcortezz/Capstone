@@ -21,7 +21,7 @@ import useBackendStatus from "./hooks/useBackendStatus"
 import { AuthProvider, useAuth } from "./contexts/AuthContext"
 import { AnalyzeProvider } from "./contexts/AnalyzeContext"
 import AdminRoute from "./components/admin/AdminRoute"
-import { io } from "socket.io-client";
+// Removed socket.io-client import - using SSE instead
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
