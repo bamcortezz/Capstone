@@ -15,7 +15,7 @@ from werkzeug.security import generate_password_hash
 from utils.email_sender import send_otp_email, send_password_reset_email, send_contact_email
 from utils.twitch_chat import TwitchChatBot, extract_channel_name
 from utils.password_validator import validate_password
-from flask_socketio import SocketIO
+from flask_socketio import SocketIO, emit
 from dotenv import load_dotenv
 from datetime import timedelta
 import threading
@@ -89,7 +89,6 @@ user_sessions = {}  # session_id -> user_id mapping
 
 @socketio.on('connect')
 def on_connect():
-    from flask_socketio import request
     print(f'Client {request.sid} connected')
     # Send a welcome message to the specific client
     socketio.emit('welcome', {'message': 'Welcome to the server!'}, room=request.sid)
@@ -97,7 +96,6 @@ def on_connect():
 
 @socketio.on('disconnect')
 def on_disconnect():
-    from flask_socketio import request
     print(f'Client {request.sid} disconnected')
     # Clean up user session mapping
     if request.sid in user_sessions:
@@ -126,7 +124,6 @@ def on_disconnect():
 
 @socketio.on('map_user_session')
 def handle_user_session_mapping(data):
-    from flask_socketio import request
     user_id = data.get('user_id')
     if user_id:
         user_sessions[request.sid] = user_id
