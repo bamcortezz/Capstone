@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify, session, make_response
 from flask_pymongo import PyMongo
 import os
 from flask_cors import CORS
+from flask_socketio import request
 from models.user import (
     create_user_schema, create_user, verify_otp, activate_user, 
     verify_password, get_user_by_email, get_user_by_id,
@@ -83,31 +84,59 @@ socketio = SocketIO(
     ping_interval=30
 )
 
-active_bots = {}
-user_bots = {}
+# Multi-user bot management
+active_bots = {}  # channel -> {bot, thread, connected_users}
+user_bots = {}    # user_id -> set of channels
+user_sessions = {}  # session_id -> user_id mapping
 
 @socketio.on('connect')
 def on_connect():
-    print('Client connected')
-    # Send a welcome message to the client
-    socketio.emit('welcome', {'message': 'Welcome to the server!'})
-    # Add the client to active users list
-    active_bots[request.sid] = {'connected': True}
+    print(f'Client {request.sid} connected')
+    # Send a welcome message to the specific client
+    socketio.emit('welcome', {'message': 'Welcome to the server!'}, room=request.sid)
     print(f'Client {request.sid} added to active users')
 
 @socketio.on('disconnect')
 def on_disconnect():
-    print('Client disconnected')
-    # Remove the client from active users list
-    if request.sid in active_bots:
-        del active_bots[request.sid]
-        print(f'Client {request.sid} removed from active users')
-    # Log the disconnection event
     print(f'Client {request.sid} disconnected')
+    # Clean up user session mapping
+    if request.sid in user_sessions:
+        user_id = user_sessions[request.sid]
+        del user_sessions[request.sid]
+        
+        # Remove user from bot connections
+        if user_id in user_bots:
+            channels = list(user_bots[user_id])
+            for channel in channels:
+                if channel in active_bots:
+                    active_bots[channel]['connected_users'].discard(user_id)
+                    # If no users left, disconnect the bot
+                    if not active_bots[channel]['connected_users']:
+                        try:
+                            bot, thread = active_bots[channel]['bot'], active_bots[channel]['thread']
+                            bot.disconnect()
+                            bot.die()
+                        except Exception as e:
+                            print(f"Error disconnecting bot: {e}")
+                        finally:
+                            del active_bots[channel]
+                            socketio.emit('disconnect_notification', {'channel': channel})
+            del user_bots[user_id]
+    print(f'Client {request.sid} removed from active users')
 
-def broadcast_message(message_data):
+def broadcast_message(message_data, channel=None):
     try:
-        socketio.emit('chat_message', message_data)
+        if channel and channel in active_bots:
+            # Send to all users connected to this specific channel
+            connected_users = active_bots[channel]['connected_users']
+            for user_id in connected_users:
+                # Find session IDs for this user
+                for session_id, mapped_user_id in user_sessions.items():
+                    if mapped_user_id == user_id:
+                        socketio.emit('chat_message', message_data, room=session_id)
+        else:
+            # Fallback: broadcast to all (shouldn't happen in normal operation)
+            socketio.emit('chat_message', message_data)
     except Exception as e:
         print(f"Error emitting message: {e}")
 
@@ -254,17 +283,26 @@ def logout():
             channels = list(user_bots[user_id])
             for channel in channels:
                 if channel in active_bots:
-                    try:
-                        bot, thread = active_bots[channel]
-                        bot.disconnect()
-                        bot.die()
-                    except Exception as e:
-                        print(f"Error during bot disconnection on logout: {e}")
-                    finally:
-                        active_bots.pop(channel, None)
-                        # Optionally emit disconnect notification
-                        socketio.emit('disconnect_notification', {'channel': channel})
-            user_bots.pop(user_id, None)
+                    # Remove user from connected users
+                    active_bots[channel]['connected_users'].discard(user_id)
+                    
+                    # If no users left, disconnect the bot
+                    if not active_bots[channel]['connected_users']:
+                        try:
+                            bot = active_bots[channel]['bot']
+                            bot.disconnect()
+                            bot.die()
+                        except Exception as e:
+                            print(f"Error during bot disconnection on logout: {e}")
+                        finally:
+                            del active_bots[channel]
+                            socketio.emit('disconnect_notification', {'channel': channel})
+            del user_bots[user_id]
+            
+        # Clean up session mapping
+        if request.sid in user_sessions:
+            del user_sessions[request.sid]
+            
         session.clear()
         return jsonify({"message": "Successfully logged out"}), 200
     except Exception as e:
@@ -283,31 +321,47 @@ def connect_to_twitch():
         if not channel:
             return jsonify({'error': 'Invalid Twitch URL'}), 400
             
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({'error': 'Authentication required'}), 401
+            
+        # Map session to user for Socket.IO
+        user_sessions[request.sid] = user_id
+        
         # Check if a bot is already active for this channel
         if channel in active_bots:
-
-            return jsonify({'message': f'Already connected to {channel}\'s chat', 'channel': channel}), 200
+            # Add user to existing bot connection
+            active_bots[channel]['connected_users'].add(user_id)
+            user_bots.setdefault(user_id, set()).add(channel)
+            return jsonify({'message': f'Connected to {channel}\'s chat', 'channel': channel}), 200
             
         import random
         bot_username = f"justinfan{random.randint(1000, 999999)}"
         
         try:
+            # Create bot with channel-specific message handler
+            def channel_message_handler(message_data):
+                broadcast_message(message_data, channel)
+                
             bot = TwitchChatBot(
                 token="SCHMOOPIIE",
                 username=bot_username,
                 channel=channel,
-                socket_handler=broadcast_message
+                socket_handler=channel_message_handler
             )
 
             thread = threading.Thread(target=bot.start)
             thread.daemon = True
             thread.start()
             
-            active_bots[channel] = (bot, thread)
+            # Store bot with connected users set
+            active_bots[channel] = {
+                'bot': bot,
+                'thread': thread,
+                'connected_users': {user_id}
+            }
             
-            user_id = session.get('user_id')
-            if user_id:
-                user_bots.setdefault(user_id, set()).add(channel)
+            user_bots.setdefault(user_id, set()).add(channel)
             
             return jsonify({'message': f'Connected to {channel}\'s chat', 'channel': channel}), 200
         except Exception as e:
@@ -326,17 +380,32 @@ def disconnect_from_twitch():
         
         if not channel:
             return jsonify({'error': 'Channel name is required'}), 400
+            
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({'error': 'Authentication required'}), 401
         
         if channel in active_bots:
-            try:
-                bot, thread = active_bots[channel]
-                bot.disconnect()
-                bot.die()
-            except Exception as e:
-                print(f"Error during bot disconnection: {e}")
-            finally:
-                active_bots.pop(channel, None)
-                socketio.emit('disconnect_notification', {'channel': channel})
+            # Remove user from connected users
+            active_bots[channel]['connected_users'].discard(user_id)
+            
+            # Remove from user's bot list
+            if user_id in user_bots:
+                user_bots[user_id].discard(channel)
+                if not user_bots[user_id]:  # If no channels left, remove user
+                    del user_bots[user_id]
+            
+            # If no users left connected to this channel, disconnect the bot
+            if not active_bots[channel]['connected_users']:
+                try:
+                    bot = active_bots[channel]['bot']
+                    bot.disconnect()
+                    bot.die()
+                except Exception as e:
+                    print(f"Error during bot disconnection: {e}")
+                finally:
+                    del active_bots[channel]
+                    socketio.emit('disconnect_notification', {'channel': channel})
         else:
             return jsonify({'message': 'Already disconnected'}), 200
         

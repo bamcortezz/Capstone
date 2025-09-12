@@ -139,63 +139,8 @@ const AppContent = () => {
 function App() {
   const { isBackendReady, isChecking } = useBackendStatus();
 
-  // Create a connection to your backend
-  const socket = io(import.meta.env.VITE_API_URL, {
-    transports: ["websocket"], // Prefer WebSocket transport
-    withCredentials: true,     // Send cookies with requests if needed (useful for sessions)
-    reconnection: true,       // Allow reconnection attempts if the connection drops
-    reconnectionAttempts: 5,  // Max reconnection attempts
-    reconnectionDelay: 2000,  // Time delay between reconnection attempts (1 second)
-    reconnectionDelayMax: 5000, // Max time to wait between reconnection attempts (5 seconds)
-    timeout: 20000,           // Set a timeout value for initial connection (20 seconds)
-    autoConnect: true,        // Automatically start connection
-    pingInterval: 25000,      // Interval to send ping packets to keep connection alive
-    pingTimeout: 5000        // Timeout for awaiting ping responses
-  });
-
-  socket.on('connect', () => {
-    console.log('Connected to the WebSocket server');
-  });
-
-  socket.on('disconnect', (reason) => {
-    console.log('Disconnected from WebSocket:', reason);
-    // If you want to show an alert or notify the user about disconnection
-    if (reason === 'io server disconnect') {
-      console.log('Server disconnected the socket, attempting to reconnect...');
-    } else {
-      console.log('Socket connection lost, trying to reconnect...');
-    }
-    // Optionally attempt to reconnect or show a notification
-  });
-
-  socket.on('connect_error', (error) => {
-    console.error('WebSocket connect error:', error);
-    // You can show a message to the user or attempt to reconnect
-    // Consider retrying or showing an alert
-  });
-
-  socket.on('connect_timeout', () => {
-    console.error('WebSocket connection timed out');
-    // Handle timeout, possibly attempt a reconnect or alert the user
-  });
-
-  // Optional: Listen for reconnection attempts or success/fail
-  socket.on('reconnect', (attemptNumber) => {
-    console.log(`Reconnected after ${attemptNumber} attempts`);
-  });
-
-  socket.on('reconnect_attempt', (attemptNumber) => {
-    console.log(`Attempting to reconnect. Attempt #${attemptNumber}`);
-  });
-
-  socket.on('reconnect_failed', () => {
-    console.error('Reconnection failed. Max attempts reached.');
-    // Optionally show an error message or disable functionality until connection is restored
-  });
-
-  socket.on('reconnect_error', (error) => {
-    console.error('Reconnection error:', error);
-  });
+  // Note: Socket.IO connection is now handled in AnalyzeContext for better multi-user support
+  // This prevents conflicts when multiple users are analyzing different channels
 
 
   if (isChecking || !isBackendReady) {

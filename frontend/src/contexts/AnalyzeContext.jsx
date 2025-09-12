@@ -42,12 +42,25 @@ export const AnalyzeProvider = ({ children }) => {
   const connectToChannel = useCallback(async (streamUrl) => {
     if (socketRef.current) {
       socketRef.current.off('chat_message');  // Cleanup previous listeners
+      socketRef.current.off('disconnect_notification');
       socketRef.current.disconnect();
       socketRef.current = null;
     }
 
-    // Connect to the socket
-    socketRef.current = io(API_URL);
+    // Connect to the socket with proper configuration for multiple users
+    socketRef.current = io(API_URL, {
+      transports: ["websocket"],
+      withCredentials: true,
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 2000,
+      reconnectionDelayMax: 5000,
+      timeout: 20000,
+      autoConnect: true,
+      pingInterval: 25000,
+      pingTimeout: 5000
+    });
+    
     setMessages([]);
     setSentimentCounts({ positive: 0, neutral: 0, negative: 0 });
     setUserSentiments({ positive: {}, neutral: {}, negative: {} });
@@ -85,11 +98,14 @@ export const AnalyzeProvider = ({ children }) => {
     }
 
     // Setup socket listeners for new messages and disconnects
-    socketRef.current.on('connect', () => {});
+    socketRef.current.on('connect', () => {
+      console.log('Connected to Socket.IO server');
+    });
 
     socketRef.current.on('chat_message', processMessage);  // Process incoming chat messages
 
-    socketRef.current.on('disconnect', () => {
+    socketRef.current.on('disconnect', (reason) => {
+      console.log('Socket disconnected:', reason);
       setIsConnected(false);
       setCurrentChannel(null);
       setMessages([]);
@@ -100,6 +116,7 @@ export const AnalyzeProvider = ({ children }) => {
 
     socketRef.current.on('disconnect_notification', (data) => {
       if (data.channel === currentChannel) {
+        console.log('Received disconnect notification for channel:', data.channel);
         setIsConnected(false);
         setCurrentChannel(null);
         setMessages([]);
@@ -107,6 +124,14 @@ export const AnalyzeProvider = ({ children }) => {
         setUserSentiments({ positive: {}, neutral: {}, negative: {} });
         processedMessages.current.clear();
       }
+    });
+
+    socketRef.current.on('connect_error', (error) => {
+      console.error('Socket connection error:', error);
+    });
+
+    socketRef.current.on('reconnect', (attemptNumber) => {
+      console.log(`Reconnected after ${attemptNumber} attempts`);
     });
   }, [user, currentChannel, processMessage]);
 
@@ -126,6 +151,9 @@ export const AnalyzeProvider = ({ children }) => {
 
     if (socketRef.current) {
       socketRef.current.off('chat_message');  // Cleanup listeners
+      socketRef.current.off('disconnect_notification');
+      socketRef.current.off('connect_error');
+      socketRef.current.off('reconnect');
       socketRef.current.disconnect();
       socketRef.current = null;
     }
@@ -145,6 +173,9 @@ export const AnalyzeProvider = ({ children }) => {
     return () => {
       if (socketRef.current) {
         socketRef.current.off('chat_message');  // Cleanup listeners on unmount
+        socketRef.current.off('disconnect_notification');
+        socketRef.current.off('connect_error');
+        socketRef.current.off('reconnect');
         socketRef.current.disconnect();
         socketRef.current = null;
       }
