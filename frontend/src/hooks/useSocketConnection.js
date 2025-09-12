@@ -33,9 +33,12 @@ export const useSocketConnection = () => {
     }
     
     if (socketRef.current) {
-      // Clear health check interval
+      // Clear health check intervals
       if (socketRef.current.healthCheckInterval) {
         clearInterval(socketRef.current.healthCheckInterval);
+      }
+      if (socketRef.current.heartbeatInterval) {
+        clearInterval(socketRef.current.heartbeatInterval);
       }
       
       socketRef.current.removeAllListeners();
@@ -55,11 +58,11 @@ export const useSocketConnection = () => {
       transports: ['websocket', 'polling'], // Fallback to polling if websocket fails
       withCredentials: true,
       reconnection: false, // We'll handle reconnection manually
-      timeout: 20000, // 20 seconds timeout
+      timeout: 30000, // 30 seconds timeout
       autoConnect: true,
-      // More conservative ping settings to match backend
-      pingInterval: 25000, // 25 seconds to match backend
-      pingTimeout: 60000,  // 60 seconds to match backend
+      // More aggressive ping settings for Railway
+      pingInterval: 30000, // 30 seconds to match backend
+      pingTimeout: 120000,  // 120 seconds to match backend
       // Connection options
       forceNew: true,
       multiplex: false,
@@ -69,7 +72,11 @@ export const useSocketConnection = () => {
       perMessageDeflate: false,
       // Additional stability options
       closeOnBeforeunload: false,
-      rejectUnauthorized: false // For development/testing
+      rejectUnauthorized: false, // For development/testing
+      // Railway-specific optimizations
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+      maxReconnectionAttempts: 10
     });
 
     // Connection established
@@ -86,19 +93,31 @@ export const useSocketConnection = () => {
         console.log('Mapped user session:', userId);
       }
       
-          // Set up periodic health check
+          // Set up aggressive health check and heartbeat
       const healthCheck = setInterval(() => {
         if (socket.connected) {
           socket.emit('ping');
+          socket.emit('heartbeat');
+          socket.emit('keepalive');
           // Also request connection status periodically
           socket.emit('request_connection_status');
         } else {
           clearInterval(healthCheck);
         }
-      }, 30000); // Check every 30 seconds
+      }, 15000); // Check every 15 seconds - more aggressive
       
-      // Store health check interval for cleanup
+      // Additional heartbeat every 10 seconds
+      const heartbeatCheck = setInterval(() => {
+        if (socket.connected) {
+          socket.emit('heartbeat');
+        } else {
+          clearInterval(heartbeatCheck);
+        }
+      }, 10000); // Heartbeat every 10 seconds
+      
+      // Store intervals for cleanup
       socket.healthCheckInterval = healthCheck;
+      socket.heartbeatInterval = heartbeatCheck;
     });
 
     // Connection lost
@@ -113,10 +132,11 @@ export const useSocketConnection = () => {
         return;
       }
       
-      // Attempt reconnection for network issues
+      // Attempt reconnection for network issues - more aggressive for Railway
       if (reconnectAttempts < maxReconnectAttempts) {
         setConnectionStatus('reconnecting');
-        const delay = getReconnectDelay(reconnectAttempts);
+        // Use shorter delays for Railway
+        const delay = Math.min(getReconnectDelay(reconnectAttempts), 5000);
         console.log(`Attempting reconnection ${reconnectAttempts + 1}/${maxReconnectAttempts} in ${delay}ms`);
         
         reconnectTimeoutRef.current = setTimeout(() => {
@@ -127,12 +147,38 @@ export const useSocketConnection = () => {
         setLastError('Max reconnection attempts reached');
         setConnectionStatus('failed');
         console.error('Max reconnection attempts reached');
+        
+        // Reset attempts after a longer delay to allow for manual retry
+        setTimeout(() => {
+          setReconnectAttempts(0);
+          setConnectionStatus('disconnected');
+        }, 30000); // Reset after 30 seconds
       }
     });
 
     // Handle pong responses
     socket.on('pong', (data) => {
       console.log('Received pong:', data);
+    });
+
+    // Handle heartbeat responses
+    socket.on('heartbeat_ack', (data) => {
+      console.log('Received heartbeat ack:', data);
+    });
+
+    // Handle keepalive responses
+    socket.on('keepalive_ack', (data) => {
+      console.log('Received keepalive ack:', data);
+    });
+
+    // Handle server keepalive
+    socket.on('server_keepalive', (data) => {
+      console.log('Received server keepalive:', data);
+      // Respond to server keepalive
+      socket.emit('client_keepalive_ack', {
+        timestamp: new Date().toISOString(),
+        status: 'alive'
+      });
     });
 
     // Handle connection status updates

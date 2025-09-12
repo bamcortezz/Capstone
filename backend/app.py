@@ -112,8 +112,8 @@ socketio = SocketIO(
     app,
     cors_allowed_origins=cors_origins,
     async_mode=('eventlet' if is_production else 'threading'),
-    ping_timeout=60,  # Increased to 60 seconds for better stability
-    ping_interval=25,  # Increased to 25 seconds for better stability
+    ping_timeout=120,  # Increased to 120 seconds for Railway stability
+    ping_interval=30,  # Increased to 30 seconds for Railway stability
     max_http_buffer_size=1000000,
     logger=False,  # Disable verbose logging in production
     engineio_logger=False,  # Disable verbose logging in production
@@ -127,13 +127,51 @@ socketio = SocketIO(
     reconnection_attempts=10,  # Max reconnection attempts
     reconnection_delay=1000,  # Initial delay in ms
     reconnection_delay_max=5000,  # Max delay in ms
-    timeout=20000  # Connection timeout in ms
+    timeout=30000,  # Increased connection timeout in ms
+    # Railway-specific optimizations
+    http_compression=True,
+    max_http_buffer_size=1000000,
+    # Disable problematic features for Railway
+    per_message_deflate=False,
+    # Add keepalive settings
+    keepalive=True,
+    keepalive_interval=30
 )
 
 # Multi-user bot management
 active_bots = {}  # channel -> {bot, thread, connected_users}
 user_bots = {}    # user_id -> set of channels
 user_sessions = {}  # session_id -> user_id mapping
+
+# Keepalive mechanism
+def send_keepalive():
+    """Send keepalive messages to all connected clients"""
+    try:
+        socketio.emit('server_keepalive', {
+            'timestamp': datetime.now().isoformat(),
+            'message': 'Server is alive'
+        })
+        print(f"Sent keepalive to all clients at {datetime.now().isoformat()}")
+    except Exception as e:
+        print(f"Error sending keepalive: {e}")
+
+# Start keepalive task
+if is_production:
+    import threading
+    import time
+    
+    def keepalive_worker():
+        while True:
+            try:
+                send_keepalive()
+                time.sleep(20)  # Send keepalive every 20 seconds
+            except Exception as e:
+                print(f"Keepalive worker error: {e}")
+                time.sleep(5)
+    
+    keepalive_thread = threading.Thread(target=keepalive_worker, daemon=True)
+    keepalive_thread.start()
+    print("Keepalive worker started")
 
 # Global error handlers
 @app.errorhandler(500)
@@ -250,6 +288,37 @@ def handle_ping():
         emit('pong', {'timestamp': datetime.now().isoformat()})
     except Exception as e:
         print(f'Error in handle_ping: {e}')
+
+@socketio.on('heartbeat')
+def handle_heartbeat():
+    try:
+        client_sid = request.sid
+        emit('heartbeat_ack', {
+            'timestamp': datetime.now().isoformat(),
+            'server_time': datetime.now().timestamp()
+        })
+        print(f'Heartbeat received from {client_sid}')
+    except Exception as e:
+        print(f'Error in handle_heartbeat: {e}')
+
+@socketio.on('keepalive')
+def handle_keepalive():
+    try:
+        client_sid = request.sid
+        emit('keepalive_ack', {
+            'timestamp': datetime.now().isoformat(),
+            'status': 'alive'
+        })
+    except Exception as e:
+        print(f'Error in handle_keepalive: {e}')
+
+@socketio.on('client_keepalive_ack')
+def handle_client_keepalive_ack():
+    try:
+        client_sid = request.sid
+        print(f'Client {client_sid} acknowledged keepalive')
+    except Exception as e:
+        print(f'Error in handle_client_keepalive_ack: {e}')
 
 @socketio.on('connection_error')
 def handle_connection_error(data):
@@ -1450,7 +1519,7 @@ if __name__ == '__main__':
         print("Active bots: ", active_bots)
         print("User bots: ", user_bots)
         import os
-        port = int(os.environ.get("PORT", 8080))
+        port = int(os.environ.get("PORT", 5000))
         print("Port: ", os.environ.get("PORT"))
         print("Port: ", port)
         print(f"Environment: {'Production' if is_production else 'Development'}")
