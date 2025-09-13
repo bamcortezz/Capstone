@@ -1,29 +1,35 @@
-from flask_pymongo import PyMongo
-from werkzeug.security import generate_password_hash, check_password_hash
+from motor.motor_asyncio import AsyncIOMotorDatabase
+from passlib.context import CryptContext
 from datetime import datetime, timedelta
 import secrets
 import pyotp
 from bson.objectid import ObjectId
+from typing import Optional, Tuple
 
-def create_user_schema(mongo):
+# Password hashing context
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+async def create_user_schema(db: AsyncIOMotorDatabase):
+    """Create user schema and indexes"""
     try:
-        if not mongo or not hasattr(mongo, 'db') or not hasattr(mongo.db, 'users'):
-            raise AttributeError("Mongo object is not properly configured or 'users' collection is missing")
-        mongo.db.users.create_index('email', unique=True)
+        await db.users.create_index('email', unique=True)
+        print("User schema created successfully")
     except Exception as e:
-        print(f"Index creation failed: {str(e)}")
+        print(f"User schema creation failed: {str(e)}")
 
-def generate_otp():
+def generate_otp() -> Tuple[str, str]:
+    """Generate OTP secret and code"""
     secret = pyotp.random_base32()
-    
     totp = pyotp.TOTP(secret, interval=600)  # 600 seconds = 10 minutes
     return secret, totp.now()
 
-def verify_otp(secret, otp):
+def verify_otp(secret: str, otp: str) -> bool:
+    """Verify OTP code"""
     totp = pyotp.TOTP(secret, interval=600)
     return totp.verify(otp)
 
-def create_user(mongo, user_data):
+async def create_user(db: AsyncIOMotorDatabase, user_data: dict) -> Tuple[dict, str]:
+    """Create a new user"""
     now = datetime.utcnow()
     secret, otp = generate_otp()
     
@@ -31,7 +37,7 @@ def create_user(mongo, user_data):
         'first_name': user_data.get('first_name'),
         'last_name': user_data.get('last_name'),
         'email': user_data.get('email'),
-        'password_hash': generate_password_hash(user_data.get('password'), method='pbkdf2:sha256'),
+        'password_hash': pwd_context.hash(user_data.get('password')),
         'role': user_data.get('role', 'user'),  
         'status': 'not_active',  
         'reset_token': None,
@@ -42,12 +48,13 @@ def create_user(mongo, user_data):
         'updated_at': now,
         'profile_image': None 
     }
-    result = mongo.db.users.insert_one(user)
+    result = await db.users.insert_one(user)
     return result, otp
 
-def activate_user(mongo, email):
+async def activate_user(db: AsyncIOMotorDatabase, email: str) -> bool:
+    """Activate user account"""
     now = datetime.utcnow()
-    return mongo.db.users.update_one(
+    result = await db.users.update_one(
         {'email': email},
         {
             '$set': {
@@ -58,27 +65,33 @@ def activate_user(mongo, email):
             }
         }
     )
+    return result.modified_count > 0
 
-def generate_reset_token():
+def generate_reset_token() -> Tuple[str, datetime]:
+    """Generate password reset token"""
     token = secrets.token_urlsafe(32)
     expire = datetime.utcnow() + timedelta(hours=24)  
     return token, expire
 
-def get_user_by_email(mongo, email):
-    return mongo.db.users.find_one({'email': email})
+async def get_user_by_email(db: AsyncIOMotorDatabase, email: str) -> Optional[dict]:
+    """Get user by email"""
+    return await db.users.find_one({'email': email})
 
-def verify_password(user, password):
+def verify_password(user: dict, password: str) -> bool:
+    """Verify user password"""
     if not user or not password:
         return False
-    return check_password_hash(user['password_hash'], password)
+    return pwd_context.verify(password, user['password_hash'])
 
-def get_user_by_id(mongo, user_id):
+async def get_user_by_id(db: AsyncIOMotorDatabase, user_id: str) -> Optional[dict]:
+    """Get user by ID"""
     try:
-        return mongo.db.users.find_one({'_id': ObjectId(user_id)})
+        return await db.users.find_one({'_id': ObjectId(user_id)})
     except:
         return None
 
-def update_profile(mongo, user_id, profile_data):
+async def update_profile(db: AsyncIOMotorDatabase, user_id: str, profile_data: dict) -> bool:
+    """Update user profile"""
     try:
         now = datetime.utcnow()
         update_fields = {
@@ -96,14 +109,14 @@ def update_profile(mongo, user_id, profile_data):
             
         # Check if email is being updated and if it's already taken
         if 'email' in update_fields:
-            existing_user = mongo.db.users.find_one({
+            existing_user = await db.users.find_one({
                 'email': update_fields['email'],
                 '_id': {'$ne': ObjectId(user_id)}
             })
             if existing_user:
                 raise ValueError('Email is already taken')
             
-        result = mongo.db.users.update_one(
+        result = await db.users.update_one(
             {'_id': ObjectId(user_id)},
             {'$set': update_fields}
         )
@@ -113,10 +126,11 @@ def update_profile(mongo, user_id, profile_data):
     except:
         return False
 
-def update_profile_image(mongo, user_id, image_data):
+async def update_profile_image(db: AsyncIOMotorDatabase, user_id: str, image_data: str) -> bool:
+    """Update user profile image"""
     try:
         now = datetime.utcnow()
-        result = mongo.db.users.update_one(
+        result = await db.users.update_one(
             {'_id': ObjectId(user_id)},
             {
                 '$set': {
@@ -129,10 +143,11 @@ def update_profile_image(mongo, user_id, image_data):
     except:
         return False
 
-def remove_profile_image(mongo, user_id):
+async def remove_profile_image(db: AsyncIOMotorDatabase, user_id: str) -> bool:
+    """Remove user profile image"""
     try:
         now = datetime.utcnow()
-        result = mongo.db.users.update_one(
+        result = await db.users.update_one(
             {'_id': ObjectId(user_id)},
             {
                 '$set': {
@@ -145,9 +160,10 @@ def remove_profile_image(mongo, user_id):
     except:
         return False
 
-def save_reset_token(mongo, email):
+async def save_reset_token(db: AsyncIOMotorDatabase, email: str) -> Tuple[Optional[dict], Optional[str]]:
+    """Save password reset token for user"""
     try:
-        user = get_user_by_email(mongo, email)
+        user = await get_user_by_email(db, email)
         if not user:
             return None, None
             
@@ -155,7 +171,7 @@ def save_reset_token(mongo, email):
         token, expire = generate_reset_token()
         
         # Update the user document
-        result = mongo.db.users.update_one(
+        result = await db.users.update_one(
             {'_id': user['_id']},
             {
                 '$set': {
@@ -173,9 +189,10 @@ def save_reset_token(mongo, email):
         print(f"Error saving reset token: {e}")
         return None, None
 
-def validate_reset_token(mongo, user_id, token):
+async def validate_reset_token(db: AsyncIOMotorDatabase, user_id: str, token: str) -> bool:
+    """Validate password reset token"""
     try:
-        user = mongo.db.users.find_one({
+        user = await db.users.find_one({
             '_id': ObjectId(user_id),
             'reset_token': token,
             'token_expire': {'$gt': datetime.utcnow()}
@@ -185,15 +202,16 @@ def validate_reset_token(mongo, user_id, token):
         print(f"Error validating reset token: {e}")
         return False
 
-def reset_password(mongo, user_id, token, new_password):
+async def reset_password(db: AsyncIOMotorDatabase, user_id: str, token: str, new_password: str) -> bool:
+    """Reset user password"""
     try:
         # Check if the token is valid
-        if not validate_reset_token(mongo, user_id, token):
+        if not await validate_reset_token(db, user_id, token):
             return False
             
         # Update the password and clear the reset token
-        password_hash = generate_password_hash(new_password, method='pbkdf2:sha256')
-        result = mongo.db.users.update_one(
+        password_hash = pwd_context.hash(new_password)
+        result = await db.users.update_one(
             {'_id': ObjectId(user_id), 'reset_token': token},
             {
                 '$set': {
@@ -210,7 +228,8 @@ def reset_password(mongo, user_id, token, new_password):
         print(f"Error resetting password: {e}")
         return False
 
-def update_user_by_admin(mongo, user_id, user_data):
+async def update_user_by_admin(db: AsyncIOMotorDatabase, user_id: str, user_data: dict) -> Optional[dict]:
+    """Update user by admin"""
     try:
         now = datetime.utcnow()
         
@@ -242,20 +261,20 @@ def update_user_by_admin(mongo, user_id, user_data):
         
         # Check if email is being updated and if it's already taken
         if 'email' in update_fields:
-            existing_user = mongo.db.users.find_one({
+            existing_user = await db.users.find_one({
                 'email': update_fields['email'],
                 '_id': {'$ne': ObjectId(user_id)}
             })
             if existing_user:
                 raise ValueError('Email is already taken')
         
-        result = mongo.db.users.update_one(
+        result = await db.users.update_one(
             {'_id': ObjectId(user_id)},
             {'$set': update_fields}
         )
         
         if result.modified_count > 0:
-            updated_user = mongo.db.users.find_one({'_id': ObjectId(user_id)})
+            updated_user = await db.users.find_one({'_id': ObjectId(user_id)})
             if updated_user:
                 updated_user['_id'] = str(updated_user['_id'])
                 # Remove sensitive information

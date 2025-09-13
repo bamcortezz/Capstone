@@ -1,6 +1,7 @@
 import irc.bot
 import socket
 import re
+import asyncio
 from .sentiment_analyzer import sentiment_analyzer
 
 class TwitchChatBot(irc.bot.SingleServerIRCBot):
@@ -68,15 +69,18 @@ class TwitchChatBot(irc.bot.SingleServerIRCBot):
                 'username': username,
                 'message': message,
                 'sentiment': sentiment_result['sentiment'],
-                'confidence': sentiment_result['confidence']
+                'confidence': sentiment_result['confidence'],
+                'timestamp': sentiment_result.get('timestamp', '')
             }
             
-            self.message_handler(message_data, self.channel_name)
+            # Call the message handler (which will broadcast via WebSocket)
+            self.message_handler(message_data)
         except Exception as e:
             print(f"Error processing chat message: {e}")
             # Don't crash the bot, just skip this message
 
 def extract_channel_name(url):
+    """Extract channel name from Twitch URL"""
     pattern = r'(?:https?:\/\/)?(?:www\.)?twitch\.tv\/([a-zA-Z0-9_]+)'
     match = re.match(pattern, url)
     if match:

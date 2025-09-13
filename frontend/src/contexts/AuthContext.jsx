@@ -12,21 +12,55 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // Get token from localStorage
+  const getToken = () => {
+    return localStorage.getItem('token');
+  };
+
+  // Set token in localStorage
+  const setToken = (token) => {
+    localStorage.setItem('token', token);
+  };
+
+  // Remove token from localStorage
+  const removeToken = () => {
+    localStorage.removeItem('token');
+  };
+
+  // Get authorization headers
+  const getAuthHeaders = () => {
+    const token = getToken();
+    return {
+      'Content-Type': 'application/json',
+      ...(token && { 'Authorization': `Bearer ${token}` })
+    };
+  };
+
   useEffect(() => {
     const initializeAuth = async () => {
       try {
+        const token = getToken();
+        if (!token) {
+          setUser(null);
+          setLoading(false);
+          return;
+        }
+
         const response = await fetch(`${API_URL}/api/authenticate`, {
-          credentials: 'include'
+          headers: getAuthHeaders()
         });
 
         if (response.ok) {
           const data = await response.json();
           setUser(data.user);
         } else {
+          // Token is invalid, remove it
+          removeToken();
           setUser(null);
         }
       } catch (error) {
         console.error('Auth error:', error);
+        removeToken();
         setUser(null);
       } finally {
         setLoading(false);
@@ -38,15 +72,10 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (userData) => {
     setUser(userData);
-    
-    // SSE connections are established per component as needed
-    
-    // SSE connections are managed per component now
   };
   
   const logout = async () => {
     try {
-      // SSE connections are cleaned up per component
       // Clean up any global references
       if (typeof window !== 'undefined') {
         window.userSocket = null;
@@ -54,13 +83,14 @@ export const AuthProvider = ({ children }) => {
       
       const response = await fetch(`${API_URL}/api/logout`, {
         method: 'POST',
-        credentials: 'include'
+        headers: getAuthHeaders()
       });
 
       if (!response.ok) {
         throw new Error('Logout failed');
       }
 
+      removeToken();
       setUser(null);
       
       await Swal.fire({
@@ -77,6 +107,10 @@ export const AuthProvider = ({ children }) => {
       });
     } catch (error) {
       console.error('Logout error:', error);
+      // Even if logout fails on server, clear local state
+      removeToken();
+      setUser(null);
+      
       await Swal.fire({
         position: 'top-end',
         icon: 'error',
@@ -97,16 +131,13 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await fetch(`${API_URL}/api/user/profile`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(profileData),
-        credentials: 'include'
+        headers: getAuthHeaders(),
+        body: JSON.stringify(profileData)
       });
 
       if (!response.ok) {
         const data = await response.json();
-        throw new Error(data.error || 'Failed to update profile');
+        throw new Error(data.detail || 'Failed to update profile');
       }
 
       const data = await response.json();
@@ -122,16 +153,13 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await fetch(`${API_URL}/api/user/profile-image`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ image: imageData }),
-        credentials: 'include'
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ image: imageData })
       });
 
       if (!response.ok) {
         const data = await response.json();
-        throw new Error(data.error || 'Failed to update profile image');
+        throw new Error(data.detail || 'Failed to update profile image');
       }
 
       const data = await response.json();
@@ -147,12 +175,12 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await fetch(`${API_URL}/api/user/profile-image`, {
         method: 'DELETE',
-        credentials: 'include',
+        headers: getAuthHeaders()
       });
 
       if (!response.ok) {
         const data = await response.json();
-        throw new Error(data.error || 'Failed to remove profile image');
+        throw new Error(data.detail || 'Failed to remove profile image');
       }
 
       const data = await response.json();
@@ -168,15 +196,13 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await fetch(`${API_URL}/api/user/change-password`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ old_password: oldPassword, new_password: newPassword }),
-        credentials: 'include',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ old_password: oldPassword, new_password: newPassword })
       });
+      
       const data = await response.json();
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to change password');
+        throw new Error(data.detail || 'Failed to change password');
       }
       return data;
     } catch (error) {
@@ -189,16 +215,15 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await fetch(`${API_URL}/api/user/delete-account`, {
         method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ password }),
-        credentials: 'include',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ password })
       });
+      
       const data = await response.json();
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to delete account');
+        throw new Error(data.detail || 'Failed to delete account');
       }
+      removeToken();
       setUser(null);
       return data;
     } catch (error) {
@@ -218,7 +243,10 @@ export const AuthProvider = ({ children }) => {
       removeProfileImage,
       changePassword,
       deleteAccount,
-      // SSE connections are managed per component
+      getToken,
+      setToken,
+      removeToken,
+      getAuthHeaders
     }}>
       {!loading && children}
     </AuthContext.Provider>

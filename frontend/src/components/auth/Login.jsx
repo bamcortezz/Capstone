@@ -9,7 +9,7 @@ const API_URL = import.meta.env.VITE_API_URL;
 
 const Login = () => {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, setToken } = useAuth();
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -38,14 +38,16 @@ const Login = () => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify(formData),
-        credentials: "include",
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || "Login failed");
+        throw new Error(data.detail || "Login failed");
       }
+
+      // Store the JWT token
+      setToken(data.access_token);
 
       // Use the login function from AuthContext
       await login(data.user);

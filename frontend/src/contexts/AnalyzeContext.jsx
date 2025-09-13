@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from './AuthContext';
-import { useSSEConnection } from '../hooks/useSSEConnection';
+import { useWebSocketConnection } from '../hooks/useWebSocketConnection';
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -10,7 +10,7 @@ export const useAnalyze = () => useContext(AnalyzeContext);
 
 export const AnalyzeProvider = ({ children }) => {
   const { user } = useAuth();
-  const { eventSource, isConnected: sseConnected, connectionStatus, connect: connectSSE, disconnect: disconnectSSE } = useSSEConnection();
+  const { websocket, isConnected: wsConnected, connectionStatus, connect: connectWS, disconnect: disconnectWS } = useWebSocketConnection();
   const [isConnected, setIsConnected] = useState(false);
   const [currentChannel, setCurrentChannel] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -48,15 +48,15 @@ export const AnalyzeProvider = ({ children }) => {
     }
   }, []); // Remove dependencies to avoid stale closures
 
-  // SSE connection management
+  // WebSocket connection management
   const connectToChannel = useCallback(async (streamUrl) => {
     // Check if user is logged in
     if (!user) {
       throw new Error('User not logged in. Please log in to analyze chat.');
     }
 
-    // Cleanup previous SSE connection
-    disconnectSSE();
+    // Cleanup previous WebSocket connection
+    disconnectWS();
     
     setMessages([]);
     setSentimentCounts({ positive: 0, neutral: 0, negative: 0 });
@@ -64,9 +64,11 @@ export const AnalyzeProvider = ({ children }) => {
 
     const response = await fetch(`${API_URL}/api/twitch/connect`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      },
       body: JSON.stringify({ url: streamUrl }),
-      credentials: 'include',
     });
 
     if (!response.ok) throw new Error('Failed to connect to channel');
@@ -85,8 +87,10 @@ export const AnalyzeProvider = ({ children }) => {
       try {
         const logResponse = await fetch(`${API_URL}/api/log/analysis-start`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          },
           body: JSON.stringify({ streamer: data.channel }),
         });
         
@@ -99,12 +103,12 @@ export const AnalyzeProvider = ({ children }) => {
       }
     }
 
-    // Setup SSE connection for the channel
-    const sseEventSource = connectSSE(data.channel);
+    // Setup WebSocket connection for the channel
+    const wsConnection = connectWS(data.channel);
     
-    if (sseEventSource) {
-      // Handle SSE messages
-      sseEventSource.onmessage = (event) => {
+    if (wsConnection) {
+      // Handle WebSocket messages
+      wsConnection.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
           
@@ -120,19 +124,21 @@ export const AnalyzeProvider = ({ children }) => {
             processedMessages.current.clear();
           }
         } catch (error) {
-          console.error('Error processing SSE message:', error);
+          console.error('Error processing WebSocket message:', error);
         }
       };
     }
-  }, [user, processMessage, connectSSE, disconnectSSE]);
+  }, [user, processMessage, connectWS, disconnectWS]);
 
   const disconnectFromChannel = useCallback(async () => {
     if (currentChannel) {
       try {
         await fetch(`${API_URL}/api/twitch/disconnect`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          },
           body: JSON.stringify({ channel: currentChannel }),
         });
       } catch (e) {
@@ -140,8 +146,8 @@ export const AnalyzeProvider = ({ children }) => {
       }
     }
 
-    // Disconnect SSE connection
-    disconnectSSE();
+    // Disconnect WebSocket connection
+    disconnectWS();
 
     setIsConnected(false);
     setCurrentChannel(null);
@@ -152,14 +158,14 @@ export const AnalyzeProvider = ({ children }) => {
 
     setSessionStart(null);
     sessionStartRef.current = null;
-  }, [currentChannel]);
+  }, [currentChannel, disconnectWS]);
 
   useEffect(() => {
     return () => {
-      // Cleanup SSE connection on unmount
-      disconnectSSE();
+      // Cleanup WebSocket connection on unmount
+      disconnectWS();
     };
-  }, [disconnectSSE]);
+  }, [disconnectWS]);
 
   const topUsers = useMemo(() => {
     const sentiments = ['positive', 'neutral', 'negative'];
@@ -193,7 +199,7 @@ export const AnalyzeProvider = ({ children }) => {
       getFilteredMessages,
       sessionStart,
       setSessionStart,
-      sseConnected,
+      wsConnected,
       connectionStatus,
     }}>
       {children}

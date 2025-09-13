@@ -1,94 +1,111 @@
+from motor.motor_asyncio import AsyncIOMotorDatabase
 from datetime import datetime, timedelta
-from bson.objectid import ObjectId
-import logging
+from typing import Dict, List, Optional
 
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
-
-def create_logs_schema(mongo):
+async def create_logs_schema(db: AsyncIOMotorDatabase):
+    """Create logs schema and indexes"""
     try:
-        if not mongo or not hasattr(mongo, 'db') or not hasattr(mongo.db, 'logs'):
-            raise AttributeError("Mongo object is not properly configured or 'logs' collection is missing")
-
-        mongo.db.logs.create_index([('user_id', 1)])  
-        mongo.db.logs.create_index([('created_at', -1)])  
-        mongo.db.logs.create_index([('activity', 1)])  
+        await db.logs.create_index('user_id')
+        await db.logs.create_index('created_at')
+        print("Logs schema created successfully")
     except Exception as e:
-        logger.error(f"Logs index creation failed: {str(e)}")
+        print(f"Logs schema creation failed: {str(e)}")
 
-def add_log(mongo, user_id, activity, details=None):
+async def add_log(db: AsyncIOMotorDatabase, user_id: str, activity: str, details: str = "") -> Optional[str]:
+    """Add a log entry"""
     try:
-        # Get user info for the log
-        user = mongo.db.users.find_one({'_id': ObjectId(user_id)})
-        user_name = f"{user['first_name']} {user['last_name']}" if user else "Unknown User"
+        now = datetime.utcnow()
         
-        log_entry = {
-            'user_id': ObjectId(user_id),
-            'user_name': user_name,
+        log_doc = {
+            'user_id': user_id,
             'activity': activity,
             'details': details,
-            'created_at': datetime.utcnow()
+            'created_at': now
         }
         
-        result = mongo.db.logs.insert_one(log_entry)
-        return result.inserted_id
+        result = await db.logs.insert_one(log_doc)
+        return str(result.inserted_id)
     except Exception as e:
-        logger.error(f"Error adding log: {str(e)}")
+        print(f"Error adding log: {e}")
         return None
 
-def get_logs(mongo, page=1, limit=10, search=None, sort_field='created_at', sort_direction='desc', activity=None):
-
+async def get_logs(
+    db: AsyncIOMotorDatabase, 
+    page: int = 1, 
+    limit: int = 10, 
+    search: Optional[str] = None,
+    sort_field: str = 'created_at',
+    sort_direction: str = 'desc',
+    activity: Optional[str] = None
+) -> Dict:
+    """Get logs with pagination and filtering"""
     try:
+        # Build query
         query = {}
         
         if search:
             query['$or'] = [
-                {'user_name': {'$regex': search, '$options': 'i'}},
                 {'activity': {'$regex': search, '$options': 'i'}},
                 {'details': {'$regex': search, '$options': 'i'}}
             ]
-            
-        # Add activity filter if provided
-        if activity and activity != 'all':
-            query['activity'] = {'$regex': activity, '$options': 'i'}
         
-        # Set up sorting
-        sort_order = 1 if sort_direction == 'asc' else -1
+        if activity:
+            query['activity'] = activity
         
-        # Count total matching documents
-        total_items = mongo.db.logs.count_documents(query)
-        
-        # Calculate skip value for pagination
+        # Calculate skip
         skip = (page - 1) * limit
         
-        # Get paginated and sorted results
-        logs = mongo.db.logs.find(query).sort(sort_field, sort_order).skip(skip).limit(limit)
+        # Determine sort direction
+        sort_direction_value = -1 if sort_direction == 'desc' else 1
         
-        # Convert to list and process ObjectIds for JSON serialization
-        logs_list = []
-        for log in logs:
+        # Get logs
+        logs = []
+        total_count = await db.logs.count_documents(query)
+        
+        async for log in db.logs.find(query).sort(sort_field, sort_direction_value).skip(skip).limit(limit):
             log['_id'] = str(log['_id'])
-            log['user_id'] = str(log['user_id'])
-            log['created_at'] = log['created_at'].isoformat() if log.get('created_at') else None
-            logs_list.append(log)
+            logs.append(log)
+        
+        # Calculate pagination info
+        total_pages = (total_count + limit - 1) // limit
+        has_next = page < total_pages
+        has_prev = page > 1
         
         return {
-            'logs': logs_list,
-            'totalItems': total_items
+            'logs': logs,
+            'pagination': {
+                'current_page': page,
+                'total_pages': total_pages,
+                'total_count': total_count,
+                'has_next': has_next,
+                'has_prev': has_prev,
+                'limit': limit
+            }
         }
-    
     except Exception as e:
-        logger.error(f"Error getting logs: {str(e)}")
+        print(f"Error getting logs: {e}")
         return {
             'logs': [],
-            'totalItems': 0
+            'pagination': {
+                'current_page': 1,
+                'total_pages': 0,
+                'total_count': 0,
+                'has_next': False,
+                'has_prev': False,
+                'limit': limit
+            }
         }
 
-def clear_old_logs(mongo, days_to_keep=90):
+async def clear_old_logs(db: AsyncIOMotorDatabase, days_to_keep: int = 90) -> int:
+    """Clear logs older than specified days"""
     try:
         cutoff_date = datetime.utcnow() - timedelta(days=days_to_keep)
-        result = mongo.db.logs.delete_many({'created_at': {'$lt': cutoff_date}})
+        
+        result = await db.logs.delete_many({
+            'created_at': {'$lt': cutoff_date}
+        })
+        
         return result.deleted_count
     except Exception as e:
-        logger.error(f"Error clearing old logs: {str(e)}")
-        return 0 
+        print(f"Error clearing old logs: {e}")
+        return 0

@@ -1,149 +1,72 @@
+from motor.motor_asyncio import AsyncIOMotorDatabase
 from datetime import datetime
 from bson.objectid import ObjectId
-from utils.gemini_analyzer import generate_analysis_summary
-import traceback
-import logging
-import os
+from typing import List, Optional
 
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
-
-def create_history_schema(mongo):
+async def create_history_schema(db: AsyncIOMotorDatabase):
+    """Create history schema and indexes"""
     try:
-        mongo.db.history.create_index([('user_id', 1)])  
-        mongo.db.history.create_index([('created_at', -1)])  
-        mongo.db.history.create_index([('status', 1)]) 
+        await db.history.create_index('user_id')
+        await db.history.create_index('created_at')
+        print("History schema created successfully")
     except Exception as e:
-        logger.error(f"History index creation failed: {str(e)}")
+        print(f"History schema creation failed: {str(e)}")
 
-def validate_top_contributors(contributors):
-    if not contributors or not isinstance(contributors, list):
-        return []
-    return contributors[:5]  
-
-def save_analysis(mongo, data):
+async def save_analysis(db: AsyncIOMotorDatabase, analysis_data: dict) -> str:
+    """Save analysis data to history"""
     try:
         now = datetime.utcnow()
         
-        # Validate required data
-        if not data.get('user_id'):
-            raise ValueError("user_id is required")
-            
-        # Log incoming data for debugging
-        logger.debug(f"Saving analysis for user_id: {data.get('user_id')}")
-        logger.debug(f"Data keys: {list(data.keys())}")
+        history_doc = {
+            'user_id': analysis_data['user_id'],
+            'streamer_name': analysis_data['streamer_name'],
+            'total_chats': analysis_data['total_chats'],
+            'sentiment_count': analysis_data['sentiment_count'],
+            'top_positive': analysis_data['top_positive'],
+            'top_negative': analysis_data['top_negative'],
+            'top_neutral': analysis_data['top_neutral'],
+            'duration': analysis_data.get('duration', 0),
+            'summary': analysis_data.get('summary', ''),
+            'status': 'active',
+            'created_at': now,
+            'updated_at': now
+        }
         
-        # Validate MongoDB connection
-        try:
-            mongo.db.command('ping')
-        except Exception as e:
-            logger.error(f"MongoDB connection error: {str(e)}")
-            raise ConnectionError("Failed to connect to MongoDB")
-
-        # Validate contributors with error handling
-        try:
-            data['top_positive'] = validate_top_contributors(data['top_positive'])
-            data['top_negative'] = validate_top_contributors(data['top_negative'])
-            data['top_neutral'] = validate_top_contributors(data['top_neutral'])
-        except Exception as e:
-            logger.error(f"Error validating contributors: {str(e)}")
-            
-            data['top_positive'] = data.get('top_positive', [])[:5]
-            data['top_negative'] = data.get('top_negative', [])[:5]
-            data['top_neutral'] = data.get('top_neutral', [])[:5]
-
-        summary = "Summary generation failed. Please try again later."
-        try:
-            # Check if Gemini API key is configured
-            if not os.getenv('GEMINI_API_KEY'):
-                logger.warning("GEMINI_API_KEY not found in environment variables")
-                summary = "Summary generation skipped: API key not configured"
-            else:
-                summary = generate_analysis_summary(data)
-                if "Unable to generate summary" in summary:
-                    logger.warning(f"Gemini API warning: {summary}")
-        except Exception as e:
-            logger.error(f"Error generating summary: {str(e)}")
-            logger.error(traceback.format_exc())
-
-        try:
-            history = {
-                'user_id': ObjectId(data['user_id']),
-                'streamer_name': data.get('streamer_name', 'Unknown Streamer'),
-                'total_chats': data.get('total_chats', 0),
-                'sentiment_count': {
-                    'positive': data.get('sentiment_count', {}).get('positive', 0),
-                    'negative': data.get('sentiment_count', {}).get('negative', 0),
-                    'neutral': data.get('sentiment_count', {}).get('neutral', 0)
-                },
-                'top_positive': data.get('top_positive', []),
-                'top_negative': data.get('top_negative', []),
-                'top_neutral': data.get('top_neutral', []),
-                'summary': summary,
-                'status': 'active',
-                'duration': data.get('duration', 0),
-                'created_at': now,
-                'updated_at': now
-            }
-        except Exception as e:
-            logger.error(f"Error constructing history document: {str(e)}")
-            raise ValueError("Failed to construct history document")
-        
-        # Insert into database
-        try:
-            logger.debug("Inserting history document into database")
-            result = mongo.db.history.insert_one(history)
-            logger.debug(f"Inserted document with ID: {result.inserted_id}")
-            return result.inserted_id
-        except Exception as e:
-            logger.error(f"Error inserting document into MongoDB: {str(e)}")
-            raise
-        
+        result = await db.history.insert_one(history_doc)
+        return str(result.inserted_id)
     except Exception as e:
-        logger.error(f"Unhandled error in save_analysis: {str(e)}")
-        logger.error(traceback.format_exc())
-        raise  
+        print(f"Error saving analysis: {e}")
+        raise
 
-def get_user_history(mongo, user_id):
+async def get_user_history(db: AsyncIOMotorDatabase, user_id: str) -> List[dict]:
+    """Get user's analysis history"""
     try:
-        history = mongo.db.history.find({
-            'user_id': ObjectId(user_id),
-            'status': 'active'
-        }).sort('created_at', -1)
-        return list(history)
+        history = []
+        async for doc in db.history.find(
+            {'user_id': user_id, 'status': 'active'}
+        ).sort('created_at', -1):
+            history.append(doc)
+        return history
     except Exception as e:
-        logger.error(f"Error fetching history: {str(e)}")
+        print(f"Error getting user history: {e}")
         return []
 
-def get_history_by_id(mongo, history_id):
+async def get_history_by_id(db: AsyncIOMotorDatabase, history_id: str) -> Optional[dict]:
+    """Get specific history by ID"""
     try:
-        return mongo.db.history.find_one({'_id': ObjectId(history_id)})
+        return await db.history.find_one({'_id': ObjectId(history_id), 'status': 'active'})
     except Exception as e:
-        logger.error(f"Error fetching history by id: {str(e)}")
+        print(f"Error getting history by ID: {e}")
         return None
 
-def delete_history(mongo, history_id, user_id):
+async def delete_history(db: AsyncIOMotorDatabase, history_id: str, user_id: str) -> bool:
+    """Delete history (soft delete)"""
     try:
-        result = mongo.db.history.update_one(
-            {
-                '_id': ObjectId(history_id),
-                'user_id': ObjectId(user_id) 
-            },
-            {
-                '$set': {
-                    'status': 'deleted',
-                    'updated_at': datetime.utcnow()
-                }
-            }
+        result = await db.history.update_one(
+            {'_id': ObjectId(history_id), 'user_id': user_id},
+            {'$set': {'status': 'deleted', 'updated_at': datetime.utcnow()}}
         )
-        
-        if result.modified_count == 0:
-            logger.warning(f"No history found for id: {history_id} and user_id: {user_id}")
-            return False
-            
-        logger.debug(f"Successfully deleted history id: {history_id}")
-        return True
-        
+        return result.modified_count > 0
     except Exception as e:
-        logger.error(f"Error deleting history: {str(e)}")
+        print(f"Error deleting history: {e}")
         return False
