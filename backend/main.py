@@ -26,7 +26,7 @@ from models.user import (
     verify_password, get_user_by_email, get_user_by_id,
     update_profile, update_profile_image, remove_profile_image,
     save_reset_token, validate_reset_token, reset_password,
-    update_user_by_admin
+    update_user_by_admin, is_valid_password_hash, fix_corrupted_password_hash
 )
 from models.history import create_history_schema, save_analysis, get_user_history, get_history_by_id, delete_history
 from models.log import create_logs_schema, add_log, get_logs, clear_old_logs
@@ -53,6 +53,9 @@ SECRET_KEY = os.getenv('SECRET_KEY') or secrets.token_hex(32)
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
+print(f"SECRET_KEY configured: {'Yes' if SECRET_KEY else 'No'}")
+print(f"SECRET_KEY length: {len(SECRET_KEY) if SECRET_KEY else 0}")
+
 # Password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 security = HTTPBearer()
@@ -71,14 +74,18 @@ connection_lock = asyncio.Lock()
 # MongoDB clients
 mongo_client = None
 mongo_db = None
+main_event_loop = None
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan manager"""
-    global mongo_client, mongo_db
+    global mongo_client, mongo_db, main_event_loop
     
     # Startup
     print("Starting up FastAPI application...")
+    
+    # Store the main event loop for use in other threads
+    main_event_loop = asyncio.get_running_loop()
     
     # Initialize MongoDB connection
     mongo_client = AsyncIOMotorClient(mongo_uri)
@@ -311,6 +318,60 @@ async def root():
     """Root endpoint"""
     return {"message": "Welcome to FastAPI Twitch Sentiment Analysis API", "status": "running"}
 
+# Test endpoint for debugging
+@app.get("/api/test/db-status")
+async def test_db_status():
+    """Test database connection and status"""
+    try:
+        # Test MongoDB connection
+        await mongo_db.command('ping')
+        
+        # Count users
+        user_count = await mongo_db.users.count_documents({})
+        
+        return {
+            "database": "connected",
+            "user_count": user_count,
+            "mongo_uri": mongo_uri,
+            "db_name": db_name
+        }
+    except Exception as e:
+        return {"error": str(e), "database": "disconnected"}
+
+@app.post("/api/test/create-user")
+async def create_test_user():
+    """Create a test user for debugging"""
+    try:
+        test_user_data = {
+            'email': 'test@example.com',
+            'password': 'TestPassword123!',
+            'first_name': 'Test',
+            'last_name': 'User'
+        }
+        
+        # Check if user already exists
+        existing_user = await get_user_by_email(mongo_db, test_user_data['email'])
+        if existing_user:
+            # Activate the user if it exists
+            await activate_user(mongo_db, test_user_data['email'])
+            return {"message": "Test user already exists and has been activated", "email": test_user_data['email']}
+        
+        # Create new user
+        result, otp = await create_user(mongo_db, test_user_data)
+        
+        # Activate the user immediately for testing
+        await activate_user(mongo_db, test_user_data['email'])
+        
+        return {
+            "message": "Test user created and activated successfully",
+            "email": test_user_data['email'],
+            "password": test_user_data['password']
+        }
+        
+    except Exception as e:
+        print(f"Error creating test user: {e}")
+        return {"error": str(e)}
+
 # Authentication endpoints
 @app.post("/api/register")
 async def register(user_data: dict):
@@ -357,33 +418,44 @@ async def register(user_data: dict):
 async def login(credentials: dict):
     """Login user and return JWT token"""
     try:
+        print(f"Login attempt for email: {credentials.get('email')}")
         email = credentials.get('email')
         password = credentials.get('password')
 
         if not email or not password:
             raise HTTPException(status_code=400, detail='Email and password are required')
 
+        print("Getting user by email...")
         user = await get_user_by_email(mongo_db, email)
         if not user:
             raise HTTPException(status_code=401, detail='No Email Found.')
 
+        print("Verifying password...")
         if not verify_password(user, password):
             raise HTTPException(status_code=401, detail='Incorrect Password.')
 
+        print("Checking user status...")
         if user['status'] == 'not_active':
             raise HTTPException(status_code=403, detail='Account is not active. Please verify your email.')
         elif user['status'] == 'suspended':
             raise HTTPException(status_code=403, detail='Account is suspended.')
 
+        print("Creating access token...")
         # Create access token
         access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
         access_token = create_access_token(
             data={"sub": str(user['_id'])}, expires_delta=access_token_expires
         )
         
+        print("Logging user activity...")
         # Log user login activity
-        await add_log(mongo_db, str(user['_id']), 'Logged in')
+        try:
+            await add_log(mongo_db, str(user['_id']), 'Logged in')
+        except Exception as log_error:
+            print(f"Error logging login activity: {log_error}")
+            # Don't fail the login if logging fails
         
+        print("Login successful, returning response...")
         return {
             'access_token': access_token,
             'token_type': 'bearer',
@@ -400,6 +472,9 @@ async def login(credentials: dict):
     except HTTPException:
         raise
     except Exception as e:
+        print(f"Login error: {e}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/authenticate")
@@ -482,8 +557,12 @@ async def connect_to_twitch(twitch_data: dict, current_user: dict = Depends(get_
             # Create bot with channel-specific message handler
             def channel_message_handler(message_data):
                 try:
-                    # Run the broadcast in the event loop
-                    asyncio.create_task(broadcast_message_to_channel(channel, message_data))
+                    # Schedule the coroutine to run in the main event loop
+                    # This works from any thread
+                    asyncio.run_coroutine_threadsafe(
+                        broadcast_message_to_channel(channel, message_data), 
+                        main_event_loop
+                    )
                 except Exception as e:
                     print(f"Error in channel_message_handler: {e}")
                 
@@ -1009,6 +1088,50 @@ async def update_user(user_id: str, user_data: dict, admin_user: dict = Depends(
             return updated_user
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/admin/debug/fix-password-hash")
+async def fix_corrupted_password_hash_endpoint(request_data: dict, admin_user: dict = Depends(get_admin_user)):
+    """Fix corrupted password hash for a user (admin debug endpoint)"""
+    try:
+        email = request_data.get('email')
+        new_password = request_data.get('new_password')
+        
+        if not email or not new_password:
+            raise HTTPException(status_code=400, detail='Email and new_password are required')
+        
+        # Check if user exists
+        user = await get_user_by_email(mongo_db, email)
+        if not user:
+            raise HTTPException(status_code=404, detail='User not found')
+        
+        # Check if current password hash is valid
+        current_hash = user.get('password_hash', '')
+        is_valid = is_valid_password_hash(current_hash)
+        
+        if is_valid:
+            return {
+                'message': 'Password hash is already valid',
+                'email': email,
+                'hash_valid': True
+            }
+        
+        # Fix the corrupted password hash
+        success = await fix_corrupted_password_hash(mongo_db, email, new_password)
+        
+        if success:
+            return {
+                'message': 'Password hash fixed successfully',
+                'email': email,
+                'hash_valid': False,
+                'fixed': True
+            }
+        else:
+            raise HTTPException(status_code=500, detail='Failed to fix password hash')
             
     except HTTPException:
         raise

@@ -7,7 +7,13 @@ from bson.objectid import ObjectId
 from typing import Optional, Tuple
 
 # Password hashing context
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+pwd_context = CryptContext(
+    schemes=["bcrypt"], 
+    deprecated="auto",
+    bcrypt__default_rounds=12,
+    bcrypt__min_rounds=10,
+    bcrypt__max_rounds=15
+)
 
 async def create_user_schema(db: AsyncIOMotorDatabase):
     """Create user schema and indexes"""
@@ -33,11 +39,18 @@ async def create_user(db: AsyncIOMotorDatabase, user_data: dict) -> Tuple[dict, 
     now = datetime.utcnow()
     secret, otp = generate_otp()
     
+    # Hash password with error handling
+    try:
+        password_hash = pwd_context.hash(user_data.get('password'))
+    except Exception as e:
+        print(f"Error hashing password: {e}")
+        raise ValueError("Failed to hash password")
+    
     user = {
         'first_name': user_data.get('first_name'),
         'last_name': user_data.get('last_name'),
         'email': user_data.get('email'),
-        'password_hash': pwd_context.hash(user_data.get('password')),
+        'password_hash': password_hash,
         'role': user_data.get('role', 'user'),  
         'status': 'not_active',  
         'reset_token': None,
@@ -81,7 +94,61 @@ def verify_password(user: dict, password: str) -> bool:
     """Verify user password"""
     if not user or not password:
         return False
-    return pwd_context.verify(password, user['password_hash'])
+    
+    # Check if password_hash exists and is not empty
+    password_hash = user.get('password_hash')
+    if not password_hash:
+        print("No password hash found for user")
+        return False
+    
+    try:
+        return pwd_context.verify(password, password_hash)
+    except Exception as e:
+        print(f"Password verification error: {e}")
+        # If hash is corrupted or invalid, return False
+        return False
+
+def is_valid_password_hash(password_hash: str) -> bool:
+    """Check if a password hash is valid and can be identified by passlib"""
+    if not password_hash:
+        return False
+    
+    try:
+        # Try to identify the hash - this will raise an exception if invalid
+        pwd_context.identify(password_hash)
+        return True
+    except Exception:
+        return False
+
+async def fix_corrupted_password_hash(db: AsyncIOMotorDatabase, email: str, new_password: str) -> bool:
+    """Fix a corrupted password hash by setting a new password"""
+    try:
+        user = await get_user_by_email(db, email)
+        if not user:
+            return False
+        
+        # Generate a new password hash
+        try:
+            new_password_hash = pwd_context.hash(new_password)
+        except Exception as e:
+            print(f"Error hashing new password: {e}")
+            return False
+        
+        # Update the user's password hash
+        result = await db.users.update_one(
+            {'email': email},
+            {
+                '$set': {
+                    'password_hash': new_password_hash,
+                    'updated_at': datetime.utcnow()
+                }
+            }
+        )
+        
+        return result.modified_count > 0
+    except Exception as e:
+        print(f"Error fixing corrupted password hash: {e}")
+        return False
 
 async def get_user_by_id(db: AsyncIOMotorDatabase, user_id: str) -> Optional[dict]:
     """Get user by ID"""
@@ -210,7 +277,12 @@ async def reset_password(db: AsyncIOMotorDatabase, user_id: str, token: str, new
             return False
             
         # Update the password and clear the reset token
-        password_hash = pwd_context.hash(new_password)
+        try:
+            password_hash = pwd_context.hash(new_password)
+        except Exception as e:
+            print(f"Error hashing new password: {e}")
+            return False
+            
         result = await db.users.update_one(
             {'_id': ObjectId(user_id), 'reset_token': token},
             {
