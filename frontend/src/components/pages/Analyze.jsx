@@ -5,7 +5,6 @@ import Swal from 'sweetalert2';
 import { useAuth } from '../../contexts/AuthContext';
 import { useAnalyze } from '../../contexts/AnalyzeContext';
 import { FixedSizeList as List } from 'react-window';
-import ConnectionStatus from '../ConnectionStatus';
 import ConnectionStatusModal from '../ConnectionStatusModal';
 
 // API URL
@@ -136,6 +135,7 @@ const Analyze = () => {
     getFilteredMessages,
     sessionStart,
     setSessionStart,
+    connectionStatus,
   } = useAnalyze();
   const [streamUrl, setStreamUrl] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -369,7 +369,6 @@ const Analyze = () => {
                 Analyzing: <span className="text-twitch">{currentChannel}</span>
               </h2>
             </div>
-            <ConnectionStatus />
           </div>
         )}
 
@@ -666,12 +665,39 @@ const Analyze = () => {
       {/* Status Indicator - Far Bottom Right, Outside Container */}
       <div className="fixed bottom-6 right-6 z-50 hidden sm:block">
         <span className="flex items-center gap-2 px-4 py-1 rounded-full font-semibold text-sm shadow-lg bg-gray-900/90 text-white border border-white/10">
-          <span className={`inline-block w-3 h-3 rounded-full ${isConnected ? 'bg-green-400' : 'bg-red-400'}`}></span>
-          {isConnected ? (
+          {/* Status Indicator Dot */}
+          <span className={`inline-block w-3 h-3 rounded-full ${
+            connectionStatus === 'connected' ? 'bg-green-400' :
+            connectionStatus === 'connecting' || connectionStatus === 'reconnecting' ? 'bg-yellow-400 animate-pulse' :
+            'bg-red-400'
+          }`}></span>
+          
+          {/* Status Text */}
+          {connectionStatus === 'connected' ? (
             <>
               Connected: <span className="text-twitch">{currentChannel}</span>
             </>
-          ) : 'Disconnected'}
+          ) : connectionStatus === 'connecting' ? (
+            <span className="flex items-center gap-1">
+              <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              Connecting...
+            </span>
+          ) : connectionStatus === 'reconnecting' ? (
+            <span className="flex items-center gap-1">
+              <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              Reconnecting...
+            </span>
+          ) : connectionStatus === 'error' || connectionStatus === 'failed' ? (
+            'Connection Error'
+          ) : (
+            'Disconnected'
+          )}
         </span>
       </div>
 

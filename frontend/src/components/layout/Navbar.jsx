@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import Sidebar from './Sidebar';
-import ConnectionStatus from '../ConnectionStatus';
 import Logo from '../../assets/Logo.png';
 
 const Navbar = () => {
@@ -108,12 +107,6 @@ const Navbar = () => {
           
           {/* Right - Auth Buttons */}
           <div className="flex items-center space-x-4">
-            {/* Connection Status - Only show when user is logged in */}
-            {user && (
-              <div className="hidden lg:block">
-                <ConnectionStatus />
-              </div>
-            )}
             {user ? (
               /* User Menu - Only shown when logged in */
               <div className="relative hidden md:block" ref={dropdownRef}>
