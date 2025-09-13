@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { useSocketConnection } from '../hooks/useSocketConnection';
+import { useWebSocketConnection } from '../hooks/useWebSocketConnection';
 import { useAuth } from '../contexts/AuthContext';
+import { useAnalyze } from '../contexts/AnalyzeContext';
 import Swal from 'sweetalert2';
 
 const ConnectionStatusModal = ({ isAnalyzing, onSaveAnalysis, onDiscardAnalysis, analysisData }) => {
-  const { connectionStatus, isConnected, reconnectAttempts, lastError, reconnect } = useSocketConnection();
+  const { connectionStatus, isConnected, lastError, reconnect } = useWebSocketConnection();
   const { user } = useAuth();
+  const { currentChannel } = useAnalyze();
   const [showDisconnectModal, setShowDisconnectModal] = useState(false);
   const [disconnectTimer, setDisconnectTimer] = useState(null);
 
@@ -89,17 +91,17 @@ const ConnectionStatusModal = ({ isAnalyzing, onSaveAnalysis, onDiscardAnalysis,
 
   // Handle manual reconnection
   const handleReconnect = () => {
-    if (user) {
-      reconnect(user.id);
+    if (user && currentChannel) {
+      reconnect(currentChannel);
     }
   };
 
   // Show connection status notification
   useEffect(() => {
-    if (connectionStatus === 'reconnecting' && reconnectAttempts > 0) {
+    if (connectionStatus === 'reconnecting') {
       Swal.fire({
         title: 'Reconnecting...',
-        text: `Attempting to reconnect (${reconnectAttempts}/10)`,
+        text: 'Attempting to reconnect to the server',
         icon: 'info',
         background: '#18181b',
         color: '#fff',
@@ -109,7 +111,7 @@ const ConnectionStatusModal = ({ isAnalyzing, onSaveAnalysis, onDiscardAnalysis,
         timerProgressBar: true
       });
     }
-  }, [connectionStatus, reconnectAttempts]);
+  }, [connectionStatus]);
 
   // Don't render anything if not analyzing or if connected
   if (!isAnalyzing || isConnected) {
@@ -127,7 +129,7 @@ const ConnectionStatusModal = ({ isAnalyzing, onSaveAnalysis, onDiscardAnalysis,
             </svg>
             <span className="font-medium">
               Connection Lost
-              {connectionStatus === 'reconnecting' && ` - Reconnecting... (${reconnectAttempts}/10)`}
+              {connectionStatus === 'reconnecting' && ' - Reconnecting...'}
               {lastError && ` - ${lastError}`}
             </span>
             <button
