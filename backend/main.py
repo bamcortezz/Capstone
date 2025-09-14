@@ -34,6 +34,16 @@ from utils.email_sender import send_otp_email, send_password_reset_email, send_c
 from utils.twitch_chat import TwitchChatBot, extract_channel_name
 from utils.password_validator import validate_password
 from utils.sentiment_analyzer import sentiment_analyzer
+from utils.gemini_analyzer import generate_analysis_summary
+
+# PDF generation imports
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
+from io import BytesIO
+from fastapi.responses import Response
 
 load_dotenv()
 
@@ -672,6 +682,16 @@ async def save_analysis_history(history_data: dict, current_user: dict = Depends
             except Exception:
                 history_data['duration'] = 0
         
+        # Generate AI summary using Gemini
+        print("Generating AI summary for analysis...")
+        try:
+            summary = generate_analysis_summary(history_data)
+            history_data['summary'] = summary
+            print(f"Summary generated successfully: {len(summary)} characters")
+        except Exception as e:
+            print(f"Error generating summary: {str(e)}")
+            history_data['summary'] = "Unable to generate summary at this time."
+        
         # Save the analysis
         history_id = await save_analysis(mongo_db, history_data)
         
@@ -751,6 +771,186 @@ async def delete_history_endpoint(history_id: str, current_user: dict = Depends(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/history/{history_id}/pdf")
+async def generate_analysis_pdf(history_id: str, current_user: dict = Depends(get_current_user)):
+    """Generate PDF for analysis history"""
+    try:
+        # Get the analysis history
+        history = await get_history_by_id(mongo_db, history_id)
+        if not history:
+            raise HTTPException(status_code=404, detail='History not found')
+
+        # Create a BytesIO buffer for the PDF
+        buffer = BytesIO()
+
+        # Create the PDF document
+        doc = SimpleDocTemplate(
+            buffer,
+            pagesize=letter,
+            rightMargin=72,
+            leftMargin=72,
+            topMargin=72,
+            bottomMargin=72
+        )
+        
+        # Define styles
+        styles = getSampleStyleSheet()
+        
+        # Create custom styles
+        title_style = ParagraphStyle(
+            'CustomTitle',
+            parent=styles['Heading1'],
+            fontSize=16,
+            spaceAfter=30,
+            alignment=1,  # Center alignment
+            fontName='Helvetica-Bold'
+        )
+        
+        heading_style = ParagraphStyle(
+            'CustomHeading',
+            parent=styles['Heading2'],
+            fontSize=14,
+            spaceBefore=20,
+            spaceAfter=10,
+            fontName='Helvetica-Bold'
+        )
+        
+        normal_style = ParagraphStyle(
+            'CustomNormal',
+            parent=styles['Normal'],
+            fontSize=12,
+            spaceBefore=6,
+            spaceAfter=6,
+            fontName='Helvetica'
+        )
+        
+        elements = []
+
+        # Format dates and duration
+        current_date = datetime.now().strftime('%B %d, %Y %H:%M')
+        analysis_date = datetime.strptime(str(history['created_at']), '%Y-%m-%d %H:%M:%S.%f').strftime('%B %d, %Y %H:%M') if isinstance(history['created_at'], str) else history['created_at'].strftime('%B %d, %Y %H:%M')
+        
+        # Format duration
+        duration_seconds = history.get('duration', 0)
+        hours = int(duration_seconds // 3600)
+        minutes = int((duration_seconds % 3600) // 60)
+        seconds = int(duration_seconds % 60)
+        formatted_duration = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+
+        # Add title and date
+        elements.append(Paragraph("Chat Analysis Report", title_style))
+        elements.append(Paragraph(f"Generated on: {current_date}", normal_style))
+        elements.append(Spacer(1, 20))
+
+        # Add analysis details in a clean format
+        elements.append(Paragraph(f"Channel: {history.get('streamer_name', 'Unknown')}", normal_style))
+        elements.append(Paragraph(f"Analysis Date: {analysis_date}", normal_style))
+        elements.append(Paragraph(f"Duration: {formatted_duration}", normal_style))
+        elements.append(Paragraph(f"Total Messages Analyzed: {history.get('total_chats', 0)}", normal_style))
+        elements.append(Spacer(1, 20))
+
+        # Add sentiment analysis summary
+        elements.append(Paragraph("Sentiment Analysis Summary", heading_style))
+        sentiment_data = [
+            ['Category', 'Count', 'Percentage'],
+            ['Positive', str(history.get('sentiment_count', {}).get('positive', 0)), 
+             f"{(history.get('sentiment_count', {}).get('positive', 0) / max(history.get('total_chats', 1), 1) * 100):.1f}%"],
+            ['Neutral', str(history.get('sentiment_count', {}).get('neutral', 0)), 
+             f"{(history.get('sentiment_count', {}).get('neutral', 0) / max(history.get('total_chats', 1), 1) * 100):.1f}%"],
+            ['Negative', str(history.get('sentiment_count', {}).get('negative', 0)), 
+             f"{(history.get('sentiment_count', {}).get('negative', 0) / max(history.get('total_chats', 1), 1) * 100):.1f}%"]
+        ]
+        
+        sentiment_table = Table(sentiment_data, colWidths=[150, 100, 100])
+        sentiment_table.setStyle(TableStyle([
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 0), (-1, -1), 12),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('ALIGN', (1, 0), (1, -1), 'CENTER'),
+            ('ALIGN', (2, 0), (2, -1), 'CENTER'),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('BOX', (0, 0), (-1, -1), 2, colors.black),
+            ('LINEBELOW', (0, 0), (-1, 0), 2, colors.black),
+            ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
+            ('TEXTCOLOR', (0, 0), (-1, -1), colors.black),
+            ('TOPPADDING', (0, 0), (-1, -1), 6),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+            ('LEFTPADDING', (0, 0), (-1, -1), 6),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 6),
+        ]))
+        elements.append(sentiment_table)
+        elements.append(Spacer(1, 20))
+
+        # Add analysis summary
+        elements.append(Paragraph("Analysis Summary", heading_style))
+        summary_text = history.get('summary', 'No summary available')
+        elements.append(Paragraph(summary_text, normal_style))
+        elements.append(Spacer(1, 20))
+
+        # Add top contributors
+        elements.append(Paragraph("Top Contributors Analysis", heading_style))
+
+        # Function to create contributor table
+        def create_contributor_table(title, contributors):
+            elements.append(Paragraph(title, normal_style))
+            data = [['Username', 'Message Count']]
+            for contributor in contributors:
+                data.append([contributor['username'], str(contributor['count'])])
+            
+            table = Table(data, colWidths=[300, 100])
+            table.setStyle(TableStyle([
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+                ('FONTSIZE', (0, 0), (-1, -1), 12),
+                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                ('ALIGN', (1, 0), (1, -1), 'CENTER'),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                ('BOX', (0, 0), (-1, -1), 2, colors.black),
+                ('LINEBELOW', (0, 0), (-1, 0), 2, colors.black),
+                ('BACKGROUND', (0, 0), (-1, 0), colors.lightgrey),
+                ('TEXTCOLOR', (0, 0), (-1, -1), colors.black),
+                ('TOPPADDING', (0, 0), (-1, -1), 6),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+                ('LEFTPADDING', (0, 0), (-1, -1), 6),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 6),
+            ]))
+            return table
+
+        # Add contributor tables
+        elements.append(create_contributor_table("Most Positive Contributors", history.get('top_positive', [])))
+        elements.append(Spacer(1, 10))
+        elements.append(create_contributor_table("Most Neutral Contributors", history.get('top_neutral', [])))
+        elements.append(Spacer(1, 10))
+        elements.append(create_contributor_table("Most Negative Contributors", history.get('top_negative', [])))
+
+        # Build the PDF
+        doc.build(elements)
+
+        pdf_value = buffer.getvalue()
+        buffer.close()
+
+        # Log the PDF download
+        await add_log(
+            mongo_db,
+            str(current_user['_id']),
+            'Downloaded analysis PDF',
+            f"Channel: {history.get('streamer_name', 'Unknown')}"
+        )
+
+        # Create the response
+        return Response(
+            content=pdf_value,
+            media_type='application/pdf',
+            headers={'Content-Disposition': f'attachment; filename=chat_analysis_{history_id}.pdf'}
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"PDF Generation Error: {str(e)}")  # Add detailed error logging
+        raise HTTPException(status_code=500, detail=f'Failed to generate PDF: {str(e)}')
 
 # OTP verification endpoint
 @app.post("/api/verify-otp")
