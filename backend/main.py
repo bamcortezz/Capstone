@@ -550,7 +550,8 @@ async def connect_to_twitch(twitch_data: dict, current_user: dict = Depends(get_
         if not channel:
             raise HTTPException(status_code=400, detail='Invalid Twitch URL')
             
-        user_id = str(current_user['_id'])
+        # Handle both authenticated and non-authenticated users
+        user_id = str(current_user['_id']) if current_user else f"guest_{secrets.token_hex(8)}"
         
         # Check if a bot is already active for this channel
         if channel in active_bots:
@@ -612,6 +613,82 @@ async def connect_to_twitch(twitch_data: dict, current_user: dict = Depends(get_
         print(f"Error in connect_to_twitch: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.post("/api/twitch/connect-guest")
+async def connect_to_twitch_guest(twitch_data: dict):
+    """Connect to Twitch chat channel for guest users"""
+    try:
+        twitch_url = twitch_data.get('url')
+        
+        if not twitch_url:
+            raise HTTPException(status_code=400, detail='Twitch URL is required')
+            
+        channel = extract_channel_name(twitch_url)
+        if not channel:
+            raise HTTPException(status_code=400, detail='Invalid Twitch URL')
+            
+        # Generate a unique guest user ID
+        user_id = f"guest_{secrets.token_hex(8)}"
+        
+        # Check if a bot is already active for this channel
+        if channel in active_bots:
+            # Add user to existing bot connection
+            active_bots[channel]['connected_users'].add(user_id)
+            user_bots.setdefault(user_id, set()).add(channel)
+            print(f'Guest user {user_id} joined existing bot for channel {channel}')
+            return {'message': f'Connected to {channel}\'s chat', 'channel': channel}
+            
+        import random
+        bot_username = f"justinfan{random.randint(1000, 999999)}"
+        
+        try:
+            # Create bot with channel-specific message handler
+            def channel_message_handler(message_data):
+                try:
+                    # Schedule the coroutine to run in the main event loop
+                    # This works from any thread
+                    asyncio.run_coroutine_threadsafe(
+                        broadcast_message_to_channel(channel, message_data), 
+                        main_event_loop
+                    )
+                except Exception as e:
+                    print(f"Error in channel_message_handler: {e}")
+                
+            bot = TwitchChatBot(
+                token="SCHMOOPIIE",
+                username=bot_username,
+                channel=channel,
+                message_handler=channel_message_handler
+            )
+
+            thread = threading.Thread(target=bot.start)
+            thread.daemon = True
+            thread.start()
+            
+            # Store bot with connected users set
+            active_bots[channel] = {
+                'bot': bot,
+                'thread': thread,
+                'connected_users': {user_id}
+            }
+            
+            user_bots.setdefault(user_id, set()).add(channel)
+            
+            return {'message': f'Connected to {channel}\'s chat', 'channel': channel}
+        except Exception as e:
+            print(f"Error creating Twitch bot: {e}")
+            # Clean up any partial state
+            if channel in active_bots:
+                del active_bots[channel]
+            if user_id in user_bots and channel in user_bots[user_id]:
+                user_bots[user_id].discard(channel)
+            raise HTTPException(status_code=500, detail=f'Failed to connect to Twitch chat: {str(e)}')
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error in connect_to_twitch_guest: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.post("/api/twitch/disconnect")
 async def disconnect_from_twitch(disconnect_data: dict, current_user: dict = Depends(get_current_user)):
     """Disconnect from Twitch chat channel"""
@@ -658,6 +735,50 @@ async def disconnect_from_twitch(disconnect_data: dict, current_user: dict = Dep
         raise
     except Exception as e:
         print(f"Error in disconnect_from_twitch: {e}")
+        return {'message': 'Attempted to disconnect from chat'}
+
+@app.post("/api/twitch/disconnect-guest")
+async def disconnect_from_twitch_guest(disconnect_data: dict):
+    """Disconnect from Twitch chat channel for guest users"""
+    try:
+        channel = disconnect_data.get('channel')
+        
+        if not channel:
+            raise HTTPException(status_code=400, detail='Channel name is required')
+            
+        # For guest users, we'll use a simple approach - just remove from any active connections
+        # Since guest users don't have persistent IDs, we'll clean up based on channel
+        if channel in active_bots:
+            # For guest users, we'll just remove the channel if it exists
+            # In a real implementation, you might want to track guest sessions differently
+            try:
+                bot = active_bots[channel]['bot']
+                if hasattr(bot, 'stop'):
+                    bot.stop()
+                thread = active_bots[channel]['thread']
+                if thread.is_alive():
+                    # Note: We can't forcefully stop threads, but the bot should stop naturally
+                    pass
+            except Exception as e:
+                print(f"Error stopping bot: {e}")
+            finally:
+                del active_bots[channel]
+                # Send disconnect notification via WebSocket
+                disconnect_data = {
+                    'type': 'disconnect',
+                    'channel': channel,
+                    'timestamp': datetime.now().isoformat()
+                }
+                await broadcast_message_to_channel(channel, disconnect_data)
+        else:
+            return {'message': 'Already disconnected'}
+        
+        return {'message': f'Disconnected from {channel}\'s chat'}
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error in disconnect_from_twitch_guest: {e}")
         return {'message': 'Attempted to disconnect from chat'}
 
 # History endpoints

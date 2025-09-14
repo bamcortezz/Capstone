@@ -50,10 +50,7 @@ export const AnalyzeProvider = ({ children }) => {
 
   // WebSocket connection management
   const connectToChannel = useCallback(async (streamUrl) => {
-    // Check if user is logged in
-    if (!user) {
-      throw new Error('User not logged in. Please log in to analyze chat.');
-    }
+    // Allow both authenticated and non-authenticated users to connect
 
     // Cleanup previous WebSocket connection
     disconnectWS();
@@ -62,12 +59,22 @@ export const AnalyzeProvider = ({ children }) => {
     setSentimentCounts({ positive: 0, neutral: 0, negative: 0 });
     setUserSentiments({ positive: {}, neutral: {}, negative: {} });
 
-    const response = await fetch(`${API_URL}/api/twitch/connect`, {
+    const headers = { 
+      'Content-Type': 'application/json'
+    };
+    
+    // Only add authorization header if user is logged in
+    const token = localStorage.getItem('token');
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    // Use different endpoints based on authentication status
+    const endpoint = user ? '/api/twitch/connect' : '/api/twitch/connect-guest';
+    
+    const response = await fetch(`${API_URL}${endpoint}`, {
       method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
-      },
+      headers,
       body: JSON.stringify({ url: streamUrl }),
     });
 
@@ -83,13 +90,13 @@ export const AnalyzeProvider = ({ children }) => {
     }
 
     // Log the start of the analysis if the user is authenticated
-    if (user) {
+    if (user && token) {
       try {
         const logResponse = await fetch(`${API_URL}/api/log/analysis-start`, {
           method: 'POST',
           headers: { 
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
+            'Authorization': `Bearer ${token}`
           },
           body: JSON.stringify({ streamer: data.channel }),
         });
@@ -133,12 +140,22 @@ export const AnalyzeProvider = ({ children }) => {
   const disconnectFromChannel = useCallback(async () => {
     if (currentChannel) {
       try {
-        await fetch(`${API_URL}/api/twitch/disconnect`, {
+        const headers = { 
+          'Content-Type': 'application/json'
+        };
+        
+        // Only add authorization header if user is logged in
+        const token = localStorage.getItem('token');
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
+
+        // Use different endpoints based on authentication status
+        const endpoint = user ? '/api/twitch/disconnect' : '/api/twitch/disconnect-guest';
+        
+        await fetch(`${API_URL}${endpoint}`, {
           method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          },
+          headers,
           body: JSON.stringify({ channel: currentChannel }),
         });
       } catch (e) {
