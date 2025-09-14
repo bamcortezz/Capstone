@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { useNavigationBlock } from '../../hooks/useNavigationBlock';
 import Sidebar from './Sidebar';
 import Logo from '../../assets/Logo.png';
 
@@ -10,6 +11,7 @@ const Navbar = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const { handleNavigation, handleLogout } = useNavigationBlock();
   
   // Close dropdown when clicking outside
   const dropdownRef = React.useRef(null);
@@ -27,11 +29,10 @@ const Navbar = () => {
     };
   }, []);
   
-  const handleLogout = async () => {
+  const handleLogoutClick = async () => {
     try {
-      await logout();
+      await handleLogout(logout);
       setIsDropdownOpen(false);
-      navigate('/');
     } catch (error) {
       console.error('Navbar logout error:', error);
       setIsDropdownOpen(false);
@@ -51,8 +52,8 @@ const Navbar = () => {
 
           {/* Middle - Navigation Links */}
           <div className="hidden md:flex items-center space-x-8">
-            <Link 
-              to="/" 
+            <button 
+              onClick={() => handleNavigation('/')}
               className={`transition-colors ${
                 location.pathname === '/' 
                   ? 'text-twitch' 
@@ -60,9 +61,9 @@ const Navbar = () => {
               }`}
             >
               Home
-            </Link>
-            <Link 
-              to="/analyze" 
+            </button>
+            <button 
+              onClick={() => handleNavigation('/analyze')}
               className={`transition-colors ${
                 location.pathname === '/analyze' 
                   ? 'text-twitch' 
@@ -70,10 +71,10 @@ const Navbar = () => {
               }`}
             >
               Analyze
-            </Link>
+            </button>
             {user && (
-              <Link 
-                to="/history" 
+              <button 
+                onClick={() => handleNavigation('/history')}
                 className={`transition-colors ${
                   location.pathname === '/history' 
                     ? 'text-twitch' 
@@ -81,10 +82,10 @@ const Navbar = () => {
                 }`}
               >
                 History
-              </Link>
+              </button>
             )}
-            <Link 
-              to="/contact" 
+            <button 
+              onClick={() => handleNavigation('/contact')}
               className={`transition-colors ${
                 location.pathname === '/contact' 
                   ? 'text-twitch' 
@@ -92,9 +93,9 @@ const Navbar = () => {
               }`}
             >
               Contact Us
-            </Link>
-            <Link 
-              to="/about" 
+            </button>
+            <button 
+              onClick={() => handleNavigation('/about')}
               className={`transition-colors ${
                 location.pathname === '/about' 
                   ? 'text-twitch' 
@@ -102,7 +103,7 @@ const Navbar = () => {
               }`}
             >
               About Us
-            </Link>
+            </button>
           </div>
           
           {/* Right - Auth Buttons */}
@@ -166,7 +167,7 @@ const Navbar = () => {
                         Settings
                       </Link>
                       <button
-                        onClick={handleLogout}
+                        onClick={handleLogoutClick}
                         className="flex items-center w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white"
                       >
                         <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -212,7 +213,7 @@ const Navbar = () => {
         isOpen={isSidebarOpen} 
         onClose={() => setIsSidebarOpen(false)}
         user={user}
-        onLogout={handleLogout}
+        onLogout={handleLogoutClick}
       />
       
       {/* Spacer to prevent content from going under navbar */}

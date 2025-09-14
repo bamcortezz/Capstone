@@ -4,6 +4,7 @@ import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
 import Swal from 'sweetalert2';
 import { useAuth } from '../../contexts/AuthContext';
 import { useAnalyze } from '../../contexts/AnalyzeContext';
+import { useNavigationBlock } from '../../hooks/useNavigationBlock';
 import { FixedSizeList as List } from 'react-window';
 import ConnectionStatusModal from '../ConnectionStatusModal';
 
@@ -137,6 +138,7 @@ const Analyze = () => {
     setSessionStart,
     connectionStatus,
   } = useAnalyze();
+  const { handleNavigation } = useNavigationBlock();
   const [streamUrl, setStreamUrl] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState('All');
@@ -239,56 +241,8 @@ const Analyze = () => {
     setIsAnalyzing(true);
     try {
       if (isConnected) {
-        const alertOptions = user ? {
-          title: 'Disconnect from Analysis?',
-          text: 'What would you like to do with the current analysis?',
-          icon: 'warning',
-          showDenyButton: true,
-          showCancelButton: true,
-          confirmButtonText: 'Save',
-          denyButtonText: 'Discard',
-          cancelButtonText: 'Cancel',
-          confirmButtonColor: '#9147ff',
-          denyButtonColor: '#EF4444',
-          cancelButtonColor: '#6B7280',
-          background: '#18181b',
-          color: '#fff'
-        } : {
-          title: 'Disconnect from Analysis?',
-          text: 'Are you sure you want to disconnect?',
-          icon: 'warning',
-          showDenyButton: true,
-          showCancelButton: true,
-          showConfirmButton: false,
-          denyButtonText: 'Disconnect',
-          cancelButtonText: 'Cancel',
-          denyButtonColor: '#EF4444',
-          cancelButtonColor: '#6B7280',
-          background: '#18181b',
-          color: '#fff'
-        };
-        const result = await Swal.fire(alertOptions);
-        if (result.isConfirmed && user) {
-          const saved = await saveAnalysis();
-          if (saved) {
-            await disconnectFromChannel();
-          }
-        } else if (result.isDenied) {
-          await disconnectFromChannel();
-          await Swal.fire({
-            title: user ? 'Discarded!' : 'Disconnected!',
-            text: user ? 'Analysis has been discarded' : 'Disconnected from channel',
-            icon: 'info',
-            timer: 1000,
-            timerProgressBar: true,
-            showConfirmButton: false,
-            position: 'top-end',
-            toast: true,
-            confirmButtonColor: '#9147ff',
-            background: '#18181b',
-            color: '#fff'
-          });
-        }
+        // Use the navigation blocking logic for disconnect
+        await handleNavigation('/analyze'); // This will trigger the disconnect flow
       } else {
         await connectToChannel(streamUrl);
       }
@@ -550,57 +504,11 @@ const Analyze = () => {
                     <button
                       onClick={async () => {
                         setIsDisconnecting(true);
-                        const alertOptions = user ? {
-                          title: 'Disconnect from Analysis?',
-                          text: 'What would you like to do with the current analysis?',
-                          icon: 'warning',
-                          showDenyButton: true,
-                          showCancelButton: true,
-                          confirmButtonText: 'Save',
-                          denyButtonText: 'Discard',
-                          cancelButtonText: 'Cancel',
-                          confirmButtonColor: '#9147ff',
-                          denyButtonColor: '#EF4444',
-                          cancelButtonColor: '#6B7280',
-                          background: '#18181b',
-                          color: '#fff'
-                        } : {
-                          title: 'Disconnect from Analysis?',
-                          text: 'Are you sure you want to disconnect?',
-                          icon: 'warning',
-                          showDenyButton: true,
-                          showCancelButton: true,
-                          showConfirmButton: false,
-                          denyButtonText: 'Disconnect',
-                          cancelButtonText: 'Cancel',
-                          denyButtonColor: '#EF4444',
-                          cancelButtonColor: '#6B7280',
-                          background: '#18181b',
-                          color: '#fff'
-                        };
-                        const result = await Swal.fire(alertOptions);
-                        if (result.isConfirmed && user) {
-                          const saved = await saveAnalysis();
-                          if (saved) {
-                            await disconnectFromChannel();
-                          }
-                        } else if (result.isDenied) {
-                          await disconnectFromChannel();
-                          await Swal.fire({
-                            title: user ? 'Discarded!' : 'Disconnected!',
-                            text: user ? 'Analysis has been discarded' : 'Disconnected from channel',
-                            icon: 'info',
-                            timer: 1000,
-                            timerProgressBar: true,
-                            showConfirmButton: false,
-                            position: 'top-end',
-                            toast: true,
-                            confirmButtonColor: '#9147ff',
-                            background: '#18181b',
-                            color: '#fff'
-                          });
+                        try {
+                          await handleNavigation('/analyze'); // This will trigger the disconnect flow
+                        } finally {
+                          setIsDisconnecting(false);
                         }
-                        setIsDisconnecting(false);
                       }}
                       className="px-4 py-1.5 rounded-md bg-red-600 hover:bg-red-700 text-white text-sm font-semibold transition-colors shadow disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto"
                       disabled={isDisconnecting}

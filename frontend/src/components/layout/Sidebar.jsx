@@ -1,10 +1,12 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { useNavigationBlock } from '../../hooks/useNavigationBlock';
 
-const Sidebar = ({ isOpen, onClose }) => {
-  const { user, logout } = useAuth();
+const Sidebar = ({ isOpen, onClose, onLogout }) => {
+  const { user } = useAuth();
   const location = useLocation();
+  const { handleNavigation } = useNavigationBlock();
 
   const getLinkClass = (path) => {
     return `text-lg font-medium transition-colors ${
@@ -102,7 +104,7 @@ const Sidebar = ({ isOpen, onClose }) => {
       isButton: true,
       onClick: async () => {
         try {
-          await logout();
+          await onLogout();
           onClose();
         } catch (error) {
           console.error('Sidebar logout error:', error);
@@ -206,17 +208,19 @@ const Sidebar = ({ isOpen, onClose }) => {
                   <span>{item.name}</span>
                 </button>
               ) : (
-                <Link
+                <button
                   key={item.path}
-                  to={item.path}
+                  onClick={() => {
+                    handleNavigation(item.path);
+                    onClose();
+                  }}
                   className={getLinkClass(item.path)}
-                  onClick={onClose}
                 >
                   <div className="flex items-center space-x-3">
                     <span className="text-twitch">{item.icon}</span>
                     <span>{item.name}</span>
                   </div>
-                </Link>
+                </button>
               )
             )}
           </div>

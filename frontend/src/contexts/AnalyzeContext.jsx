@@ -201,6 +201,9 @@ export const AnalyzeProvider = ({ children }) => {
       setSessionStart,
       wsConnected,
       connectionStatus,
+      // Add analysis state for navigation blocking
+      isAnalyzing: isConnected,
+      hasAnalysisData: messages.length > 0 || Object.values(sentimentCounts).some(count => count > 0),
     }}>
       {children}
     </AnalyzeContext.Provider>

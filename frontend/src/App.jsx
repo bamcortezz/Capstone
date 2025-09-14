@@ -17,6 +17,7 @@ import Dashboard from "./components/admin/pages/Dashboard"
 import Users from "./components/admin/pages/Users"
 import Logs from "./components/admin/pages/Logs"
 import Navbar from "./components/layout/Navbar"
+import ProtectedNavigationRoute from "./components/ProtectedNavigationRoute"
 import useBackendStatus from "./hooks/useBackendStatus"
 import { AuthProvider, useAuth } from "./contexts/AuthContext"
 import { AnalyzeProvider } from "./contexts/AnalyzeContext"
@@ -82,7 +83,7 @@ const AppContent = () => {
         <Route
           path="/*"
           element={
-            <>
+            <ProtectedNavigationRoute>
               <Navbar />
               <div className="flex-grow">
                 <Routes>
@@ -128,7 +129,7 @@ const AppContent = () => {
                   <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>
               </div>
-            </>
+            </ProtectedNavigationRoute>
           }
         />
       </Routes>

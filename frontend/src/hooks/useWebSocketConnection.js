@@ -38,7 +38,17 @@ export const useWebSocketConnection = () => {
     }
     
     if (websocketRef.current) {
-      websocketRef.current.close();
+      // Remove all event listeners before closing
+      websocketRef.current.onopen = null;
+      websocketRef.current.onmessage = null;
+      websocketRef.current.onerror = null;
+      websocketRef.current.onclose = null;
+      
+      // Close the connection with proper code
+      if (websocketRef.current.readyState === WebSocket.OPEN || 
+          websocketRef.current.readyState === WebSocket.CONNECTING) {
+        websocketRef.current.close(1000, 'Clean disconnect');
+      }
       websocketRef.current = null;
     }
   }, []);
@@ -111,15 +121,17 @@ export const useWebSocketConnection = () => {
       setIsConnected(false);
       setConnectionStatus('disconnected');
       
-      // Attempt reconnection if not a clean close
-      if (event.code !== 1000 && event.code !== 1001) {
+      // Only attempt reconnection if not a clean close and not manually disconnected
+      if (event.code !== 1000 && event.code !== 1001 && websocketRef.current !== null) {
         console.log('WebSocket connection lost, attempting reconnection...');
         setConnectionStatus('reconnecting');
         
         // Use exponential backoff for reconnection
         const delay = getReconnectDelay(0); // Start with first attempt
         reconnectTimeoutRef.current = setTimeout(() => {
-          connect(channel);
+          if (websocketRef.current !== null) { // Only reconnect if not manually disconnected
+            connect(channel);
+          }
         }, delay);
       }
     };
@@ -129,6 +141,7 @@ export const useWebSocketConnection = () => {
 
   // Disconnect WebSocket
   const disconnect = useCallback(() => {
+    console.log('Manually disconnecting WebSocket...');
     cleanup();
     setIsConnected(false);
     setConnectionStatus('disconnected');
