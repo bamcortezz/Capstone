@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import Swal from 'sweetalert2';
 import { ClipLoader } from 'react-spinners';
+import { useAuth } from '../../contexts/AuthContext';
 
 // API URL
 const API_URL = import.meta.env.VITE_API_URL;
@@ -151,6 +152,7 @@ const AnalysisModal = ({ analysis, onClose }) => {
 };
 
 const History = () => {
+  const { getAuthHeaders } = useAuth();
   const [analyses, setAnalyses] = useState([]);
   const [selectedAnalysis, setSelectedAnalysis] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -165,6 +167,8 @@ const History = () => {
   const fetchAnalyses = async () => {
     try {
       const response = await fetch(`${API_URL}/api/history`, {
+        method: 'GET',
+        headers: getAuthHeaders(),
         credentials: 'include'
       });
 
@@ -229,6 +233,7 @@ const History = () => {
       try {
         const response = await fetch(`${API_URL}/api/history/${analysisId}`, {
           method: 'DELETE',
+          headers: getAuthHeaders(),
           credentials: 'include'
         });
 
@@ -273,6 +278,8 @@ const History = () => {
     e.stopPropagation();
     try {
       const response = await fetch(`${API_URL}/api/history/${analysisId}/pdf`, {
+        method: 'GET',
+        headers: getAuthHeaders(),
         credentials: 'include'
       });
 

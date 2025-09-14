@@ -123,7 +123,7 @@ const ChatRow = ({ index, style, data }) => {
 };
 
 const Analyze = () => {
-  const { user } = useAuth();
+  const { user, getAuthHeaders } = useAuth();
   const {
     isConnected,
     currentChannel,
@@ -195,7 +195,7 @@ const Analyze = () => {
       };
       const response = await fetch(`${API_URL}/api/history/save`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         credentials: 'include',
         body: JSON.stringify(analysisData)
       });
