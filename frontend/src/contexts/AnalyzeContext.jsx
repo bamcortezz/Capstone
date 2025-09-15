@@ -105,10 +105,10 @@ export const AnalyzeProvider = ({ children }) => {
         });
         
         if (!logResponse.ok) {
-          console.warn("Failed to log analysis start:", logResponse.status, logResponse.statusText);
+          // Failed to log analysis start (non-critical)
         }
       } catch (e) {
-        console.warn("Error logging analysis start (non-critical):", e.message);
+        // Error logging analysis start (non-critical)
         // Don't throw error as this is not critical for the main functionality
       }
     }
@@ -125,7 +125,6 @@ export const AnalyzeProvider = ({ children }) => {
           if (data.type === 'message') {
             processMessage(data.data);
           } else if (data.type === 'disconnect') {
-            console.log('Received disconnect notification for channel:', data.channel);
             setIsConnected(false);
             setCurrentChannel(null);
             setMessages([]);

@@ -7,9 +7,9 @@ async def create_logs_schema(db: AsyncIOMotorDatabase):
     try:
         await db.logs.create_index('user_id')
         await db.logs.create_index('created_at')
-        print("Logs schema created successfully")
     except Exception as e:
-        print(f"Logs schema creation failed: {str(e)}")
+        # Logs schema creation failed (critical)
+        raise e
 
 async def add_log(db: AsyncIOMotorDatabase, user_id: str, activity: str, details: str = "") -> Optional[str]:
     """Add a log entry"""
@@ -26,7 +26,7 @@ async def add_log(db: AsyncIOMotorDatabase, user_id: str, activity: str, details
         result = await db.logs.insert_one(log_doc)
         return str(result.inserted_id)
     except Exception as e:
-        print(f"Error adding log: {e}")
+        # Error adding log (non-critical)
         return None
 
 async def get_logs(
@@ -105,7 +105,7 @@ async def get_logs(
             }
         }
     except Exception as e:
-        print(f"Error getting logs: {e}")
+        # Error getting logs (critical)
         return {
             'logs': [],
             'totalItems': 0,
@@ -130,5 +130,5 @@ async def clear_old_logs(db: AsyncIOMotorDatabase, days_to_keep: int = 90) -> in
         
         return result.deleted_count
     except Exception as e:
-        print(f"Error clearing old logs: {e}")
+        # Error clearing old logs (non-critical)
         return 0

@@ -55,16 +55,14 @@ is_production = (
     'railway' in os.getenv('HOSTNAME', '').lower()
 )
 frontend_url = os.getenv('FRONTEND_URL', 'http://localhost:5173')
-print(f"Environment: {'Production' if is_production else 'Development'}")
-print(f"Frontend URL: {frontend_url}")
+# Environment configuration loaded
 
 # JWT Configuration
 SECRET_KEY = os.getenv('SECRET_KEY') or secrets.token_hex(32)
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 120  # Extended to 2 hours for long analyses
 
-print(f"SECRET_KEY configured: {'Yes' if SECRET_KEY else 'No'}")
-print(f"SECRET_KEY length: {len(SECRET_KEY) if SECRET_KEY else 0}")
+# JWT configuration loaded
 
 # Password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -92,8 +90,6 @@ async def lifespan(app: FastAPI):
     global mongo_client, mongo_db, main_event_loop
     
     # Startup
-    print("Starting up FastAPI application...")
-    
     # Store the main event loop for use in other threads
     main_event_loop = asyncio.get_running_loop()
     
@@ -104,25 +100,20 @@ async def lifespan(app: FastAPI):
     # Initialize database schemas
     await init_database()
     
-    print("FastAPI application started successfully!")
-    
     yield
     
     # Shutdown
-    print("Shutting down FastAPI application...")
-    
     # Disconnect all active bots
     for channel, bot_data in active_bots.items():
         try:
             bot_data['bot'].disconnect()
         except Exception as e:
-            print(f"Error disconnecting bot for channel {channel}: {e}")
+            # Error disconnecting bot (non-critical)
+            pass
     
     # Close MongoDB connection
     if mongo_client:
         mongo_client.close()
-    
-    print("FastAPI application shut down successfully!")
 
 # Create FastAPI app
 app = FastAPI(
@@ -204,7 +195,6 @@ async def add_websocket_connection(channel: str, websocket: WebSocket):
         if channel not in websocket_connections:
             websocket_connections[channel] = set()
         websocket_connections[channel].add(websocket)
-        print(f"Added WebSocket connection for channel {channel}")
 
 async def remove_websocket_connection(channel: str, websocket: WebSocket):
     """Remove a WebSocket connection for a channel"""
@@ -213,7 +203,6 @@ async def remove_websocket_connection(channel: str, websocket: WebSocket):
             websocket_connections[channel].discard(websocket)
             if not websocket_connections[channel]:
                 del websocket_connections[channel]
-        print(f"Removed WebSocket connection for channel {channel}")
 
 async def broadcast_message_to_channel(channel: str, message_data: dict):
     """Broadcast a message to all WebSocket connections for a channel"""
@@ -238,7 +227,7 @@ async def broadcast_message_to_channel(channel: str, message_data: dict):
             for websocket in disconnected_websockets:
                 websocket_connections[channel].discard(websocket)
             
-            print(f"Broadcasted message to {len(websocket_connections[channel])} WebSocket connections for channel {channel}")
+            # Message broadcasted to WebSocket connections
 
 async def init_database():
     """Initialize database schemas"""
@@ -249,9 +238,9 @@ async def init_database():
         await mongo_db.history.create_index('created_at')
         await mongo_db.logs.create_index('user_id')
         await mongo_db.logs.create_index('created_at')
-        print("MongoDB connection and schemas initialized successfully.")
     except Exception as e:
-        print(f"Database initialization error: {e}")
+        # Database initialization error (critical)
+        raise e
 
 # WebSocket endpoint
 @app.websocket("/ws/chat/{channel}")
@@ -443,37 +432,30 @@ async def login(credentials: dict):
         if not email or not password:
             raise HTTPException(status_code=400, detail='Email and password are required')
 
-        print("Getting user by email...")
         user = await get_user_by_email(mongo_db, email)
         if not user:
             raise HTTPException(status_code=401, detail='No Email Found.')
 
-        print("Verifying password...")
         if not verify_password(user, password):
             raise HTTPException(status_code=401, detail='Incorrect Password.')
 
-        print("Checking user status...")
         if user['status'] == 'not_active':
             raise HTTPException(status_code=403, detail='Account is not active. Please verify your email.')
         elif user['status'] == 'suspended':
             raise HTTPException(status_code=403, detail='Account is suspended.')
 
-        print("Creating access token...")
         # Create access token
         access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
         access_token = create_access_token(
             data={"sub": str(user['_id'])}, expires_delta=access_token_expires
         )
         
-        print("Logging user activity...")
         # Log user login activity
         try:
             await add_log(mongo_db, str(user['_id']), 'Logged in')
         except Exception as log_error:
-            print(f"Error logging login activity: {log_error}")
             # Don't fail the login if logging fails
-        
-        print("Login successful, returning response...")
+            pass
         return {
             'access_token': access_token,
             'token_type': 'bearer',
@@ -583,7 +565,6 @@ async def connect_to_twitch(twitch_data: dict, current_user: dict = Depends(get_
             # Add user to existing bot connection
             active_bots[channel]['connected_users'].add(user_id)
             user_bots.setdefault(user_id, set()).add(channel)
-            print(f'User {user_id} joined existing bot for channel {channel}')
             return {'message': f'Connected to {channel}\'s chat', 'channel': channel}
             
         import random
@@ -659,7 +640,6 @@ async def connect_to_twitch_guest(twitch_data: dict):
             # Add user to existing bot connection
             active_bots[channel]['connected_users'].add(user_id)
             user_bots.setdefault(user_id, set()).add(channel)
-            print(f'Guest user {user_id} joined existing bot for channel {channel}')
             return {'message': f'Connected to {channel}\'s chat', 'channel': channel}
             
         import random
@@ -829,13 +809,10 @@ async def save_analysis_history(history_data: dict, current_user: dict = Depends
                 history_data['duration'] = 0
         
         # Generate AI summary using Gemini
-        print("Generating AI summary for analysis...")
         try:
             summary = generate_analysis_summary(history_data)
             history_data['summary'] = summary
-            print(f"Summary generated successfully: {len(summary)} characters")
         except Exception as e:
-            print(f"Error generating summary: {str(e)}")
             history_data['summary'] = "Unable to generate summary at this time."
         
         # Save the analysis
@@ -1759,9 +1736,6 @@ async def delete_account(delete_data: dict, current_user: dict = Depends(get_cur
 if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("PORT", 8080))
-    print(f"Starting FastAPI server on port {port}")
-    print(f"Environment: {'Production' if is_production else 'Development'}")
-    print(f"Frontend URL: {frontend_url}")
     
     uvicorn.run(
         "main:app",

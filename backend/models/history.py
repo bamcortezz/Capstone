@@ -8,9 +8,9 @@ async def create_history_schema(db: AsyncIOMotorDatabase):
     try:
         await db.history.create_index('user_id')
         await db.history.create_index('created_at')
-        print("History schema created successfully")
     except Exception as e:
-        print(f"History schema creation failed: {str(e)}")
+        # History schema creation failed (critical)
+        raise e
 
 async def save_analysis(db: AsyncIOMotorDatabase, analysis_data: dict) -> str:
     """Save analysis data to history"""
@@ -35,7 +35,7 @@ async def save_analysis(db: AsyncIOMotorDatabase, analysis_data: dict) -> str:
         result = await db.history.insert_one(history_doc)
         return str(result.inserted_id)
     except Exception as e:
-        print(f"Error saving analysis: {e}")
+        # Error saving analysis (critical)
         raise
 
 async def get_user_history(db: AsyncIOMotorDatabase, user_id: str) -> List[dict]:
@@ -48,7 +48,7 @@ async def get_user_history(db: AsyncIOMotorDatabase, user_id: str) -> List[dict]
             history.append(doc)
         return history
     except Exception as e:
-        print(f"Error getting user history: {e}")
+        # Error getting user history (critical)
         return []
 
 async def get_history_by_id(db: AsyncIOMotorDatabase, history_id: str) -> Optional[dict]:
@@ -56,7 +56,7 @@ async def get_history_by_id(db: AsyncIOMotorDatabase, history_id: str) -> Option
     try:
         return await db.history.find_one({'_id': ObjectId(history_id), 'status': 'active'})
     except Exception as e:
-        print(f"Error getting history by ID: {e}")
+        # Error getting history by ID (critical)
         return None
 
 async def delete_history(db: AsyncIOMotorDatabase, history_id: str, user_id: str) -> bool:
@@ -68,5 +68,5 @@ async def delete_history(db: AsyncIOMotorDatabase, history_id: str, user_id: str
         )
         return result.modified_count > 0
     except Exception as e:
-        print(f"Error deleting history: {e}")
+        # Error deleting history (critical)
         return False

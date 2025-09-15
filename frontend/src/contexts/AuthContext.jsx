@@ -77,7 +77,6 @@ export const AuthProvider = ({ children }) => {
     refreshTimerRef.current = setTimeout(async () => {
       try {
         await refreshToken();
-        console.log('Token automatically refreshed');
       } catch (error) {
         console.error('Automatic token refresh failed:', error);
         // Don't clear user state here, let the next API call handle it

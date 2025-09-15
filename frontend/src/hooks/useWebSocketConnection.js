@@ -83,7 +83,6 @@ export const useWebSocketConnection = () => {
 
     // Connection established
     websocket.onopen = () => {
-      console.log('WebSocket connected successfully');
       setIsConnected(true);
       setConnectionStatus('connected');
       setLastError(null);
@@ -94,13 +93,12 @@ export const useWebSocketConnection = () => {
     websocket.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
-        console.log('WebSocket message received:', data);
         
         // Handle different message types
         if (data.type === 'pong') {
-          console.log('WebSocket pong received');
+          // Pong received
         } else if (data.type === 'heartbeat') {
-          console.log('WebSocket heartbeat received');
+          // Heartbeat received
         } else if (data.type === 'message') {
           // This will be handled by the calling component
           return data.data;
@@ -117,13 +115,11 @@ export const useWebSocketConnection = () => {
     };
 
     websocket.onclose = (event) => {
-      console.log('WebSocket connection closed:', event.code, event.reason);
       setIsConnected(false);
       setConnectionStatus('disconnected');
       
       // Only attempt reconnection if not a clean close and not manually disconnected
       if (event.code !== 1000 && event.code !== 1001 && websocketRef.current !== null) {
-        console.log('WebSocket connection lost, attempting reconnection...');
         setConnectionStatus('reconnecting');
         
         // Use exponential backoff for reconnection
@@ -141,7 +137,6 @@ export const useWebSocketConnection = () => {
 
   // Disconnect WebSocket
   const disconnect = useCallback(() => {
-    console.log('Manually disconnecting WebSocket...');
     cleanup();
     setIsConnected(false);
     setConnectionStatus('disconnected');
@@ -190,7 +185,6 @@ export const useWebSocketStatus = () => {
     websocketRef.current = websocket;
 
     websocket.onopen = () => {
-      console.log('WebSocket status connected');
       setIsConnected(true);
       setLastError(null);
     };
@@ -199,7 +193,7 @@ export const useWebSocketStatus = () => {
       try {
         const data = JSON.parse(event.data);
         if (data.type === 'status') {
-          console.log('WebSocket status update:', data.status);
+          // Status update received
         }
       } catch (error) {
         console.error('Error parsing WebSocket status message:', error);

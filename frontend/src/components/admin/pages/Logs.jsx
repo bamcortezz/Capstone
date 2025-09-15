@@ -38,16 +38,13 @@ const Logs = () => {
       
       const response = await fetchLogs(params);
       
-      console.log('Fetch response:', response); // Debug log
       setLogs(response.logs || []);
       setTotalItems(response.totalItems || 0);
       setDataLoaded(true);
       
       // If we're on a page that doesn't exist, go back to page 1
       const calculatedTotalPages = Math.ceil((response.totalItems || 0) / itemsPerPage);
-      console.log(`Current page: ${currentPage}, Calculated total pages: ${calculatedTotalPages}, Total items: ${response.totalItems}`); // Debug log
       if (currentPage > calculatedTotalPages && calculatedTotalPages > 0) {
-        console.log(`Redirecting from page ${currentPage} to page 1 because page doesn't exist`);
         setCurrentPage(1);
       }
     } catch (error) {
@@ -87,11 +84,8 @@ const Logs = () => {
   // Pagination
   const totalPages = Math.ceil(totalItems / itemsPerPage);
   const paginate = (pageNumber) => {
-    console.log(`Attempting to navigate to page ${pageNumber}, totalPages: ${totalPages}, totalItems: ${totalItems}, dataLoaded: ${dataLoaded}`); // Debug log
-    
     // Don't allow navigation if data isn't loaded yet
     if (!dataLoaded) {
-      console.log('Data not loaded yet, ignoring pagination');
       return;
     }
     
@@ -100,14 +94,10 @@ const Logs = () => {
       setCurrentPage(pageNumber);
     } else if (pageNumber > totalPages && totalPages > 0) {
       // If trying to go beyond the last page, go to the last page
-      console.log(`Page ${pageNumber} is beyond totalPages ${totalPages}, redirecting to last page`);
       setCurrentPage(totalPages);
     } else if (pageNumber < 1) {
       // If trying to go below page 1, go to page 1
-      console.log(`Page ${pageNumber} is below 1, redirecting to page 1`);
       setCurrentPage(1);
-    } else {
-      console.log(`Invalid page navigation: pageNumber=${pageNumber}, totalPages=${totalPages}, totalItems=${totalItems}`);
     }
   };
 

@@ -294,36 +294,27 @@ const Analyze = () => {
   };
 
   const handleDisconnectWithConfirmation = async () => {
-    console.log('handleDisconnectWithConfirmation called');
     const result = await NavigationConfirmationModal.showDisconnectConfirmation(!!user);
-    console.log('Confirmation result:', result);
     
     if (!result.shouldDisconnect) {
-      console.log('User chose to cancel');
       return; // User chose to cancel
     }
 
     try {
       if (result.shouldSave && user) {
-        console.log('Attempting to save analysis...');
         const saveSuccess = await saveAnalysisForDisconnect();
-        console.log('Save success:', saveSuccess);
         if (saveSuccess) {
           await NavigationConfirmationModal.showSaveSuccess();
         } else {
-          console.log('Save failed, not disconnecting');
           // Save failed or user not logged in, show error and don't disconnect
           return;
         }
       } else if (result.shouldDiscard) {
-        console.log('Discarding analysis...');
         await NavigationConfirmationModal.showDiscardMessage(!!user);
       }
 
       // Disconnect from analysis
-      console.log('Disconnecting from channel...');
       await disconnectFromChannel();
-      console.log('Disconnect completed');
     } catch (error) {
       console.error('Disconnect error:', error);
       await NavigationConfirmationModal.showError('Error', 'Failed to process disconnect. Please try again.');

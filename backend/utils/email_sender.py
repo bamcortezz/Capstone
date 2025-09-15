@@ -72,7 +72,7 @@ def send_otp_email(to_email, otp):
             server.send_message(message)
         return True
     except Exception as e:
-        print(f"Error sending email: {e}")
+        # Error sending email (non-critical)
         return False
 
 def send_password_reset_email(to_email, user_id, reset_token):
@@ -117,7 +117,7 @@ def send_password_reset_email(to_email, user_id, reset_token):
             server.send_message(message)
         return True
     except Exception as e:
-        print(f"Error sending email: {e}")
+        # Error sending email (non-critical)
         return False
 
 def send_contact_email(name, email, subject, message_body):
@@ -161,5 +161,5 @@ def send_contact_email(name, email, subject, message_body):
             server.send_message(msg)
         return True
     except Exception as e:
-        print(f"Error sending contact email: {e}")
+        # Error sending contact email (non-critical)
         return False
