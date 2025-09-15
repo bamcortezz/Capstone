@@ -58,37 +58,11 @@ export const useNavigationBlock = () => {
     }
   }, [messages, sentimentCounts, userSentiments, currentChannel, sessionStart]);
 
-  // Handle navigation with confirmation
+  // Handle navigation - allow page changes but keep analysis running
   const handleNavigation = useCallback(async (targetPath) => {
-    if (!isConnected) {
-      navigate(targetPath);
-      return;
-    }
-
-    const result = await NavigationConfirmationModal.showNavigationConfirmation(!!user);
-    
-    if (!result.shouldLeave) {
-      return; // User chose to stay
-    }
-
-    try {
-      if (result.shouldSave && user) {
-        await saveAnalysis();
-        await NavigationConfirmationModal.showSaveSuccess();
-      } else if (result.shouldDiscard) {
-        await NavigationConfirmationModal.showDiscardMessage(!!user);
-      }
-
-      // Disconnect from analysis
-      await disconnectFromChannel();
-      
-      // Navigate to target path
-      navigate(targetPath);
-    } catch (error) {
-      console.error('Navigation error:', error);
-      await NavigationConfirmationModal.showError('Error', 'Failed to process navigation. Please try again.');
-    }
-  }, [isConnected, user, saveAnalysis, disconnectFromChannel, navigate]);
+    // Always allow navigation - analysis will continue running in background
+    navigate(targetPath);
+  }, [navigate]);
 
   // Handle logout with confirmation
   const handleLogout = useCallback(async (logoutFunction) => {
@@ -122,7 +96,7 @@ export const useNavigationBlock = () => {
     }
   }, [isConnected, user, saveAnalysis, disconnectFromChannel]);
 
-  // Block browser navigation (back/forward buttons, page refresh, etc.)
+  // Block tab closure and page refresh during analysis
   useEffect(() => {
     if (!isConnected) return;
 
@@ -132,45 +106,13 @@ export const useNavigationBlock = () => {
       return event.returnValue;
     };
 
-    const handlePopState = async (event) => {
-      if (!isConnected) return;
-
-      event.preventDefault();
-      
-      const result = await NavigationConfirmationModal.showNavigationConfirmation(!!user);
-      
-      if (result.shouldLeave) {
-        try {
-          if (result.shouldSave && user) {
-            await saveAnalysis();
-            await NavigationConfirmationModal.showSaveSuccess();
-          } else if (result.shouldDiscard) {
-            await NavigationConfirmationModal.showDiscardMessage(!!user);
-          }
-
-          await disconnectFromChannel();
-          
-          // Allow the navigation to proceed
-          window.history.pushState(null, '', event.state?.url || '/');
-          navigate(event.state?.url || '/', { replace: true });
-        } catch (error) {
-          console.error('Navigation error:', error);
-          await NavigationConfirmationModal.showError('Error', 'Failed to process navigation. Please try again.');
-        }
-      } else {
-        // Push the current state back to prevent navigation
-        window.history.pushState(null, '', location.pathname);
-      }
-    };
-
+    // Only prevent tab closure and page refresh, allow normal navigation
     window.addEventListener('beforeunload', handleBeforeUnload);
-    window.addEventListener('popstate', handlePopState);
 
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
-      window.removeEventListener('popstate', handlePopState);
     };
-  }, [isConnected, user, saveAnalysis, disconnectFromChannel, navigate, location.pathname]);
+  }, [isConnected]);
 
   return {
     handleNavigation,

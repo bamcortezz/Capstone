@@ -169,6 +169,7 @@ const Sidebar = ({ isOpen, onClose, onLogout }) => {
             </button>
           </div>
 
+
           {/* User Info - Only shown when logged in */}
           {user && (
             <div className="mb-6 pb-6 border-b border-gray-700">

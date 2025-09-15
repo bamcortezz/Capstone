@@ -224,6 +224,8 @@ export const AnalyzeProvider = ({ children }) => {
       // Add analysis state for navigation blocking
       isAnalyzing: isConnected,
       hasAnalysisData: messages.length > 0 || Object.values(sentimentCounts).some(count => count > 0),
+      // Add methods to check if analysis is running in background
+      isAnalysisRunning: isConnected && currentChannel !== null,
     }}>
       {children}
     </AnalyzeContext.Provider>

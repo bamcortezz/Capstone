@@ -48,6 +48,52 @@ const NavigationConfirmationModal = {
     };
   },
 
+  // Show confirmation modal when user tries to disconnect during analysis
+  showDisconnectConfirmation: async (isLoggedIn = false) => {
+    const alertOptions = isLoggedIn ? {
+      title: 'Disconnect from Analysis?',
+      text: 'You are currently analyzing a channel. What would you like to do with your analysis data?',
+      icon: 'warning',
+      showDenyButton: true,
+      showCancelButton: true,
+      confirmButtonText: 'Save & Disconnect',
+      denyButtonText: 'Discard & Disconnect',
+      cancelButtonText: 'Cancel',
+      confirmButtonColor: '#9147ff',
+      denyButtonColor: '#EF4444',
+      cancelButtonColor: '#6B7280',
+      background: '#18181b',
+      color: '#fff',
+      allowOutsideClick: false,
+      allowEscapeKey: false,
+      showCloseButton: false
+    } : {
+      title: 'Disconnect from Analysis?',
+      text: 'You are currently analyzing a channel. Are you sure you want to disconnect?',
+      icon: 'warning',
+      showDenyButton: true,
+      showCancelButton: true,
+      showConfirmButton: false,
+      denyButtonText: 'Disconnect',
+      cancelButtonText: 'Cancel',
+      denyButtonColor: '#EF4444',
+      cancelButtonColor: '#6B7280',
+      background: '#18181b',
+      color: '#fff',
+      allowOutsideClick: false,
+      allowEscapeKey: false,
+      showCloseButton: false
+    };
+
+    const result = await Swal.fire(alertOptions);
+    
+    return {
+      shouldDisconnect: result.isConfirmed || result.isDenied,
+      shouldSave: result.isConfirmed,
+      shouldDiscard: result.isDenied
+    };
+  },
+
   // Show confirmation modal when user tries to logout during analysis
   showLogoutConfirmation: async (isLoggedIn = false) => {
     const alertOptions = isLoggedIn ? {

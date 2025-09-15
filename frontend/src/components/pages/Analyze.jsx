@@ -7,6 +7,7 @@ import { useAnalyze } from '../../contexts/AnalyzeContext';
 import { useNavigationBlock } from '../../hooks/useNavigationBlock';
 import { FixedSizeList as List } from 'react-window';
 import ConnectionStatusModal from '../ConnectionStatusModal';
+import NavigationConfirmationModal from '../NavigationConfirmationModal';
 
 // API URL
 const API_URL = import.meta.env.VITE_API_URL;
@@ -180,6 +181,137 @@ const Analyze = () => {
     }
   };
 
+  const saveAnalysisForDisconnect = async () => {
+    // Check if user is logged in
+    if (!user) {
+      await Swal.fire({
+        title: 'Login Required',
+        text: 'You need to be logged in to save analysis results. Please sign in to save your data.',
+        icon: 'warning',
+        showConfirmButton: true,
+        confirmButtonText: 'Sign In',
+        confirmButtonColor: '#9147ff',
+        background: '#18181b',
+        color: '#fff',
+        showCancelButton: true,
+        cancelButtonText: 'Cancel',
+        cancelButtonColor: '#6B7280'
+      }).then((result) => {
+        if (result.isConfirmed) {
+          window.location.href = '/login';
+        }
+      });
+      return false;
+    }
+
+    try {
+      // Ensure token is valid before attempting to save
+      await ensureValidToken();
+      
+      const getTopContributors = (sentimentType, limit = 5) => {
+        const contributors = Object.entries(userSentiments[sentimentType])
+          .map(([username, count]) => ({ username, count }))
+          .sort((a, b) => b.count - a.count)
+          .slice(0, limit);
+        return contributors;
+      };
+      const analysisData = {
+        streamer_name: currentChannel,
+        total_chats: messages.length,
+        sentiment_count: sentimentCounts,
+        top_positive: getTopContributors('positive'),
+        top_negative: getTopContributors('negative'),
+        top_neutral: getTopContributors('neutral'),
+        duration: elapsed
+      };
+      const response = await fetch(`${API_URL}/api/history/save`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        credentials: 'include',
+        body: JSON.stringify(analysisData)
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to save analysis');
+      }
+      return true;
+    } catch (error) {
+      console.error('Save failed:', error);
+      let errorMessage = 'Failed to save analysis data';
+      let showLoginButton = false;
+      
+      if (error.message) {
+        errorMessage += `: ${error.message}`;
+        // Check if it's an authentication error
+        if (error.message.includes('Authentication token expired') || error.message.includes('Please log in again')) {
+          showLoginButton = true;
+        }
+      }
+      
+      const swalConfig = {
+        title: 'Error',
+        text: errorMessage,
+        icon: 'error',
+        showConfirmButton: true,
+        confirmButtonColor: '#EF4444',
+        background: '#18181b',
+        color: '#fff'
+      };
+      
+      if (showLoginButton) {
+        swalConfig.showCancelButton = true;
+        swalConfig.cancelButtonText = 'Cancel';
+        swalConfig.confirmButtonText = 'Go to Login';
+        swalConfig.confirmButtonColor = '#9147ff';
+      }
+      
+      const result = await Swal.fire(swalConfig);
+      
+      if (showLoginButton && result.isConfirmed) {
+        window.location.href = '/login';
+      }
+      
+      return false;
+    }
+  };
+
+  const handleDisconnectWithConfirmation = async () => {
+    console.log('handleDisconnectWithConfirmation called');
+    const result = await NavigationConfirmationModal.showDisconnectConfirmation(!!user);
+    console.log('Confirmation result:', result);
+    
+    if (!result.shouldDisconnect) {
+      console.log('User chose to cancel');
+      return; // User chose to cancel
+    }
+
+    try {
+      if (result.shouldSave && user) {
+        console.log('Attempting to save analysis...');
+        const saveSuccess = await saveAnalysisForDisconnect();
+        console.log('Save success:', saveSuccess);
+        if (saveSuccess) {
+          await NavigationConfirmationModal.showSaveSuccess();
+        } else {
+          console.log('Save failed, not disconnecting');
+          // Save failed or user not logged in, show error and don't disconnect
+          return;
+        }
+      } else if (result.shouldDiscard) {
+        console.log('Discarding analysis...');
+        await NavigationConfirmationModal.showDiscardMessage(!!user);
+      }
+
+      // Disconnect from analysis
+      console.log('Disconnecting from channel...');
+      await disconnectFromChannel();
+      console.log('Disconnect completed');
+    } catch (error) {
+      console.error('Disconnect error:', error);
+      await NavigationConfirmationModal.showError('Error', 'Failed to process disconnect. Please try again.');
+    }
+  };
+
   const saveAnalysis = async () => {
     // Check if user is logged in
     if (!user) {
@@ -296,8 +428,8 @@ const Analyze = () => {
     setIsAnalyzing(true);
     try {
       if (isConnected) {
-        // Use the navigation blocking logic for disconnect
-        await handleNavigation('/analyze'); // This will trigger the disconnect flow
+        // Disconnect from current channel with confirmation
+        await handleDisconnectWithConfirmation();
       } else {
         await connectToChannel(streamUrl);
       }
@@ -369,6 +501,7 @@ const Analyze = () => {
             </p>
           </div>
         )}
+
 
         {/* Top Container - Connect to Channel */}
         {!isConnected && (
@@ -549,7 +682,7 @@ const Analyze = () => {
                       onClick={async () => {
                         setIsDisconnecting(true);
                         try {
-                          await handleNavigation('/analyze'); // This will trigger the disconnect flow
+                          await handleDisconnectWithConfirmation();
                         } finally {
                           setIsDisconnecting(false);
                         }
