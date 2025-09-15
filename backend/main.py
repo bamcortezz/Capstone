@@ -61,7 +61,7 @@ print(f"Frontend URL: {frontend_url}")
 # JWT Configuration
 SECRET_KEY = os.getenv('SECRET_KEY') or secrets.token_hex(32)
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
+ACCESS_TOKEN_EXPIRE_MINUTES = 120  # Extended to 2 hours for long analyses
 
 print(f"SECRET_KEY configured: {'Yes' if SECRET_KEY else 'No'}")
 print(f"SECRET_KEY length: {len(SECRET_KEY) if SECRET_KEY else 0}")
@@ -500,6 +500,23 @@ async def authenticate(current_user: dict = Depends(get_current_user)):
             'profile_image': current_user.get('profile_image')
         }
     }
+
+@app.post("/api/refresh-token")
+async def refresh_token(current_user: dict = Depends(get_current_user)):
+    """Refresh JWT token"""
+    try:
+        # Create new access token
+        access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        access_token = create_access_token(
+            data={"sub": str(current_user['_id'])}, expires_delta=access_token_expires
+        )
+        
+        return {
+            'access_token': access_token,
+            'token_type': 'bearer'
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/logout")
 async def logout(current_user: dict = Depends(get_current_user)):

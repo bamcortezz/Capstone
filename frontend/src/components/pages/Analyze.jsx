@@ -127,7 +127,7 @@ const ChatRow = ({ index, style, data }) => {
 };
 
 const Analyze = () => {
-  const { user, getAuthHeaders } = useAuth();
+  const { user, getAuthHeaders, ensureValidToken } = useAuth();
   const {
     isConnected,
     currentChannel,
@@ -145,6 +145,7 @@ const Analyze = () => {
   const { handleNavigation } = useNavigationBlock();
   const [streamUrl, setStreamUrl] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState('All');
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [autoScroll, setAutoScroll] = useState(true);
@@ -203,6 +204,11 @@ const Analyze = () => {
     }
 
     try {
+      setIsSaving(true);
+      
+      // Ensure token is valid before attempting to save
+      await ensureValidToken();
+      
       const getTopContributors = (sentimentType, limit = 5) => {
         const contributors = Object.entries(userSentiments[sentimentType])
           .map(([username, count]) => ({ username, count }))
@@ -246,10 +252,17 @@ const Analyze = () => {
     } catch (error) {
       console.error('Save failed:', error);
       let errorMessage = 'Failed to save analysis data';
+      let showLoginButton = false;
+      
       if (error.message) {
         errorMessage += `: ${error.message}`;
+        // Check if it's an authentication error
+        if (error.message.includes('Authentication token expired') || error.message.includes('Please log in again')) {
+          showLoginButton = true;
+        }
       }
-      await Swal.fire({
+      
+      const swalConfig = {
         title: 'Error',
         text: errorMessage,
         icon: 'error',
@@ -257,8 +270,24 @@ const Analyze = () => {
         confirmButtonColor: '#EF4444',
         background: '#18181b',
         color: '#fff'
-      });
+      };
+      
+      if (showLoginButton) {
+        swalConfig.showCancelButton = true;
+        swalConfig.cancelButtonText = 'Cancel';
+        swalConfig.confirmButtonText = 'Go to Login';
+        swalConfig.confirmButtonColor = '#9147ff';
+      }
+      
+      const result = await Swal.fire(swalConfig);
+      
+      if (showLoginButton && result.isConfirmed) {
+        window.location.href = '/login';
+      }
+      
       return false;
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -627,6 +656,7 @@ const Analyze = () => {
       {/* Connection Status Modal */}
       <ConnectionStatusModal
         isAnalyzing={isAnalyzing}
+        isSaving={isSaving}
         onSaveAnalysis={saveAnalysis}
         onDiscardAnalysis={() => {
           setIsAnalyzing(false);

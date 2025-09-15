@@ -6,13 +6,16 @@ import NavigationConfirmationModal from '../components/NavigationConfirmationMod
 
 export const useNavigationBlock = () => {
   const { isConnected, disconnectFromChannel, messages, sentimentCounts, userSentiments, currentChannel, sessionStart } = useAnalyze();
-  const { user } = useAuth();
+  const { user, ensureValidToken } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
   // Function to save analysis data
   const saveAnalysis = useCallback(async () => {
     try {
+      // Ensure token is valid before attempting to save
+      await ensureValidToken();
+      
       const elapsed = sessionStart ? Math.floor((Date.now() - sessionStart) / 1000) : 0;
       
       const getTopContributors = (sentimentType, limit = 5) => {

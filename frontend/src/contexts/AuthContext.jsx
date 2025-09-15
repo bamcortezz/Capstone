@@ -1,4 +1,4 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import React, { createContext, useState, useContext, useEffect, useRef } from 'react';
 import Swal from 'sweetalert2';
 
 // API URL
@@ -11,6 +11,7 @@ export const useAuth = () => useContext(AuthContext);
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const refreshTimerRef = useRef(null);
 
   // Get token from localStorage
   const getToken = () => {
@@ -36,6 +37,104 @@ export const AuthProvider = ({ children }) => {
     };
   };
 
+  // Refresh the JWT token
+  const refreshToken = async () => {
+    const token = getToken();
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    try {
+      const response = await fetch(`${API_URL}/api/refresh-token`, {
+        method: 'POST',
+        headers: getAuthHeaders()
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to refresh token');
+      }
+
+      const data = await response.json();
+      setToken(data.access_token);
+      
+      // Set up the next automatic refresh (90 minutes from now)
+      setupTokenRefresh();
+      
+      return data.access_token;
+    } catch (error) {
+      removeToken();
+      setUser(null);
+      clearTokenRefresh();
+      throw error;
+    }
+  };
+
+  // Set up automatic token refresh
+  const setupTokenRefresh = () => {
+    clearTokenRefresh(); // Clear any existing timer
+    
+    // Refresh token every 90 minutes (before 2-hour expiry)
+    refreshTimerRef.current = setTimeout(async () => {
+      try {
+        await refreshToken();
+        console.log('Token automatically refreshed');
+      } catch (error) {
+        console.error('Automatic token refresh failed:', error);
+        // Don't clear user state here, let the next API call handle it
+      }
+    }, 90 * 60 * 1000); // 90 minutes in milliseconds
+  };
+
+  // Clear the token refresh timer
+  const clearTokenRefresh = () => {
+    if (refreshTimerRef.current) {
+      clearTimeout(refreshTimerRef.current);
+      refreshTimerRef.current = null;
+    }
+  };
+
+  // Check if token is valid and refresh if needed
+  const ensureValidToken = async () => {
+    const token = getToken();
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    try {
+      const response = await fetch(`${API_URL}/api/authenticate`, {
+        headers: getAuthHeaders()
+      });
+
+      if (!response.ok) {
+        // Token is invalid, try to refresh it
+        try {
+          await refreshToken();
+          return true;
+        } catch (refreshError) {
+          // Refresh failed, user needs to log in again
+          removeToken();
+          setUser(null);
+          throw new Error('Authentication token expired. Please log in again.');
+        }
+      }
+
+      return true;
+    } catch (error) {
+      if (error.message.includes('Authentication token expired')) {
+        throw error;
+      }
+      // For other errors, try to refresh the token
+      try {
+        await refreshToken();
+        return true;
+      } catch (refreshError) {
+        removeToken();
+        setUser(null);
+        throw new Error('Authentication failed. Please log in again.');
+      }
+    }
+  };
+
   useEffect(() => {
     const initializeAuth = async () => {
       try {
@@ -53,25 +152,36 @@ export const AuthProvider = ({ children }) => {
         if (response.ok) {
           const data = await response.json();
           setUser(data.user);
+          // Set up automatic token refresh
+          setupTokenRefresh();
         } else {
           // Token is invalid, remove it
           removeToken();
           setUser(null);
+          clearTokenRefresh();
         }
       } catch (error) {
         console.error('Auth error:', error);
         removeToken();
         setUser(null);
+        clearTokenRefresh();
       } finally {
         setLoading(false);
       }
     };
 
     initializeAuth();
+    
+    // Cleanup on unmount
+    return () => {
+      clearTokenRefresh();
+    };
   }, []);
 
   const login = async (userData) => {
     setUser(userData);
+    // Set up automatic token refresh after login
+    setupTokenRefresh();
   };
   
   const logout = async () => {
@@ -92,6 +202,7 @@ export const AuthProvider = ({ children }) => {
 
       removeToken();
       setUser(null);
+      clearTokenRefresh();
       
       await Swal.fire({
         position: 'top-end',
@@ -246,7 +357,9 @@ export const AuthProvider = ({ children }) => {
       getToken,
       setToken,
       removeToken,
-      getAuthHeaders
+      getAuthHeaders,
+      ensureValidToken,
+      refreshToken
     }}>
       {!loading && children}
     </AuthContext.Provider>

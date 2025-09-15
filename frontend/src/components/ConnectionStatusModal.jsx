@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useAnalyze } from '../contexts/AnalyzeContext';
 import Swal from 'sweetalert2';
 
-const ConnectionStatusModal = ({ isAnalyzing, onSaveAnalysis, onDiscardAnalysis, analysisData }) => {
+const ConnectionStatusModal = ({ isAnalyzing, isSaving, onSaveAnalysis, onDiscardAnalysis, analysisData }) => {
   const { connectionStatus, isConnected, lastError, reconnect } = useWebSocketConnection();
   const { user } = useAuth();
   const { currentChannel } = useAnalyze();
@@ -138,9 +138,14 @@ const ConnectionStatusModal = ({ isAnalyzing, onSaveAnalysis, onDiscardAnalysis,
             <div className="flex space-x-3">
               <button
                 onClick={handleSaveAnalysis}
-                className="flex-1 bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-lg transition-colors"
+                disabled={isSaving}
+                className={`flex-1 text-white font-medium py-2 px-4 rounded-lg transition-colors ${
+                  isSaving 
+                    ? 'bg-gray-600 cursor-not-allowed' 
+                    : 'bg-green-600 hover:bg-green-700'
+                }`}
               >
-                Save Analysis
+                {isSaving ? 'Saving...' : 'Save Analysis'}
               </button>
               <button
                 onClick={handleDiscardAnalysis}
