@@ -391,13 +391,20 @@ async def register(user_data: dict):
         
         # Check if all required fields are present
         for field in required_fields:
-            if not user_data.get(field):
-                raise HTTPException(status_code=400, detail=f'{field} is required')
+            if not user_data.get(field) or not user_data.get(field).strip():
+                field_name = field.replace('_', ' ').title()
+                raise HTTPException(status_code=400, detail=f'{field_name} is required')
+
+        # Validate email format
+        import re
+        email_pattern = r'^[^\s@]+@[^\s@]+\.[^\s@]+$'
+        if not re.match(email_pattern, user_data['email']):
+            raise HTTPException(status_code=400, detail='Please enter a valid email address')
 
         # Check if user already exists
         existing_user = await get_user_by_email(mongo_db, user_data['email'])
         if existing_user:
-            raise HTTPException(status_code=400, detail='Email already registered')
+            raise HTTPException(status_code=400, detail='An account with this email address already exists')
         
         # Validate password 
         is_valid, error_message = validate_password(user_data['password'])
@@ -412,7 +419,7 @@ async def register(user_data: dict):
         
         if not email_sent:
             await mongo_db.users.delete_one({'_id': result.inserted_id})
-            raise HTTPException(status_code=500, detail='Failed to send verification email')
+            raise HTTPException(status_code=500, detail='Failed to send verification email. Please try again later.')
             
         return {
             'message': 'Registration successful. Please check your email for verification code.',
@@ -422,7 +429,8 @@ async def register(user_data: dict):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"Registration error: {str(e)}")
+        raise HTTPException(status_code=500, detail='An unexpected error occurred. Please try again later.')
 
 @app.post("/api/login")
 async def login(credentials: dict):
@@ -1128,6 +1136,29 @@ async def update_user_profile(profile_data: dict, current_user: dict = Depends(g
     try:
         if not profile_data:
             raise HTTPException(status_code=400, detail='No data provided')
+        
+        # Validate required fields with detailed messages
+        required_fields = ['first_name', 'last_name', 'email']
+        for field in required_fields:
+            if field not in profile_data or not profile_data[field] or not str(profile_data[field]).strip():
+                field_name = field.replace('_', ' ').title()
+                raise HTTPException(status_code=400, detail=f'{field_name} is required')
+        
+        # Validate email format
+        import re
+        email_pattern = r'^[^\s@]+@[^\s@]+\.[^\s@]+$'
+        if not re.match(email_pattern, profile_data['email']):
+            raise HTTPException(status_code=400, detail='Please enter a valid email address')
+        
+        # Validate name fields (no special characters, reasonable length)
+        if len(profile_data['first_name'].strip()) < 2:
+            raise HTTPException(status_code=400, detail='First name must be at least 2 characters long')
+        if len(profile_data['last_name'].strip()) < 2:
+            raise HTTPException(status_code=400, detail='Last name must be at least 2 characters long')
+        if len(profile_data['first_name'].strip()) > 50:
+            raise HTTPException(status_code=400, detail='First name must not exceed 50 characters')
+        if len(profile_data['last_name'].strip()) > 50:
+            raise HTTPException(status_code=400, detail='Last name must not exceed 50 characters')
             
         # Update profile
         try:
@@ -1157,7 +1188,8 @@ async def update_user_profile(profile_data: dict, current_user: dict = Depends(g
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"Profile update error: {str(e)}")
+        raise HTTPException(status_code=500, detail='An unexpected error occurred. Please try again later.')
 
 @app.put("/api/user/profile-image")
 async def update_profile_image_endpoint(image_data: dict, current_user: dict = Depends(get_current_user)):
@@ -1232,27 +1264,43 @@ async def forgot_password(email_data: dict):
         
         if not email:
             raise HTTPException(status_code=400, detail='Email is required')
-            
-        # Check if user exists but don't reveal this information
-        user, token = await save_reset_token(mongo_db, email)
         
-        if user and token:
+        # Validate email format
+        import re
+        email_pattern = r'^[^\s@]+@[^\s@]+\.[^\s@]+$'
+        if not re.match(email_pattern, email):
+            raise HTTPException(status_code=400, detail='Please enter a valid email address')
+            
+        # Check if user exists in database
+        user = await get_user_by_email(mongo_db, email)
+        if not user:
+            raise HTTPException(status_code=404, detail='No account found with this email address')
+        
+        # Check if user account is active
+        if user['status'] == 'not_active':
+            raise HTTPException(status_code=400, detail='Account is not active. Please verify your email first.')
+        elif user['status'] == 'suspended':
+            raise HTTPException(status_code=400, detail='Account is suspended. Please contact support.')
+            
+        # Generate reset token
+        user_with_token, token = await save_reset_token(mongo_db, email)
+        
+        if user_with_token and token:
             # Send password reset email
             email_sent = send_password_reset_email(email, str(user['_id']), token)
             
             if not email_sent:
-                raise HTTPException(status_code=500, detail='Failed to send password reset email')
+                raise HTTPException(status_code=500, detail='Failed to send password reset email. Please try again later.')
                 
-            return {'message': 'Password reset instructions sent to email'}
-            
-        # Still return success even if email not found for security reasons
-        return {'message': 'Password reset instructions sent to email if account exists'}
+            return {'message': 'Password reset instructions sent to your email'}
+        else:
+            raise HTTPException(status_code=500, detail='Failed to generate reset token. Please try again.')
         
     except HTTPException:
         raise
     except Exception as e:
         print(f"Password reset error: {str(e)}")
-        raise HTTPException(status_code=500, detail='An unexpected error occurred')
+        raise HTTPException(status_code=500, detail='An unexpected error occurred. Please try again later.')
 
 @app.get("/api/validate-reset-token/{user_id}/{token}")
 async def validate_reset_token_route(user_id: str, token: str):
@@ -1380,11 +1428,28 @@ async def update_user(user_id: str, user_data: dict, admin_user: dict = Depends(
         if not user_data:
             raise HTTPException(status_code=400, detail='No data provided')
             
-        # Validate required fields
+        # Validate required fields with detailed messages
         required_fields = ['first_name', 'last_name', 'email', 'role', 'status']
         for field in required_fields:
-            if field not in user_data or not user_data[field]:
-                raise HTTPException(status_code=400, detail=f'{field} is required')
+            if field not in user_data or not user_data[field] or not str(user_data[field]).strip():
+                field_name = field.replace('_', ' ').title()
+                raise HTTPException(status_code=400, detail=f'{field_name} is required')
+        
+        # Validate email format
+        import re
+        email_pattern = r'^[^\s@]+@[^\s@]+\.[^\s@]+$'
+        if not re.match(email_pattern, user_data['email']):
+            raise HTTPException(status_code=400, detail='Please enter a valid email address')
+        
+        # Validate role
+        valid_roles = ['user', 'admin']
+        if user_data['role'] not in valid_roles:
+            raise HTTPException(status_code=400, detail=f'Role must be one of: {", ".join(valid_roles)}')
+        
+        # Validate status
+        valid_statuses = ['active', 'not_active', 'suspended']
+        if user_data['status'] not in valid_statuses:
+            raise HTTPException(status_code=400, detail=f'Status must be one of: {", ".join(valid_statuses)}')
         
         # Get original user data for comparison and logging
         original_user = await get_user_by_id(mongo_db, user_id)
@@ -1430,7 +1495,8 @@ async def update_user(user_id: str, user_data: dict, admin_user: dict = Depends(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"Admin user update error: {str(e)}")
+        raise HTTPException(status_code=500, detail='An unexpected error occurred. Please try again later.')
 
 @app.post("/api/admin/debug/fix-password-hash")
 async def fix_corrupted_password_hash_endpoint(request_data: dict, admin_user: dict = Depends(get_admin_user)):
@@ -1477,25 +1543,25 @@ async def fix_corrupted_password_hash_endpoint(request_data: dict, admin_user: d
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/admin/logs")
-async def get_admin_logs(admin_user: dict = Depends(get_admin_user)):
+async def get_admin_logs(
+    page: int = 1,
+    limit: int = 10,
+    search: str = None,
+    sortField: str = 'created_at',
+    sortDirection: str = 'desc',
+    activity: str = None,
+    admin_user: dict = Depends(get_admin_user)
+):
     """Get admin logs with pagination"""
     try:
-        # Get pagination parameters from query
-        page = 1  # Default values - would need to implement query parameter parsing
-        limit = 10
-        search = None
-        sort_field = 'created_at'
-        sort_direction = 'desc'
-        activity = None
-        
         # Get logs with pagination
         logs_data = await get_logs(
             mongo_db, 
             page=page, 
             limit=limit, 
             search=search, 
-            sort_field=sort_field, 
-            sort_direction=sort_direction,
+            sort_field=sortField, 
+            sort_direction=sortDirection,
             activity=activity
         )
         
@@ -1654,7 +1720,7 @@ async def change_password(password_data: dict, current_user: dict = Depends(get_
 # Delete account endpoint
 @app.delete("/api/user/delete-account")
 async def delete_account(delete_data: dict, current_user: dict = Depends(get_current_user)):
-    """Delete user account"""
+    """Soft delete user account by setting status to not_active"""
     try:
         password = delete_data.get('password')
         if not password:
@@ -1663,11 +1729,28 @@ async def delete_account(delete_data: dict, current_user: dict = Depends(get_cur
         if not verify_password(current_user, password):
             raise HTTPException(status_code=401, detail='Incorrect password')
         
-        # Delete the user
-        result = await mongo_db.users.delete_one({'_id': current_user['_id']})
-        if result.deleted_count == 0:
-            raise HTTPException(status_code=500, detail='Failed to delete account')
-        return {'message': 'Account deleted successfully'}
+        # Soft delete: Set user status to not_active instead of deleting
+        result = await mongo_db.users.update_one(
+            {'_id': current_user['_id']},
+            {
+                '$set': {
+                    'status': 'not_active',
+                    'updated_at': datetime.utcnow()
+                }
+            }
+        )
+        if result.modified_count == 0:
+            raise HTTPException(status_code=500, detail='Failed to deactivate account')
+        
+        # Log the account deactivation
+        await add_log(
+            mongo_db,
+            str(current_user['_id']),
+            'Account deactivated',
+            'User account was deactivated (soft delete)'
+        )
+        
+        return {'message': 'Account deactivated successfully'}
     except HTTPException:
         raise
     except Exception as e:

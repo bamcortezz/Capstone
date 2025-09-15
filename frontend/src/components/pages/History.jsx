@@ -3,6 +3,7 @@ import { format } from 'date-fns';
 import Swal from 'sweetalert2';
 import { ClipLoader } from 'react-spinners';
 import { useAuth } from '../../contexts/AuthContext';
+import { useHistory } from '../../contexts/HistoryContext';
 
 // API URL
 const API_URL = import.meta.env.VITE_API_URL;
@@ -153,45 +154,16 @@ const AnalysisModal = ({ analysis, onClose }) => {
 
 const History = () => {
   const { getAuthHeaders } = useAuth();
-  const [analyses, setAnalyses] = useState([]);
+  const { analyses, loading, getAnalyses, removeAnalysis, refreshAnalyses } = useHistory();
   const [selectedAnalysis, setSelectedAnalysis] = useState(null);
-  const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
-    fetchAnalyses();
-  }, []);
-
-  const fetchAnalyses = async () => {
-    try {
-      const response = await fetch(`${API_URL}/api/history`, {
-        method: 'GET',
-        headers: getAuthHeaders(),
-        credentials: 'include'
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch analyses');
-      }
-
-      const data = await response.json();
-      setAnalyses(data);
-    } catch (error) {
-      console.error('Error fetching analyses:', error);
-      Swal.fire({
-        title: 'Error',
-        text: 'Failed to load analysis history',
-        icon: 'error',
-        background: '#18181b',
-        color: '#fff',
-        confirmButtonColor: '#9147ff'
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+    // Load analyses using the context (will use cache if available)
+    getAnalyses();
+  }, [getAnalyses]);
 
   const handleItemsPerPageChange = (newItemsPerPage) => {
     setItemsPerPage(Number(newItemsPerPage));
@@ -241,7 +213,8 @@ const History = () => {
           throw new Error('Failed to delete analysis');
         }
 
-        setAnalyses(prevAnalyses => prevAnalyses.filter(analysis => analysis._id !== analysisId));
+        // Remove from cache using context
+        removeAnalysis(analysisId);
         if (selectedAnalysis?._id === analysisId) {
           setSelectedAnalysis(null);
         }
@@ -362,7 +335,28 @@ const History = () => {
                       </svg>
                     </div>
                   </div>
-                  <div className="w-full md:w-auto">
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={refreshAnalyses}
+                      disabled={loading}
+                      className="flex items-center gap-2 bg-twitch hover:bg-twitch/80 disabled:bg-gray-600 disabled:cursor-not-allowed text-white px-4 py-3 rounded-lg transition-colors"
+                      title="Refresh data"
+                    >
+                      <svg 
+                        className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} 
+                        fill="none" 
+                        stroke="currentColor" 
+                        viewBox="0 0 24 24"
+                      >
+                        <path 
+                          strokeLinecap="round" 
+                          strokeLinejoin="round" 
+                          strokeWidth="2" 
+                          d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" 
+                        />
+                      </svg>
+                      {loading ? 'Refreshing...' : 'Refresh'}
+                    </button>
                     <select
                       value={itemsPerPage}
                       onChange={(e) => handleItemsPerPageChange(e.target.value)}

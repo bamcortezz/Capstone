@@ -1,83 +1,56 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../../contexts/AuthContext';
-import axios from 'axios';
+import { useAdmin } from '../../../contexts/AdminContext';
 import { ClipLoader } from 'react-spinners';
-import Swal from 'sweetalert2';
 
 // API URL
 const API_URL = import.meta.env.VITE_API_URL;
 
 const Dashboard = () => {
-  const { user, getAuthHeaders } = useAuth();
-  const [userStats, setUserStats] = useState({ total: 0, active: 0 });
-  const [commentsStats, setCommentsStats] = useState({ total: 0 });
-  const [usageStats, setUsageStats] = useState({ total: 0 });
-  const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
+  const { 
+    userStats, 
+    commentsStats, 
+    usageStats, 
+    loading, 
+    fetchUserStats, 
+    fetchCommentsStats, 
+    fetchUsageStats,
+    refreshAllData 
+  } = useAdmin();
 
   useEffect(() => {
-    const fetchUserStats = async () => {
-      try {
-        const response = await axios.get(`${API_URL}/api/admin/users/count`, {
-          headers: getAuthHeaders()
-        });
-        setUserStats(response.data);
-      } catch (error) {
-        console.error('Error fetching user stats:', error);
-        let errorMessage = 'Failed to load user statistics';
-        if (error.response) {
-          if (error.response.status === 401) {
-            errorMessage = 'Authentication required';
-          } else if (error.response.status === 403) {
-            errorMessage = 'Admin privileges required';
-          } else if (error.response.data && error.response.data.error) {
-            errorMessage = error.response.data.error;
-          }
-        }
-        Swal.fire({
-          title: 'Error',
-          text: errorMessage,
-          icon: 'error',
-          background: '#18181b',
-          color: '#fff',
-          confirmButtonColor: '#9147ff'
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    const fetchCommentsStats = async () => {
-      try {
-        const response = await axios.get(`${API_URL}/api/admin/comments/count`, {
-          headers: getAuthHeaders()
-        });
-        setCommentsStats(response.data);
-      } catch (error) {
-        console.error('Error fetching comments stats:', error);
-      }
-    };
-
-
-    const fetchUsageStats = async () => {
-      try {
-        const response = await axios.get(`${API_URL}/api/admin/usage/count`, {
-          headers: getAuthHeaders()
-        });
-        setUsageStats(response.data);
-      } catch (error) {
-        console.error('Error fetching usage stats:', error);
-      }
-    };
-
+    // Load all dashboard data using the context (will use cache if available)
     fetchUserStats();
     fetchCommentsStats();
     fetchUsageStats();
-  }, []);
+  }, [fetchUserStats, fetchCommentsStats, fetchUsageStats]);
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold text-white">Dashboard</h1>
+        <button
+          onClick={refreshAllData}
+          disabled={loading.userStats || loading.commentsStats || loading.usageStats}
+          className="flex items-center gap-2 bg-twitch hover:bg-twitch/80 disabled:bg-gray-600 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg transition-colors"
+          title="Refresh all data"
+        >
+          <svg 
+            className={`w-4 h-4 ${(loading.userStats || loading.commentsStats || loading.usageStats) ? 'animate-spin' : ''}`} 
+            fill="none" 
+            stroke="currentColor" 
+            viewBox="0 0 24 24"
+          >
+            <path 
+              strokeLinecap="round" 
+              strokeLinejoin="round" 
+              strokeWidth="2" 
+              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" 
+            />
+          </svg>
+          {(loading.userStats || loading.commentsStats || loading.usageStats) ? 'Refreshing...' : 'Refresh'}
+        </button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -90,7 +63,7 @@ const Dashboard = () => {
           </span>
           <div>
             <h3 className="text-gray-400 text-sm font-medium">Total Users</h3>
-            {loading ? (
+            {loading.userStats ? (
               <div className="flex justify-center items-center h-8 mt-2">
                 <ClipLoader color="#9147ff" size={24} />
               </div>
@@ -107,7 +80,7 @@ const Dashboard = () => {
           </span>
           <div>
             <h3 className="text-gray-400 text-sm font-medium">Active Users</h3>
-            {loading ? (
+            {loading.userStats ? (
               <div className="flex justify-center items-center h-8 mt-2">
                 <ClipLoader color="#9147ff" size={24} />
               </div>
@@ -124,7 +97,7 @@ const Dashboard = () => {
           </span>
           <div>
             <h3 className="text-gray-400 text-sm font-medium">Total Comments</h3>
-            {loading ? (
+            {loading.commentsStats ? (
               <div className="flex justify-center items-center h-8 mt-2">
                 <ClipLoader color="#9147ff" size={24} />
               </div>
@@ -141,7 +114,7 @@ const Dashboard = () => {
           </span>
           <div>
             <h3 className="text-gray-400 text-sm font-medium">Total Usage</h3>
-            {loading ? (
+            {loading.usageStats ? (
               <div className="flex justify-center items-center h-8 mt-2">
                 <ClipLoader color="#9147ff" size={24} />
               </div>

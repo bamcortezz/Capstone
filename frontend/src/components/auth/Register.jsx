@@ -86,7 +86,7 @@ const Register = () => {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || "Registration failed");
+        throw new Error(data.detail || data.error || "Registration failed");
       }
 
       await Swal.fire({

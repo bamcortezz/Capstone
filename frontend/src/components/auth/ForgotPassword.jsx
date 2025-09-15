@@ -31,7 +31,7 @@ const ForgotPassword = () => {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Password reset request failed');
+        throw new Error(data.detail || data.error || 'Password reset request failed');
       }
 
       setEmailSent(true);

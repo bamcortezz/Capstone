@@ -40,6 +40,12 @@ async def get_logs(
 ) -> Dict:
     """Get logs with pagination and filtering"""
     try:
+        # Validate pagination parameters
+        if page < 1:
+            page = 1
+        if limit < 1:
+            limit = 10
+        
         # Build query
         query = {}
         
@@ -62,6 +68,21 @@ async def get_logs(
         logs = []
         total_count = await db.logs.count_documents(query)
         
+        # If the page is beyond available data, return empty results
+        if skip >= total_count:
+            return {
+                'logs': [],
+                'totalItems': total_count,
+                'pagination': {
+                    'current_page': page,
+                    'total_pages': 0,
+                    'total_count': total_count,
+                    'has_next': False,
+                    'has_prev': page > 1,
+                    'limit': limit
+                }
+            }
+        
         async for log in db.logs.find(query).sort(sort_field, sort_direction_value).skip(skip).limit(limit):
             log['_id'] = str(log['_id'])
             logs.append(log)
@@ -73,6 +94,7 @@ async def get_logs(
         
         return {
             'logs': logs,
+            'totalItems': total_count,
             'pagination': {
                 'current_page': page,
                 'total_pages': total_pages,
@@ -86,6 +108,7 @@ async def get_logs(
         print(f"Error getting logs: {e}")
         return {
             'logs': [],
+            'totalItems': 0,
             'pagination': {
                 'current_page': 1,
                 'total_pages': 0,

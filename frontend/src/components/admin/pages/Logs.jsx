@@ -1,22 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { ClipLoader } from 'react-spinners';
-import axios from 'axios';
 import { useAuth } from '../../../contexts/AuthContext';
+import { useAdmin } from '../../../contexts/AdminContext';
 
 // API URL
 const API_URL = import.meta.env.VITE_API_URL;
 
 const Logs = () => {
   const { getAuthHeaders } = useAuth();
+  const { loading, fetchLogs } = useAdmin();
   // State management
   const [logs, setLogs] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [totalItems, setTotalItems] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState({ key: 'created_at', direction: 'desc' });
+  const [dataLoaded, setDataLoaded] = useState(false);
 
   // Handle items per page change
   const handleItemsPerPageChange = (newItemsPerPage) => {
@@ -24,29 +25,38 @@ const Logs = () => {
     setCurrentPage(1);
   };
 
-  // Fetch logs from API
-  const fetchLogs = async () => {
-    setLoading(true);
+  // Fetch logs from API using context
+  const fetchLogsData = async () => {
     try {
-      const response = await axios.get(`${API_URL}/api/admin/logs`, {
-        params: {
-          page: currentPage,
-          limit: itemsPerPage,
-          search: searchTerm,
-          sortField: sortConfig.key,
-          sortDirection: sortConfig.direction
-        },
-        headers: getAuthHeaders()
-      });
-
-      setLogs(response.data.logs || []);
-      setTotalItems(response.data.totalItems || 0);
+      const params = {
+        page: currentPage,
+        limit: itemsPerPage,
+        search: searchTerm,
+        sortField: sortConfig.key,
+        sortDirection: sortConfig.direction
+      };
+      
+      const response = await fetchLogs(params);
+      
+      console.log('Fetch response:', response); // Debug log
+      setLogs(response.logs || []);
+      setTotalItems(response.totalItems || 0);
+      setDataLoaded(true);
+      
+      // If we're on a page that doesn't exist, go back to page 1
+      const calculatedTotalPages = Math.ceil((response.totalItems || 0) / itemsPerPage);
+      console.log(`Current page: ${currentPage}, Calculated total pages: ${calculatedTotalPages}, Total items: ${response.totalItems}`); // Debug log
+      if (currentPage > calculatedTotalPages && calculatedTotalPages > 0) {
+        console.log(`Redirecting from page ${currentPage} to page 1 because page doesn't exist`);
+        setCurrentPage(1);
+      }
     } catch (error) {
       console.error('Error fetching logs:', error);
       setLogs([]);
       setTotalItems(0);
-    } finally {
-      setLoading(false);
+      setDataLoaded(false);
+      // If there's an error, reset to page 1
+      setCurrentPage(1);
     }
   };
 
@@ -75,16 +85,39 @@ const Logs = () => {
   };
 
   // Pagination
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
   const paginate = (pageNumber) => {
-    if (pageNumber > 0 && pageNumber <= Math.ceil(totalItems / itemsPerPage)) {
+    console.log(`Attempting to navigate to page ${pageNumber}, totalPages: ${totalPages}, totalItems: ${totalItems}, dataLoaded: ${dataLoaded}`); // Debug log
+    
+    // Don't allow navigation if data isn't loaded yet
+    if (!dataLoaded) {
+      console.log('Data not loaded yet, ignoring pagination');
+      return;
+    }
+    
+    // Ensure we don't navigate to invalid pages
+    if (pageNumber > 0 && pageNumber <= totalPages && totalPages > 0) {
       setCurrentPage(pageNumber);
+    } else if (pageNumber > totalPages && totalPages > 0) {
+      // If trying to go beyond the last page, go to the last page
+      console.log(`Page ${pageNumber} is beyond totalPages ${totalPages}, redirecting to last page`);
+      setCurrentPage(totalPages);
+    } else if (pageNumber < 1) {
+      // If trying to go below page 1, go to page 1
+      console.log(`Page ${pageNumber} is below 1, redirecting to page 1`);
+      setCurrentPage(1);
+    } else {
+      console.log(`Invalid page navigation: pageNumber=${pageNumber}, totalPages=${totalPages}, totalItems=${totalItems}`);
     }
   };
 
   // Effect hooks
   useEffect(() => {
-    fetchLogs();
-  }, [currentPage, itemsPerPage, searchTerm, sortConfig]);
+    // Only fetch if we have valid pagination parameters
+    if (currentPage > 0 && itemsPerPage > 0) {
+      fetchLogsData();
+    }
+  }, [currentPage, itemsPerPage, searchTerm, sortConfig, fetchLogs]);
 
   // Get activity style
   const getActivityStyle = (activity) => {
@@ -110,6 +143,27 @@ const Logs = () => {
     <div className="space-y-6 p-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold text-white">System Logs</h1>
+        <button
+          onClick={fetchLogsData}
+          disabled={loading.logs}
+          className="flex items-center gap-2 bg-twitch hover:bg-twitch/80 disabled:bg-gray-600 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg transition-colors"
+          title="Refresh logs"
+        >
+          <svg 
+            className={`w-4 h-4 ${loading.logs ? 'animate-spin' : ''}`} 
+            fill="none" 
+            stroke="currentColor" 
+            viewBox="0 0 24 24"
+          >
+            <path 
+              strokeLinecap="round" 
+              strokeLinejoin="round" 
+              strokeWidth="2" 
+              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" 
+            />
+          </svg>
+          {loading.logs ? 'Refreshing...' : 'Refresh'}
+        </button>
       </div>
 
       {/* Filters and Search */}
@@ -154,7 +208,7 @@ const Logs = () => {
 
       {/* Logs Table */}
       <div className="bg-gray-900 rounded-lg overflow-hidden border border-gray-800">
-        {loading ? (
+        {loading.logs ? (
           <div className="flex justify-center items-center py-20">
             <ClipLoader color="#9147ff" size={40} />
           </div>
@@ -274,8 +328,8 @@ const Logs = () => {
                   <div className="flex-1 flex justify-between sm:hidden">
                     <button
                       onClick={() => paginate(currentPage - 1)}
-                      disabled={currentPage === 1}
-                      className={`relative inline-flex items-center px-4 py-2 text-sm font-medium rounded-md ${currentPage === 1
+                      disabled={currentPage === 1 || !dataLoaded}
+                      className={`relative inline-flex items-center px-4 py-2 text-sm font-medium rounded-md ${currentPage === 1 || !dataLoaded
                         ? 'bg-gray-800 text-gray-400 cursor-not-allowed'
                         : 'text-white bg-twitch hover:bg-twitch/80'
                         }`}
@@ -284,8 +338,8 @@ const Logs = () => {
                     </button>
                     <button
                       onClick={() => paginate(currentPage + 1)}
-                      disabled={currentPage === Math.ceil(totalItems / itemsPerPage)}
-                      className={`relative inline-flex items-center px-4 py-2 text-sm font-medium rounded-md ${currentPage === Math.ceil(totalItems / itemsPerPage)
+                      disabled={currentPage === totalPages || !dataLoaded}
+                      className={`relative inline-flex items-center px-4 py-2 text-sm font-medium rounded-md ${currentPage === totalPages || !dataLoaded
                         ? 'bg-gray-800 text-gray-400 cursor-not-allowed'
                         : 'text-white bg-twitch hover:bg-twitch/80'
                         }`}
@@ -297,17 +351,17 @@ const Logs = () => {
                     <div>
                       <p className="text-sm text-gray-400">
                         Showing <span className="font-medium text-white">
-                          {Math.min(itemsPerPage, totalItems)}
+                          {Math.min(itemsPerPage, logs.length)}
                         </span> of{' '}
-                        <span className="font-medium text-white">{totalItems}</span> logs
+                        <span className="font-medium text-white">{totalItems}</span> results
                       </p>
                     </div>
                     <div>
                       <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
                         <button
                           onClick={() => paginate(currentPage - 1)}
-                          disabled={currentPage === 1}
-                          className={`relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-700 text-sm font-medium ${currentPage === 1
+                          disabled={currentPage === 1 || !dataLoaded}
+                          className={`relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-700 text-sm font-medium ${currentPage === 1 || !dataLoaded
                             ? 'bg-gray-800 text-gray-400 cursor-not-allowed'
                             : 'text-gray-300 hover:bg-gray-800'
                             }`}
@@ -317,16 +371,16 @@ const Logs = () => {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
                           </svg>
                         </button>
-                        {[...Array(Math.ceil(totalItems / itemsPerPage))].map((_, index) => {
+                        {totalPages > 0 && [...Array(totalPages)].map((_, index) => {
                           const pageNumber = index + 1;
                           const isCurrentPage = pageNumber === currentPage;
                           const isNearCurrentPage =
                             Math.abs(pageNumber - currentPage) <= 1 ||
                             pageNumber === 1 ||
-                            pageNumber === Math.ceil(totalItems / itemsPerPage);
+                            pageNumber === totalPages;
 
                           if (!isNearCurrentPage) {
-                            if (pageNumber === 2 || pageNumber === Math.ceil(totalItems / itemsPerPage) - 1) {
+                            if (pageNumber === 2 || pageNumber === totalPages - 1) {
                               return (
                                 <span
                                   key={pageNumber}
@@ -354,8 +408,8 @@ const Logs = () => {
                         })}
                         <button
                           onClick={() => paginate(currentPage + 1)}
-                          disabled={currentPage === Math.ceil(totalItems / itemsPerPage)}
-                          className={`relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-700 text-sm font-medium ${currentPage === Math.ceil(totalItems / itemsPerPage)
+                          disabled={currentPage === totalPages || !dataLoaded}
+                          className={`relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-700 text-sm font-medium ${currentPage === totalPages || !dataLoaded
                             ? 'bg-gray-800 text-gray-400 cursor-not-allowed'
                             : 'text-gray-300 hover:bg-gray-800'
                             }`}

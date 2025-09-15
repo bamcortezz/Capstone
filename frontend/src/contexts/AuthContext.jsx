@@ -204,6 +204,9 @@ export const AuthProvider = ({ children }) => {
       setUser(null);
       clearTokenRefresh();
       
+      // Clear any cached data (this will be handled by the HistoryProvider)
+      // The HistoryProvider will listen to user changes and clear cache when user becomes null
+      
       await Swal.fire({
         position: 'top-end',
         icon: 'success',

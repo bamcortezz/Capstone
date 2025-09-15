@@ -3,6 +3,7 @@ import { ClipLoader } from 'react-spinners';
 import Swal from 'sweetalert2';
 import axios from 'axios';
 import { useAuth } from '../../../contexts/AuthContext';
+import { useAdmin } from '../../../contexts/AdminContext';
 
 // API URL
 const API_URL = import.meta.env.VITE_API_URL;
@@ -74,6 +75,8 @@ const EditUserModal = ({ user, onClose, onSave }) => {
           errorMessage = 'Authentication required';
         } else if (error.response.status === 403) {
           errorMessage = 'Admin privileges required';
+        } else if (error.response.data && error.response.data.detail) {
+          errorMessage = error.response.data.detail;
         } else if (error.response.data && error.response.data.error) {
           errorMessage = error.response.data.error;
         }
@@ -217,8 +220,7 @@ const EditUserModal = ({ user, onClose, onSave }) => {
 
 const Users = () => {
   const { getAuthHeaders } = useAuth();
-  const [users, setUsers] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { users, loading, fetchUsers, updateUserInCache, refreshAllData } = useAdmin();
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [searchTerm, setSearchTerm] = useState('');
@@ -233,45 +235,9 @@ const Users = () => {
   };
 
   useEffect(() => {
-    // Fetch users from the API
-    const fetchUsers = async () => {
-      try {
-        const response = await axios.get(`${API_URL}/api/admin/users`, {
-          headers: getAuthHeaders()
-        });
-        setUsers(response.data);
-      } catch (error) {
-        console.error('Error fetching users:', error);
-        let errorMessage = 'Failed to load users';
-        if (error.response) {
-          if (error.response.status === 401) {
-            errorMessage = 'Authentication required';
-          } else if (error.response.status === 403) {
-            errorMessage = 'Admin privileges required';
-          } else if (error.response.data && error.response.data.error) {
-            errorMessage = error.response.data.error;
-          }
-        }
-        Swal.fire({
-          position: 'top-end',
-          title: 'Error',
-          text: errorMessage,
-          icon: 'error',
-          toast: true,
-          timerProgressBar: true,
-          showConfirmButton: false,
-          timer: 3000,
-          background: '#18181b',
-          color: '#fff',
-          confirmButtonColor: '#9147ff'
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
-
+    // Load users using the context (will use cache if available)
     fetchUsers();
-  }, []);
+  }, [fetchUsers]);
 
   // Sorting function
   const handleSort = (key) => {
@@ -333,9 +299,8 @@ const Users = () => {
 
   // Handle save user after edit
   const handleSaveUser = (updatedUser) => {
-    setUsers(users.map(user =>
-      user._id === updatedUser._id ? updatedUser : user
-    ));
+    // Update the user in the cache
+    updateUserInCache(updatedUser);
     setEditingUser(null);
   };
 
@@ -344,6 +309,27 @@ const Users = () => {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold text-white">Users Management</h1>
+        <button
+          onClick={refreshAllData}
+          disabled={loading.users}
+          className="flex items-center gap-2 bg-twitch hover:bg-twitch/80 disabled:bg-gray-600 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg transition-colors"
+          title="Refresh all data"
+        >
+          <svg 
+            className={`w-4 h-4 ${loading.users ? 'animate-spin' : ''}`} 
+            fill="none" 
+            stroke="currentColor" 
+            viewBox="0 0 24 24"
+          >
+            <path 
+              strokeLinecap="round" 
+              strokeLinejoin="round" 
+              strokeWidth="2" 
+              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" 
+            />
+          </svg>
+          {loading.users ? 'Refreshing...' : 'Refresh'}
+        </button>
       </div>
 
       {/* Filters and Search */}
@@ -397,7 +383,7 @@ const Users = () => {
 
       {/* Users Table */}
       <div className="bg-gray-900 rounded-lg overflow-hidden border border-gray-800">
-        {loading ? (
+        {loading.users ? (
           <div className="flex justify-center items-center py-20">
             <ClipLoader color="#9147ff" size={40} />
           </div>

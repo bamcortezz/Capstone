@@ -21,6 +21,8 @@ import ProtectedNavigationRoute from "./components/ProtectedNavigationRoute"
 import useBackendStatus from "./hooks/useBackendStatus"
 import { AuthProvider, useAuth } from "./contexts/AuthContext"
 import { AnalyzeProvider } from "./contexts/AnalyzeContext"
+import { HistoryProvider } from "./contexts/HistoryContext"
+import { AdminProvider } from "./contexts/AdminContext"
 import AdminRoute from "./components/admin/AdminRoute"
 import { io } from "socket.io-client";
 
@@ -160,9 +162,13 @@ function App() {
   return (
     <Router>
       <AuthProvider>
-        <AnalyzeProvider>
-          <AppContent />
-        </AnalyzeProvider>
+        <HistoryProvider>
+          <AdminProvider>
+            <AnalyzeProvider>
+              <AppContent />
+            </AnalyzeProvider>
+          </AdminProvider>
+        </HistoryProvider>
       </AuthProvider>
     </Router>
   );

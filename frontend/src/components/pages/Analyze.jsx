@@ -4,6 +4,7 @@ import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
 import Swal from 'sweetalert2';
 import { useAuth } from '../../contexts/AuthContext';
 import { useAnalyze } from '../../contexts/AnalyzeContext';
+import { useHistory } from '../../contexts/HistoryContext';
 import { useNavigationBlock } from '../../hooks/useNavigationBlock';
 import { FixedSizeList as List } from 'react-window';
 import ConnectionStatusModal from '../ConnectionStatusModal';
@@ -129,6 +130,7 @@ const ChatRow = ({ index, style, data }) => {
 
 const Analyze = () => {
   const { user, getAuthHeaders, ensureValidToken } = useAuth();
+  const { addAnalysis } = useHistory();
   const {
     isConnected,
     currentChannel,
@@ -234,6 +236,22 @@ const Analyze = () => {
       if (!response.ok) {
         throw new Error(data.error || 'Failed to save analysis');
       }
+      
+      // Add the new analysis to the history cache
+      const newAnalysis = {
+        _id: data.history_id,
+        streamer_name: currentChannel,
+        total_chats: messages.length,
+        sentiment_count: sentimentCounts,
+        top_positive: getTopContributors('positive'),
+        top_negative: getTopContributors('negative'),
+        top_neutral: getTopContributors('neutral'),
+        duration: elapsed,
+        created_at: new Date().toISOString(),
+        user_id: user._id
+      };
+      addAnalysis(newAnalysis);
+      
       return true;
     } catch (error) {
       console.error('Save failed:', error);
@@ -367,6 +385,22 @@ const Analyze = () => {
       if (!response.ok) {
         throw new Error(data.error || 'Failed to save analysis');
       }
+      
+      // Add the new analysis to the history cache
+      const newAnalysis = {
+        _id: data.history_id,
+        streamer_name: currentChannel,
+        total_chats: messages.length,
+        sentiment_count: sentimentCounts,
+        top_positive: getTopContributors('positive'),
+        top_negative: getTopContributors('negative'),
+        top_neutral: getTopContributors('neutral'),
+        duration: elapsed,
+        created_at: new Date().toISOString(),
+        user_id: user._id
+      };
+      addAnalysis(newAnalysis);
+      
       await Swal.fire({
         title: 'Saved!',
         text: 'Analysis has been saved successfully',

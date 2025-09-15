@@ -54,16 +54,113 @@ const Settings = () => {
 
   const handleProfileSave = async () => {
     try {
-      // Validate required fields
-      if (!profileForm.first_name.trim() || !profileForm.last_name.trim() || !profileForm.email.trim()) {
+      // Validate required fields with specific messages
+      if (!profileForm.first_name.trim()) {
         await Swal.fire({
           icon: 'error',
-          title: 'Required Fields',
-          text: 'Please fill in all required fields',
+          title: 'First Name Required',
+          text: 'Please enter your first name',
           toast: true,
           position: 'top-end',
           showConfirmButton: false,
-          timer: 1000,
+          timer: 2000,
+          timerProgressBar: true,
+          background: '#18181b',
+          color: '#fff'
+        });
+        return;
+      }
+
+      if (!profileForm.last_name.trim()) {
+        await Swal.fire({
+          icon: 'error',
+          title: 'Last Name Required',
+          text: 'Please enter your last name',
+          toast: true,
+          position: 'top-end',
+          showConfirmButton: false,
+          timer: 2000,
+          timerProgressBar: true,
+          background: '#18181b',
+          color: '#fff'
+        });
+        return;
+      }
+
+      if (!profileForm.email.trim()) {
+        await Swal.fire({
+          icon: 'error',
+          title: 'Email Required',
+          text: 'Please enter your email address',
+          toast: true,
+          position: 'top-end',
+          showConfirmButton: false,
+          timer: 2000,
+          timerProgressBar: true,
+          background: '#18181b',
+          color: '#fff'
+        });
+        return;
+      }
+
+      // Validate name lengths
+      if (profileForm.first_name.trim().length < 2) {
+        await Swal.fire({
+          icon: 'error',
+          title: 'Invalid First Name',
+          text: 'First name must be at least 2 characters long',
+          toast: true,
+          position: 'top-end',
+          showConfirmButton: false,
+          timer: 2000,
+          timerProgressBar: true,
+          background: '#18181b',
+          color: '#fff'
+        });
+        return;
+      }
+
+      if (profileForm.last_name.trim().length < 2) {
+        await Swal.fire({
+          icon: 'error',
+          title: 'Invalid Last Name',
+          text: 'Last name must be at least 2 characters long',
+          toast: true,
+          position: 'top-end',
+          showConfirmButton: false,
+          timer: 2000,
+          timerProgressBar: true,
+          background: '#18181b',
+          color: '#fff'
+        });
+        return;
+      }
+
+      if (profileForm.first_name.trim().length > 50) {
+        await Swal.fire({
+          icon: 'error',
+          title: 'Invalid First Name',
+          text: 'First name must not exceed 50 characters',
+          toast: true,
+          position: 'top-end',
+          showConfirmButton: false,
+          timer: 2000,
+          timerProgressBar: true,
+          background: '#18181b',
+          color: '#fff'
+        });
+        return;
+      }
+
+      if (profileForm.last_name.trim().length > 50) {
+        await Swal.fire({
+          icon: 'error',
+          title: 'Invalid Last Name',
+          text: 'Last name must not exceed 50 characters',
+          toast: true,
+          position: 'top-end',
+          showConfirmButton: false,
+          timer: 2000,
           timerProgressBar: true,
           background: '#18181b',
           color: '#fff'
@@ -81,7 +178,7 @@ const Settings = () => {
           toast: true,
           position: 'top-end',
           showConfirmButton: false,
-          timer: 1000,
+          timer: 2000,
           timerProgressBar: true,
           background: '#18181b',
           color: '#fff'
@@ -113,7 +210,7 @@ const Settings = () => {
         toast: true,
         position: 'top-end',
         showConfirmButton: false,
-        timer: 1000,
+        timer: 2000,
         timerProgressBar: true,
         background: '#18181b',
         color: '#fff'
