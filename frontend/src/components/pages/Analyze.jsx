@@ -88,7 +88,9 @@ const ChatRow = ({ index, style, data }) => {
       ? 'text-green-400'
       : msg.sentiment === 'negative'
         ? 'text-red-400'
-        : 'text-yellow-400';
+        : msg.sentiment === 'neutral'
+          ? 'text-yellow-400'
+          : 'text-gray-400';
   return (
     <div
       style={style}
@@ -113,10 +115,12 @@ const ChatRow = ({ index, style, data }) => {
           ? 'text-green-400'
           : msg.sentiment === 'negative'
             ? 'text-red-400'
-            : 'text-yellow-400'
+            : msg.sentiment === 'neutral'
+              ? 'text-yellow-400'
+              : 'text-gray-400'
           }`}
       >
-        {msg.sentiment}
+        {msg.sentiment || 'Unknown'}
       </span>
     </div>
   );

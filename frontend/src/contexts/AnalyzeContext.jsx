@@ -29,22 +29,25 @@ export const AnalyzeProvider = ({ children }) => {
       setMessages((prev) => [...prev, msg]);
 
       // Use functional updates to avoid stale closure issues
-      setSentimentCounts((prev) => ({
-        ...prev,
-        [msg.sentiment]: (prev[msg.sentiment] || 0) + 1
-      }));
+      // Only process sentiment if it exists
+      if (msg.sentiment) {
+        setSentimentCounts((prev) => ({
+          ...prev,
+          [msg.sentiment]: (prev[msg.sentiment] || 0) + 1
+        }));
 
-      setUserSentiments((prev) => {
-        const updated = { ...prev };
-        if (!updated[msg.sentiment]) {
-          updated[msg.sentiment] = {};
-        }
-        updated[msg.sentiment] = {
-          ...updated[msg.sentiment],
-          [msg.username]: (updated[msg.sentiment][msg.username] || 0) + 1
-        };
-        return updated;
-      });
+        setUserSentiments((prev) => {
+          const updated = { ...prev };
+          if (!updated[msg.sentiment]) {
+            updated[msg.sentiment] = {};
+          }
+          updated[msg.sentiment] = {
+            ...updated[msg.sentiment],
+            [msg.username]: (updated[msg.sentiment][msg.username] || 0) + 1
+          };
+          return updated;
+        });
+      }
     }
   }, []); // Remove dependencies to avoid stale closures
 
@@ -200,7 +203,7 @@ export const AnalyzeProvider = ({ children }) => {
 
   const getFilteredMessages = useCallback((selectedFilter) => {
     if (selectedFilter === 'All') return messages;
-    return messages.filter(msg => msg.sentiment.toLowerCase() === selectedFilter.toLowerCase());
+    return messages.filter(msg => msg.sentiment && msg.sentiment.toLowerCase() === selectedFilter.toLowerCase());
   }, [messages]);
 
   return (
