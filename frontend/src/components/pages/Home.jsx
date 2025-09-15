@@ -18,7 +18,7 @@ const Home = () => {
             <div className="flex justify-center gap-4 mt-10">
               <Link
                 to="/analyze"
-                className="px-6 py-3 bg-twitch hover:bg-twitch-dark text-white font-medium rounded transition-colors"
+                className="px-6 py-3 bg-twitch hover:bg-twitch-dark text-white font-medium rounded transition-colors cursor-pointer"
               >
                 Start Analyzing
               </Link>

@@ -108,7 +108,7 @@ const ForgotPassword = () => {
                     type="submit"
                     disabled={isLoading}
                     className={`w-full py-3 rounded-lg font-medium transition-colors flex items-center justify-center ${
-                      isLoading ? 'bg-gray-600 cursor-not-allowed' : 'bg-twitch hover:bg-twitch-dark text-white'
+                      isLoading ? 'bg-gray-600 cursor-not-allowed' : 'bg-twitch hover:bg-twitch-dark text-white cursor-pointer'
                     }`}
                   >
                     {isLoading ? (
@@ -139,7 +139,7 @@ const ForgotPassword = () => {
                         setEmail("");
                         setEmailSent(false);
                       }}
-                      className="px-6 py-2 rounded-lg bg-twitch hover:bg-twitch-dark text-white font-medium transition-colors"
+                      className="px-6 py-2 rounded-lg bg-twitch hover:bg-twitch-dark text-white font-medium transition-colors cursor-pointer"
                     >
                       Try with a different email
                     </button>
@@ -150,7 +150,7 @@ const ForgotPassword = () => {
               <div className="mt-6 text-center">
                 <p className="text-gray-400">
                   Remember your password?{" "}
-                  <Link to="/login" className="text-twitch hover:text-twitch-dark font-medium">
+                  <Link to="/login" className="text-twitch hover:text-twitch-dark font-medium cursor-pointer">
                     Sign in
                   </Link>
                 </p>

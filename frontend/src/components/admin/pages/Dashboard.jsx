@@ -33,7 +33,7 @@ const Dashboard = () => {
         <button
           onClick={refreshAllData}
           disabled={loading.userStats || loading.commentsStats || loading.usageStats}
-          className="flex items-center gap-2 bg-twitch hover:bg-twitch/80 disabled:bg-gray-600 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg transition-colors"
+          className="flex items-center gap-2 bg-twitch hover:bg-twitch/80 disabled:bg-gray-600 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg transition-colors cursor-pointer"
           title="Refresh all data"
         >
           <svg 

@@ -566,7 +566,7 @@ const Analyze = () => {
                 disabled={isAnalyzing}
                 className={`px-6 py-3 rounded-lg font-medium transition-colors flex items-center justify-center ${isAnalyzing
                   ? 'bg-gray-600 cursor-not-allowed'
-                  : 'bg-twitch hover:bg-twitch-dark text-white'
+                  : 'bg-twitch hover:bg-twitch-dark text-white cursor-pointer'
                   }`}
               >
                 {isAnalyzing ? (
@@ -702,7 +702,7 @@ const Analyze = () => {
                       <button
                         key={filter}
                         onClick={() => setSelectedFilter(filter)}
-                        className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${selectedFilter === filter
+                        className={`px-3 py-1 rounded-md text-sm font-medium transition-colors cursor-pointer ${selectedFilter === filter
                           ? 'bg-twitch text-white'
                           : 'text-gray-400 hover:text-twitch hover:bg-gray-900'
                           }`}
@@ -721,7 +721,7 @@ const Analyze = () => {
                           setIsDisconnecting(false);
                         }
                       }}
-                      className="px-4 py-1.5 rounded-md bg-red-600 hover:bg-red-700 text-white text-sm font-semibold transition-colors shadow disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto"
+                      className="px-4 py-1.5 rounded-md bg-red-600 hover:bg-red-700 text-white text-sm font-semibold transition-colors shadow disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto cursor-pointer"
                       disabled={isDisconnecting}
                     >
                       {isDisconnecting ? 'Disconnecting...' : 'Disconnect'}
@@ -767,7 +767,7 @@ const Analyze = () => {
                 {showScrollButton && (
                   <button
                     onClick={scrollToBottom}
-                    className="absolute bottom-6 left-1/2 transform -translate-x-1/2 bg-twitch hover:bg-twitch-dark text-white rounded-full p-3 shadow-lg transition-all duration-200 hover:scale-105 z-10"
+                    className="absolute bottom-6 left-1/2 transform -translate-x-1/2 bg-twitch hover:bg-twitch-dark text-white rounded-full p-3 shadow-lg transition-all duration-200 hover:scale-105 z-10 cursor-pointer"
                     title="Scroll to Bottom"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">

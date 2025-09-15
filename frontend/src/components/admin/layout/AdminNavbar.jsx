@@ -9,7 +9,7 @@ const AdminNavbar = ({ onMenuClick }) => {
         <div className="h-full max-w-[1600px] mx-auto flex items-center justify-between">
           {/* Left - Logo and Brand */}
           <div className="flex items-center">
-            <Link to="/admin/dashboard" className="flex items-center space-x-3 text-white text-3xl font-bold tracking-tight">
+            <Link to="/admin/dashboard" className="flex items-center space-x-3 text-white text-3xl font-bold tracking-tight cursor-pointer">
               <span>
                 Twitch <span className="text-twitch">Insight</span>
               </span>
@@ -19,7 +19,7 @@ const AdminNavbar = ({ onMenuClick }) => {
           {/* Right - Hamburger */}
           <button
             onClick={onMenuClick}
-            className="text-gray-400 hover:text-white focus:outline-none p-2 rounded-lg hover:bg-gray-800/50 transition-colors"
+            className="text-gray-400 hover:text-white focus:outline-none p-2 rounded-lg hover:bg-gray-800/50 transition-colors cursor-pointer"
             aria-label="Toggle Sidebar"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">

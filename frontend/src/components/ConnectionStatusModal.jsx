@@ -142,20 +142,20 @@ const ConnectionStatusModal = ({ isAnalyzing, isSaving, onSaveAnalysis, onDiscar
                 className={`flex-1 text-white font-medium py-2 px-4 rounded-lg transition-colors ${
                   isSaving 
                     ? 'bg-gray-600 cursor-not-allowed' 
-                    : 'bg-green-600 hover:bg-green-700'
+                    : 'bg-green-600 hover:bg-green-700 cursor-pointer'
                 }`}
               >
                 {isSaving ? 'Saving...' : 'Save Analysis'}
               </button>
               <button
                 onClick={handleDiscardAnalysis}
-                className="flex-1 bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-lg transition-colors"
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-lg transition-colors cursor-pointer"
               >
                 Discard
               </button>
               <button
                 onClick={handleReconnect}
-                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors"
+                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors cursor-pointer"
               >
                 Retry Connection
               </button>

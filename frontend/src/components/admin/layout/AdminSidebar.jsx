@@ -69,7 +69,7 @@ const AdminSidebar = ({ isOpen, onClose, isMobile }) => {
       {isMobile && (
         <div 
           onClick={onClose}
-          className={`fixed inset-0 bg-black/70 backdrop-blur-sm transition-opacity duration-300 ${
+          className={`fixed inset-0 bg-black/70 backdrop-blur-sm transition-opacity duration-300 cursor-pointer ${
             isOpen ? 'opacity-100 z-40' : 'opacity-0 pointer-events-none -z-10'
           }`}
           aria-hidden="true"
@@ -90,7 +90,7 @@ const AdminSidebar = ({ isOpen, onClose, isMobile }) => {
             </h2>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-white p-2 rounded-lg hover:bg-gray-800/50 transition-colors"
+              className="text-gray-400 hover:text-white p-2 rounded-lg hover:bg-gray-800/50 transition-colors cursor-pointer"
               aria-label="Close sidebar"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -107,7 +107,7 @@ const AdminSidebar = ({ isOpen, onClose, isMobile }) => {
               key={item.path}
               to={item.path}
               onClick={isMobile ? onClose : undefined}
-              className={getLinkClass(item.path)}
+              className={`${getLinkClass(item.path)} cursor-pointer`}
             >
               <span className="text-twitch">{item.icon}</span>
               <span>{item.name}</span>
@@ -116,7 +116,7 @@ const AdminSidebar = ({ isOpen, onClose, isMobile }) => {
           
           <button
             onClick={handleLogout}
-            className="flex items-center space-x-3 w-full px-4 py-3 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800/50 transition-all duration-200 text-lg"
+            className="flex items-center space-x-3 w-full px-4 py-3 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800/50 transition-all duration-200 text-lg cursor-pointer"
           >
             <span className="text-twitch">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

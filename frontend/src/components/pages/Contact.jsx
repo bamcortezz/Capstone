@@ -159,7 +159,7 @@ const Contact = () => {
               <div>
                 <button
                   type="submit"
-                  className="w-full bg-twitch hover:bg-twitch-dark text-white font-medium py-3 rounded transition-colors flex items-center justify-center"
+                  className="w-full bg-twitch hover:bg-twitch-dark text-white font-medium py-3 rounded transition-colors flex items-center justify-center cursor-pointer"
                   disabled={loading}
                 >
                   {loading ? (

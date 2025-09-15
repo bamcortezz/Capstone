@@ -138,7 +138,7 @@ const Sidebar = ({ isOpen, onClose, onLogout }) => {
   return (
     <>
       <div 
-        className={`fixed inset-0 bg-black/70 backdrop-blur-sm transition-opacity duration-300 ${
+        className={`fixed inset-0 bg-black/70 backdrop-blur-sm transition-opacity duration-300 cursor-pointer ${
           isOpen ? 'opacity-100 z-40' : 'opacity-0 pointer-events-none'
         }`}
         onClick={onClose}
@@ -161,7 +161,7 @@ const Sidebar = ({ isOpen, onClose, onLogout }) => {
             {/* Close Button */}
             <button 
               onClick={onClose}
-              className="text-gray-400 hover:text-white transition-colors"
+              className="text-gray-400 hover:text-white transition-colors cursor-pointer"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -203,7 +203,7 @@ const Sidebar = ({ isOpen, onClose, onLogout }) => {
                 <button
                   key={item.name}
                   onClick={item.onClick}
-                  className="text-white hover:text-twitch text-lg font-medium transition-colors flex items-center space-x-3"
+                  className="text-white hover:text-twitch text-lg font-medium transition-colors flex items-center space-x-3 cursor-pointer"
                 >
                   <span className="text-twitch">{item.icon}</span>
                   <span>{item.name}</span>
@@ -215,7 +215,7 @@ const Sidebar = ({ isOpen, onClose, onLogout }) => {
                     handleNavigation(item.path);
                     onClose();
                   }}
-                  className={getLinkClass(item.path)}
+                  className={`${getLinkClass(item.path)} cursor-pointer`}
                 >
                   <div className="flex items-center space-x-3">
                     <span className="text-twitch">{item.icon}</span>

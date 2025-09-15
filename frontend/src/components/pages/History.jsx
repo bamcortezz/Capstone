@@ -29,7 +29,7 @@ const AnalysisModal = ({ analysis, onClose }) => {
         {/* Close Button */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors"
+          className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors cursor-pointer"
         >
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
@@ -339,7 +339,7 @@ const History = () => {
                     <button
                       onClick={refreshAnalyses}
                       disabled={loading}
-                      className="flex items-center gap-2 bg-twitch hover:bg-twitch/80 disabled:bg-gray-600 disabled:cursor-not-allowed text-white px-4 py-3 rounded-lg transition-colors"
+                      className="flex items-center gap-2 bg-twitch hover:bg-twitch/80 disabled:bg-gray-600 disabled:cursor-not-allowed text-white px-4 py-3 rounded-lg transition-colors cursor-pointer"
                       title="Refresh data"
                     >
                       <svg 
@@ -429,7 +429,7 @@ const History = () => {
                         <td className="px-4 md:px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center justify-center space-x-3">
                             <button
-                              className="text-twitch hover:text-twitch/80 transition-colors p-1.5 rounded-full hover:bg-twitch/10"
+                              className="text-twitch hover:text-twitch/80 transition-colors p-1.5 rounded-full hover:bg-twitch/10 cursor-pointer"
                               onClick={() => setSelectedAnalysis(analysis)}
                               title="View Analysis"
                             >
@@ -439,7 +439,7 @@ const History = () => {
                               </svg>
                             </button>
                             <button
-                              className="text-green-500 hover:text-green-400 transition-colors p-1.5 rounded-full hover:bg-green-500/10"
+                              className="text-green-500 hover:text-green-400 transition-colors p-1.5 rounded-full hover:bg-green-500/10 cursor-pointer"
                               onClick={(e) => handleDownloadPDF(analysis._id, e)}
                               title="Download PDF"
                             >
@@ -448,7 +448,7 @@ const History = () => {
                               </svg>
                             </button>
                             <button
-                              className="text-red-500 hover:text-red-400 transition-colors p-1.5 rounded-full hover:bg-red-500/10"
+                              className="text-red-500 hover:text-red-400 transition-colors p-1.5 rounded-full hover:bg-red-500/10 cursor-pointer"
                               onClick={(e) => handleDelete(analysis._id, e)}
                               title="Delete Analysis"
                             >
@@ -485,7 +485,7 @@ const History = () => {
                         disabled={currentPage === 1}
                         className={`relative inline-flex items-center px-3 py-2 rounded-l-md border border-gray-700 text-sm font-medium ${currentPage === 1
                           ? 'bg-gray-800 text-gray-400 cursor-not-allowed'
-                          : 'text-gray-300 hover:bg-gray-800'
+                          : 'text-gray-300 hover:bg-gray-800 cursor-pointer'
                           }`}
                       >
                         <span className="sr-only">Previous</span>
@@ -519,7 +519,7 @@ const History = () => {
                           <button
                             key={pageNumber}
                             onClick={() => paginate(pageNumber)}
-                            className={`relative inline-flex items-center px-4 py-2 border border-gray-700 text-sm font-medium ${isCurrentPage
+                            className={`relative inline-flex items-center px-4 py-2 border border-gray-700 text-sm font-medium cursor-pointer ${isCurrentPage
                               ? 'z-10 bg-twitch text-white border-twitch'
                               : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
                               }`}
@@ -533,7 +533,7 @@ const History = () => {
                         disabled={currentPage === totalPages}
                         className={`relative inline-flex items-center px-3 py-2 rounded-r-md border border-gray-700 text-sm font-medium ${currentPage === totalPages
                           ? 'bg-gray-800 text-gray-400 cursor-not-allowed'
-                          : 'text-gray-300 hover:bg-gray-800'
+                          : 'text-gray-300 hover:bg-gray-800 cursor-pointer'
                           }`}
                       >
                         <span className="sr-only">Next</span>

@@ -222,7 +222,7 @@ const Register = () => {
                     <button
                       type="button"
                       onClick={togglePasswordVisibility}
-                      className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-white focus:outline-none">
+                      className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-white focus:outline-none cursor-pointer">
                       {showPassword ? (
                         <svg
                           xmlns="http://www.w3.org/2000/svg"
@@ -285,7 +285,7 @@ const Register = () => {
                     <button
                       type="button"
                       onClick={toggleConfirmPasswordVisibility}
-                      className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-white focus:outline-none">
+                      className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-white focus:outline-none cursor-pointer">
                       {showConfirmPassword ? (
                         <svg
                           xmlns="http://www.w3.org/2000/svg"
@@ -341,14 +341,14 @@ const Register = () => {
                     I agree to the
                     <button
                       type="button"
-                      className="text-twitch underline hover:text-twitch-dark focus:outline-none"
+                      className="text-twitch underline hover:text-twitch-dark focus:outline-none cursor-pointer"
                       onClick={() => setShowPolicy(true)}>
                       Privacy Policy
                     </button>
                     and
                     <button
                       type="button"
-                      className="text-twitch underline hover:text-twitch-dark focus:outline-none"
+                      className="text-twitch underline hover:text-twitch-dark focus:outline-none cursor-pointer"
                       onClick={() => setShowAgreement(true)}>
                       User Agreement
                     </button>
@@ -363,7 +363,7 @@ const Register = () => {
                     ${
                       !agreed || isLoading
                         ? "bg-gray-600 cursor-not-allowed text-gray-300"
-                        : "bg-twitch hover:bg-twitch-dark text-white"
+                        : "bg-twitch hover:bg-twitch-dark text-white cursor-pointer"
                     }
                   `}>
                   {isLoading ? (
@@ -385,7 +385,7 @@ const Register = () => {
             {/* Close Button */}
             <button
               onClick={() => setShowPolicy(false)}
-              className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors"
+              className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors cursor-pointer"
               aria-label="Close">
               <svg
                 className="w-6 h-6"
@@ -603,7 +603,7 @@ const Register = () => {
             {/* Close Button */}
             <button
               onClick={() => setShowAgreement(false)}
-              className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors"
+              className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors cursor-pointer"
               aria-label="Close">
               <svg
                 className="w-6 h-6"

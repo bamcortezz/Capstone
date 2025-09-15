@@ -144,7 +144,7 @@ const Login = () => {
                     <button
                       type="button"
                       onClick={togglePasswordVisibility}
-                      className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-white focus:outline-none">
+                      className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-white focus:outline-none cursor-pointer">
                       {showPassword ? (
                         <svg
                           xmlns="http://www.w3.org/2000/svg"
@@ -189,7 +189,7 @@ const Login = () => {
                   className={`w-full py-3 rounded-lg font-medium transition-colors flex items-center justify-center ${
                     isLoading
                       ? "bg-gray-600 cursor-not-allowed"
-                      : "bg-twitch hover:bg-twitch-dark text-white"
+                      : "bg-twitch hover:bg-twitch-dark text-white cursor-pointer"
                   }`}>
                   {isLoading ? (
                     <ClipLoader size={24} color="#9146FF" />
@@ -201,7 +201,7 @@ const Login = () => {
                 <div className="flex items-center justify-center mt-4">
                   <Link
                     to="/forgot-password"
-                    className="text-sm text-twitch hover:text-twitch">
+                    className="text-sm text-twitch hover:text-twitch cursor-pointer">
                     Forgot password?
                   </Link>
                 </div>
