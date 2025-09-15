@@ -8,7 +8,7 @@ import Swal from 'sweetalert2';
 const API_URL = import.meta.env.VITE_API_URL;
 
 const Dashboard = () => {
-  const { user } = useAuth();
+  const { user, getAuthHeaders } = useAuth();
   const [userStats, setUserStats] = useState({ total: 0, active: 0 });
   const [commentsStats, setCommentsStats] = useState({ total: 0 });
   const [usageStats, setUsageStats] = useState({ total: 0 });
@@ -18,7 +18,7 @@ const Dashboard = () => {
     const fetchUserStats = async () => {
       try {
         const response = await axios.get(`${API_URL}/api/admin/users/count`, {
-          withCredentials: true
+          headers: getAuthHeaders()
         });
         setUserStats(response.data);
       } catch (error) {
@@ -49,7 +49,7 @@ const Dashboard = () => {
     const fetchCommentsStats = async () => {
       try {
         const response = await axios.get(`${API_URL}/api/admin/comments/count`, {
-          withCredentials: true
+          headers: getAuthHeaders()
         });
         setCommentsStats(response.data);
       } catch (error) {
@@ -61,7 +61,7 @@ const Dashboard = () => {
     const fetchUsageStats = async () => {
       try {
         const response = await axios.get(`${API_URL}/api/admin/usage/count`, {
-          withCredentials: true
+          headers: getAuthHeaders()
         });
         setUsageStats(response.data);
       } catch (error) {

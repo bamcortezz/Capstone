@@ -2,12 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { ClipLoader } from 'react-spinners';
 import Swal from 'sweetalert2';
 import axios from 'axios';
+import { useAuth } from '../../../contexts/AuthContext';
 
 // API URL
 const API_URL = import.meta.env.VITE_API_URL;
 
 // Edit User Modal Component
 const EditUserModal = ({ user, onClose, onSave }) => {
+  const { getAuthHeaders } = useAuth();
   const [formData, setFormData] = useState({
     first_name: '',
     last_name: '',
@@ -45,7 +47,7 @@ const EditUserModal = ({ user, onClose, onSave }) => {
 
     try {
       const response = await axios.put(`${API_URL}/api/admin/users/${user._id}`, formData, {
-        withCredentials: true
+        headers: getAuthHeaders()
       });
 
       if (response.status === 200) {
@@ -214,6 +216,7 @@ const EditUserModal = ({ user, onClose, onSave }) => {
 };
 
 const Users = () => {
+  const { getAuthHeaders } = useAuth();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
@@ -234,7 +237,7 @@ const Users = () => {
     const fetchUsers = async () => {
       try {
         const response = await axios.get(`${API_URL}/api/admin/users`, {
-          withCredentials: true
+          headers: getAuthHeaders()
         });
         setUsers(response.data);
       } catch (error) {

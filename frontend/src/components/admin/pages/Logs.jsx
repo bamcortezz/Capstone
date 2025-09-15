@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { ClipLoader } from 'react-spinners';
 import axios from 'axios';
+import { useAuth } from '../../../contexts/AuthContext';
 
 // API URL
 const API_URL = import.meta.env.VITE_API_URL;
 
 const Logs = () => {
+  const { getAuthHeaders } = useAuth();
   // State management
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -34,7 +36,7 @@ const Logs = () => {
           sortField: sortConfig.key,
           sortDirection: sortConfig.direction
         },
-        withCredentials: true
+        headers: getAuthHeaders()
       });
 
       setLogs(response.data.logs || []);
