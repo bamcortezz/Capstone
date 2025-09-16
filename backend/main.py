@@ -452,7 +452,8 @@ async def login(credentials: dict):
         
         # Log user login activity
         try:
-            await add_log(mongo_db, str(user['_id']), 'Logged in')
+            user_name = f"{user['first_name']} {user['last_name']}"
+            await add_log(mongo_db, str(user['_id']), 'Logged in', user_name=user_name)
         except Exception as log_error:
             # Don't fail the login if logging fails
             pass
@@ -819,11 +820,13 @@ async def save_analysis_history(history_data: dict, current_user: dict = Depends
         history_id = await save_analysis(mongo_db, history_data)
         
         # Log the analysis activity
+        user_name = f"{current_user['first_name']} {current_user['last_name']}"
         await add_log(
             mongo_db, 
             current_user_id, 
             'Saved an Analysis', 
-            f"Channel: {history_data['streamer_name']}, Messages: {history_data['total_chats']}"
+            f"Channel: {history_data['streamer_name']}, Messages: {history_data['total_chats']}",
+            user_name=user_name
         )
         
         return {
@@ -865,11 +868,13 @@ async def get_history_by_id_endpoint(history_id: str, current_user: dict = Depen
         history['user_id'] = str(history['user_id'])
         
         # Log the view activity
+        user_name = f"{current_user['first_name']} {current_user['last_name']}"
         await add_log(
             mongo_db, 
             str(current_user['_id']), 
             'Viewed analysis', 
-            f"Channel: {history.get('streamer_name', 'Unknown')}"
+            f"Channel: {history.get('streamer_name', 'Unknown')}",
+            user_name=user_name
         )
         
         return history
@@ -1055,11 +1060,13 @@ async def generate_analysis_pdf(history_id: str, current_user: dict = Depends(ge
         buffer.close()
 
         # Log the PDF download
+        user_name = f"{current_user['first_name']} {current_user['last_name']}"
         await add_log(
             mongo_db,
             str(current_user['_id']),
             'Downloaded analysis PDF',
-            f"Channel: {history.get('streamer_name', 'Unknown')}"
+            f"Channel: {history.get('streamer_name', 'Unknown')}",
+            user_name=user_name
         )
 
         # Create the response
@@ -1458,11 +1465,13 @@ async def update_user(user_id: str, user_data: dict, admin_user: dict = Depends(
             if changes:
                 details += f" - Changes: {'; '.join(changes)}"
                 
+            admin_name = f"{admin_user['first_name']} {admin_user['last_name']}"
             await add_log(
                 mongo_db,
                 str(admin_user['_id']),
                 'Updated user profile',
-                details
+                details,
+                user_name=admin_name
             )
                 
             return updated_user
@@ -1579,11 +1588,13 @@ async def log_analysis_start(log_data: dict, current_user: dict = Depends(get_cu
         
         # Log the activity with error handling
         try:
+            user_name = f"{current_user['first_name']} {current_user['last_name']}"
             log_id = await add_log(
                 mongo_db, 
                 str(current_user['_id']), 
                 'Started an analysis', 
-                f"Channel: {streamer}"
+                f"Channel: {streamer}",
+                user_name=user_name
             )
             
             if log_id:
@@ -1720,11 +1731,13 @@ async def delete_account(delete_data: dict, current_user: dict = Depends(get_cur
             raise HTTPException(status_code=500, detail='Failed to deactivate account')
         
         # Log the account deactivation
+        user_name = f"{current_user['first_name']} {current_user['last_name']}"
         await add_log(
             mongo_db,
             str(current_user['_id']),
             'Account deactivated',
-            'User account was deactivated (soft delete)'
+            'User account was deactivated (soft delete)',
+            user_name=user_name
         )
         
         return {'message': 'Account deactivated successfully'}

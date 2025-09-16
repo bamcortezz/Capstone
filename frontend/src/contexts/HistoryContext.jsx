@@ -32,7 +32,8 @@ export const HistoryProvider = ({ children }) => {
     }
 
     // If cache is valid and we're not forcing refresh, return cached data
-    if (isCacheValid() && !forceRefresh && analyses.length > 0) {
+    // Note: We should return cached data even if it's empty (analyses.length === 0)
+    if (isCacheValid() && !forceRefresh && hasInitialLoad) {
       return analyses;
     }
 
@@ -98,11 +99,11 @@ export const HistoryProvider = ({ children }) => {
 
   // Get analyses with automatic loading if needed
   const getAnalyses = useCallback(async () => {
-    if (isCacheValid() && analyses.length > 0) {
+    if (isCacheValid() && hasInitialLoad) {
       return analyses;
     }
     return await fetchAnalyses();
-  }, [isCacheValid, analyses, fetchAnalyses]);
+  }, [isCacheValid, hasInitialLoad, analyses, fetchAnalyses]);
 
   // Clear cache (useful for logout)
   const clearCache = useCallback(() => {

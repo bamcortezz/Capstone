@@ -6,18 +6,20 @@ async def create_logs_schema(db: AsyncIOMotorDatabase):
     """Create logs schema and indexes"""
     try:
         await db.logs.create_index('user_id')
+        await db.logs.create_index('user_name')
         await db.logs.create_index('created_at')
     except Exception as e:
         # Logs schema creation failed (critical)
         raise e
 
-async def add_log(db: AsyncIOMotorDatabase, user_id: str, activity: str, details: str = "") -> Optional[str]:
+async def add_log(db: AsyncIOMotorDatabase, user_id: str, activity: str, details: str = "", user_name: str = "") -> Optional[str]:
     """Add a log entry"""
     try:
         now = datetime.utcnow()
         
         log_doc = {
             'user_id': user_id,
+            'user_name': user_name,
             'activity': activity,
             'details': details,
             'created_at': now
@@ -52,7 +54,8 @@ async def get_logs(
         if search:
             query['$or'] = [
                 {'activity': {'$regex': search, '$options': 'i'}},
-                {'details': {'$regex': search, '$options': 'i'}}
+                {'details': {'$regex': search, '$options': 'i'}},
+                {'user_name': {'$regex': search, '$options': 'i'}}
             ]
         
         if activity:
