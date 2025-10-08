@@ -28,7 +28,7 @@ from models.user import (
     save_reset_token, validate_reset_token, reset_password,
     update_user_by_admin, is_valid_password_hash, fix_corrupted_password_hash
 )
-from models.history import create_history_schema, save_analysis, get_user_history, get_history_by_id, delete_history
+from models.history import create_history_schema, save_analysis, get_user_history, get_user_deleted_history, get_history_by_id, delete_history, restore_history
 from models.log import create_logs_schema, add_log, get_logs, clear_old_logs
 from utils.email_sender import send_otp_email, send_password_reset_email, send_contact_email
 from utils.twitch_chat import TwitchChatBot, extract_channel_name
@@ -127,8 +127,8 @@ app = FastAPI(
 if is_production:
     origins = [frontend_url]
 else:
-    origins = ["*"]
-
+    origins = ["http://localhost:5173"]
+    
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
@@ -855,6 +855,22 @@ async def get_user_analysis_history(current_user: dict = Depends(get_current_use
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/api/history/deleted")
+async def get_user_deleted_history_endpoint(current_user: dict = Depends(get_current_user)):
+    """Get user's deleted analysis history"""
+    try:
+        current_user_id = str(current_user['_id'])
+        history = await get_user_deleted_history(mongo_db, current_user_id)
+
+        for item in history:
+            item['_id'] = str(item['_id'])
+            item['user_id'] = str(item['user_id'])
+        
+        return history
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/api/history/{history_id}")
 async def get_history_by_id_endpoint(history_id: str, current_user: dict = Depends(get_current_user)):
     """Get specific history by ID"""
@@ -897,6 +913,33 @@ async def delete_history_endpoint(history_id: str, current_user: dict = Depends(
             
     except HTTPException:
         raise
+
+@app.post("/api/history/{history_id}/restore")
+async def restore_history_endpoint(history_id: str, current_user: dict = Depends(get_current_user)):
+    """Restore a deleted history item by ID"""
+    try:
+        success = await restore_history(mongo_db, history_id, str(current_user['_id']))
+        
+        if not success:
+            raise HTTPException(status_code=404, detail='Failed to restore history or history not found')
+        
+        # Log the restore activity
+        user_name = f"{current_user['first_name']} {current_user['last_name']}"
+        
+        await add_log(
+            mongo_db, 
+            str(current_user['_id']), 
+            'Restored analysis', 
+            f"History ID: {history_id}",
+            user_name=user_name
+        )
+            
+        return {'message': 'History restored successfully'}
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

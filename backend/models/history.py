@@ -1,7 +1,7 @@
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from datetime import datetime
 from bson.objectid import ObjectId
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 
 async def create_history_schema(db: AsyncIOMotorDatabase):
     """Create history schema and indexes"""
@@ -51,6 +51,19 @@ async def get_user_history(db: AsyncIOMotorDatabase, user_id: str) -> List[dict]
         # Error getting user history (critical)
         return []
 
+async def get_user_deleted_history(db: AsyncIOMotorDatabase, user_id: str) -> List[dict]:
+    """Get user's deleted analysis history"""
+    try:
+        history = []
+        async for doc in db.history.find(
+            {'user_id': user_id, 'status': 'deleted'}
+        ).sort('created_at', -1):
+            history.append(doc)
+        return history
+    except Exception as e:
+        # Error getting deleted history (critical)
+        return []
+
 async def get_history_by_id(db: AsyncIOMotorDatabase, history_id: str) -> Optional[dict]:
     """Get specific history by ID"""
     try:
@@ -69,4 +82,16 @@ async def delete_history(db: AsyncIOMotorDatabase, history_id: str, user_id: str
         return result.modified_count > 0
     except Exception as e:
         # Error deleting history (critical)
-        return False
+        raise
+
+async def restore_history(db: AsyncIOMotorDatabase, history_id: str, user_id: str) -> bool:
+    """Restore soft-deleted history by setting status back to 'active'"""
+    try:
+        result = await db.history.update_one(
+            {'_id': ObjectId(history_id), 'user_id': user_id, 'status': 'deleted'},
+            {'$set': {'status': 'active', 'updated_at': datetime.utcnow()}}
+        )
+        return result.modified_count > 0
+    except Exception as e:
+        # Error restoring history (critical)
+        raise
