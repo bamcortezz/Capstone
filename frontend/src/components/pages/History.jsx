@@ -4,6 +4,7 @@ import Swal from 'sweetalert2';
 import { ClipLoader } from 'react-spinners';
 import { useAuth } from '../../contexts/AuthContext';
 import { useHistory } from '../../contexts/HistoryContext';
+import { useNavigate } from 'react-router-dom';
 
 // API URL
 const API_URL = import.meta.env.VITE_API_URL;
@@ -153,6 +154,7 @@ const AnalysisModal = ({ analysis, onClose }) => {
 };
 
 const History = () => {
+  const navigate = useNavigate();
   const { getAuthHeaders } = useAuth();
   const { analyses, loading, getAnalyses, removeAnalysis, refreshAnalyses } = useHistory();
   const [selectedAnalysis, setSelectedAnalysis] = useState(null);
@@ -190,7 +192,7 @@ const History = () => {
 
     const result = await Swal.fire({
       title: 'Delete Analysis?',
-      text: "You won't be able to revert this!",
+      text: "Are you sure you want to delete the analysis?",
       icon: 'warning',
       showCancelButton: true,
       confirmButtonColor: '#9147ff',
@@ -303,8 +305,23 @@ const History = () => {
       <div className="relative py-6 px-6">
         <div className="max-w-7xl mx-auto">
           {analyses.length === 0 ? (
-            <div className="text-center py-8">
-              <p className="text-gray-400">No analysis history found.</p>
+            <div className="text-center py-16 bg-gray-900/50 rounded-lg border border-gray-800">
+              <div className="mx-auto w-16 h-16 mb-4 text-gray-500">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-medium text-white">No analysis history found</h3>
+              <p className="mt-1 text-gray-400 mb-6">Your analysis history will appear here</p>
+              <button
+                onClick={() => navigate('/archive')}
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-twitch hover:bg-twitch/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-twitch transition-colors"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                </svg>
+                View Archived Analyses
+              </button>
             </div>
           ) : (
             <div className="space-y-6">
@@ -356,6 +373,26 @@ const History = () => {
                         />
                       </svg>
                       {loading ? 'Refreshing...' : 'Refresh'}
+                    </button>
+                    <button
+                      onClick={() => navigate('/archive')}
+                      className="flex items-center gap-2 bg-gray-700 hover:bg-gray-600 text-white px-4 py-3 rounded-lg transition-colors cursor-pointer"
+                      title="View archived analyses"
+                    >
+                      <svg 
+                        className="w-4 h-4 md:mr-1" 
+                        fill="none" 
+                        stroke="currentColor" 
+                        viewBox="0 0 24 24"
+                      >
+                        <path 
+                          strokeLinecap="round" 
+                          strokeLinejoin="round" 
+                          strokeWidth="2" 
+                          d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" 
+                        />
+                      </svg>
+                      <span className="hidden md:inline">Trash</span>
                     </button>
                     <select
                       value={itemsPerPage}

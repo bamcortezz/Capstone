@@ -11,6 +11,7 @@ import Contact from "./components/pages/Contact"
 import About from "./components/pages/About"
 import Analyze from "./components/pages/Analyze"
 import History from "./components/pages/History"
+import ArchiveHistory from "./components/pages/ArchiveHistory"
 import Settings from "./components/pages/Settings"
 import AdminLayout from "./components/admin/layout/AdminLayout"
 import Dashboard from "./components/admin/pages/Dashboard"
@@ -98,6 +99,14 @@ const AppContent = () => {
                     element={
                       <ProtectedRoute>
                         <History />
+                      </ProtectedRoute>
+                    } 
+                  />
+                  <Route 
+                    path="/archive" 
+                    element={
+                      <ProtectedRoute>
+                        <ArchiveHistory />
                       </ProtectedRoute>
                     } 
                   />
