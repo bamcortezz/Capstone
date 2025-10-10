@@ -155,10 +155,18 @@ export const HistoryProvider = ({ children }) => {
   }, []);
 
   // Remove an analysis from the cache (called when an analysis is deleted)
-  const removeAnalysis = useCallback((analysisId) => {
-    setAnalyses(prev => prev.filter(analysis => analysis._id !== analysisId));
-    setLastFetchTime(Date.now());
-  }, []);
+  const removeAnalysis = useCallback(async (analysisId) => {
+    try {
+      // Remove from active analyses
+      setAnalyses(prev => prev.filter(analysis => analysis._id !== analysisId));
+      setLastFetchTime(0);
+      
+      // Force fetch the latest archived analyses
+      await fetchArchivedAnalyses(true);
+    } catch (error) {
+      console.error('Error in removeAnalysis:', error);
+    }
+  }, [fetchArchivedAnalyses]);
 
   // Restore an archived analysis
   const restoreAnalysis = useCallback(async (analysisId) => {

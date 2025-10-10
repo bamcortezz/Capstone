@@ -1,10 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { format } from 'date-fns';
 import Swal from 'sweetalert2';
 import { ClipLoader } from 'react-spinners';
 import { useAuth } from '../../contexts/AuthContext';
 import { useHistory } from '../../contexts/HistoryContext';
 import { useNavigate } from 'react-router-dom';
+import { Pie } from 'react-chartjs-2';
+import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
+
+// Register ChartJS components
+ChartJS.register(ArcElement, Tooltip, Legend);
 
 // API URL
 const API_URL = import.meta.env.VITE_API_URL;
@@ -20,6 +25,69 @@ function formatDuration(seconds) {
   const s = String(seconds % 60).padStart(2, '0');
   return `${h}:${m}:${s}`;
 }
+
+const SentimentPieChart = React.memo(({ sentimentCounts }) => {
+  const chartData = useMemo(() => {
+    const positive = sentimentCounts.positive || 0;
+    const neutral = sentimentCounts.neutral || 0;
+    const negative = sentimentCounts.negative || 0;
+    const total = positive + neutral + negative;
+    
+    // If no data, show a placeholder
+    if (total === 0) {
+      return {
+        labels: ['No Data'],
+        datasets: [
+          {
+            data: [1],
+            backgroundColor: ['#6B7280'],
+            borderColor: ['#4B5563'],
+            borderWidth: 1,
+          },
+        ],
+      };
+    }
+    
+    return {
+      labels: ['Positive', 'Neutral', 'Negative'],
+      datasets: [
+        {
+          data: [positive, neutral, negative],
+          backgroundColor: ['#22c55e', '#fde047', '#ef4444'],
+          borderColor: ['#16a34a', '#facc15', '#b91c1c'],
+          borderWidth: 1,
+        },
+      ],
+    };
+  }, [sentimentCounts]);
+
+  const chartOptions = useMemo(() => ({
+    plugins: {
+      legend: {
+        position: 'bottom',
+        labels: {
+          color: '#D1D5DB',
+          font: { size: 12 }
+        }
+      },
+      tooltip: {
+        callbacks: {
+          label: function(context) {
+            const label = context.label || '';
+            const value = context.parsed || 0;
+            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+            const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+            return `${label}: ${value} (${percentage}%)`;
+          }
+        }
+      }
+    },
+    maintainAspectRatio: false,
+    responsive: true
+  }), []);
+
+  return <Pie data={chartData} options={chartOptions} />;
+});
 
 const AnalysisModal = ({ analysis, onClose }) => {
   if (!analysis) return null;
@@ -62,6 +130,20 @@ const AnalysisModal = ({ analysis, onClose }) => {
 
           <div className="space-y-6">
             {/* Sentiment Overview */}
+            <div className="mb-6 bg-black/50 p-6 rounded-lg border border-gray-700">
+              <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
+                <span className="text-twitch mr-2">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                  </svg>
+                </span>
+                Sentiment Distribution
+              </h3>
+              <div className="h-64">
+                <SentimentPieChart sentimentCounts={analysis.sentiment_count} />
+              </div>
+            </div>
+            
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="bg-black/50 p-4 rounded-lg border border-gray-700">
                 <div className="flex items-center justify-between mb-2">

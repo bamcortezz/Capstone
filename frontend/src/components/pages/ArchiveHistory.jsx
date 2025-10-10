@@ -33,11 +33,12 @@ const ArchiveHistory = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [isRestoring, setIsRestoring] = useState(false);
   
-  // Fetch archived analyses on component mount
+  // Fetch archived analyses on component mount and when it becomes visible
   useEffect(() => {
     const loadArchivedAnalyses = async () => {
       try {
-        await getArchivedAnalyses();
+        // Force refresh when the component mounts or becomes visible
+        await getArchivedAnalyses(true);
       } catch (error) {
         console.error('Error loading archived analyses:', error);
         Swal.fire({
