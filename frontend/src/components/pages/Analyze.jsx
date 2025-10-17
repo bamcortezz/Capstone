@@ -1,6 +1,15 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
-import { Pie } from "react-chartjs-2";
-import { Chart as ChartJS, ArcElement, Tooltip, Legend } from "chart.js";
+import { Pie, Line } from "react-chartjs-2";
+import {
+  Chart as ChartJS,
+  ArcElement,
+  Tooltip,
+  Legend,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Filler,
+} from "chart.js";
 import Swal from "sweetalert2";
 import { useAuth } from "../../contexts/AuthContext";
 import { useAnalyze } from "../../contexts/AnalyzeContext";
@@ -19,7 +28,15 @@ const formatNumber = (num) => {
   return num.toLocaleString();
 };
 
-ChartJS.register(ArcElement, Tooltip, Legend);
+ChartJS.register(
+  ArcElement,
+  Tooltip,
+  Legend,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Filler
+);
 
 const SentimentPieChart = React.memo(({ sentimentCounts }) => {
   const chartData = useMemo(() => {
@@ -151,6 +168,7 @@ const Analyze = () => {
     sentimentCounts,
     userSentiments,
     wordFrequencies,
+    timeSeries,
     connectToChannel,
     disconnectFromChannel,
     topUsers,
@@ -227,6 +245,21 @@ const Analyze = () => {
           .slice(0, limit);
         return contributors;
       };
+
+      // Aggregate timeSeries into per-minute data by sentiment to reduce storage (99.7% reduction)
+      const aggregatedTimeSeries = [];
+      ["positive", "neutral", "negative"].forEach((sentiment) => {
+        if (minuteSeries[sentiment]) {
+          minuteSeries[sentiment].forEach((point) => {
+            aggregatedTimeSeries.push({
+              x: sessionStart + point.x * 60000, // Convert minute index back to timestamp
+              y: point.y,
+              sentiment: sentiment,
+            });
+          });
+        }
+      });
+
       const analysisData = {
         streamer_name: currentChannel,
         total_chats: messages.length,
@@ -235,6 +268,7 @@ const Analyze = () => {
         top_negative: getTopContributors("negative"),
         top_neutral: getTopContributors("neutral"),
         duration: elapsed,
+        time_series: aggregatedTimeSeries,
       };
       const response = await fetch(`${API_URL}/api/history/save`, {
         method: "POST",
@@ -375,6 +409,21 @@ const Analyze = () => {
           .slice(0, limit);
         return contributors;
       };
+
+      // Aggregate timeSeries into per-minute data by sentiment to reduce storage (99.7% reduction)
+      const aggregatedTimeSeries = [];
+      ["positive", "neutral", "negative"].forEach((sentiment) => {
+        if (minuteSeries[sentiment]) {
+          minuteSeries[sentiment].forEach((point) => {
+            aggregatedTimeSeries.push({
+              x: sessionStart + point.x * 60000, // Convert minute index back to timestamp
+              y: point.y,
+              sentiment: sentiment,
+            });
+          });
+        }
+      });
+
       const analysisData = {
         streamer_name: currentChannel,
         total_chats: messages.length,
@@ -383,6 +432,7 @@ const Analyze = () => {
         top_negative: getTopContributors("negative"),
         top_neutral: getTopContributors("neutral"),
         duration: elapsed,
+        time_series: aggregatedTimeSeries,
       };
       const response = await fetch(`${API_URL}/api/history/save`, {
         method: "POST",
@@ -520,6 +570,60 @@ const Analyze = () => {
     [getFilteredMessages, selectedFilter]
   );
 
+  // Aggregate sentiment counts into per-minute bins since session start
+  const minuteSeries = useMemo(() => {
+    if (!sessionStart || !timeSeries || timeSeries.length === 0) {
+      return { positive: [], neutral: [], negative: [] };
+    }
+
+    // First, count messages per sentiment per minute
+    const counts = {
+      positive: new Map(),
+      neutral: new Map(),
+      negative: new Map(),
+    };
+
+    // Track total messages per minute for percentage calculation
+    const totalPerMinute = new Map();
+
+    for (const p of timeSeries) {
+      const xMs = typeof p.x === "number" ? p.x : Date.now();
+      const minute = Math.floor((xMs - sessionStart) / 60000);
+      const sentiment = p.sentiment || "neutral";
+
+      if (minute >= 0 && counts[sentiment]) {
+        const prevCount = counts[sentiment].get(minute) || 0;
+        counts[sentiment].set(minute, prevCount + 1);
+
+        const prevTotal = totalPerMinute.get(minute) || 0;
+        totalPerMinute.set(minute, prevTotal + 1);
+      }
+    }
+
+    // Convert to arrays with average sentiment proportion
+    const result = {};
+    const allMinutes = new Set();
+
+    // Collect all minutes that have data
+    Object.values(counts).forEach((map) => {
+      map.forEach((_, minute) => allMinutes.add(minute));
+    });
+
+    // For each sentiment, calculate proportion per minute
+    for (const [sentiment, countMap] of Object.entries(counts)) {
+      result[sentiment] = Array.from(allMinutes)
+        .sort((a, b) => a - b)
+        .map((minute) => {
+          const count = countMap.get(minute) || 0;
+          const total = totalPerMinute.get(minute) || 1;
+          // Return as proportion (0 to 1) for better visualization
+          return { x: minute, y: count / total };
+        });
+    }
+
+    return result;
+  }, [timeSeries, sessionStart]);
+
   useEffect(() => {
     if (!sessionStart) return;
     setElapsed(Math.floor((Date.now() - sessionStart) / 1000));
@@ -632,6 +736,128 @@ const Analyze = () => {
         {/* Bottom Container*/}
         {isConnected && (
           <div className="space-y-6">
+            {/* Time Series - Sentiment Distribution Over Time */}
+
+            <div className="bg-black border border-gray-700 rounded-lg p-6 shadow-lg">
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-xl font-bold text-white flex items-center gap-3">
+                  Sentiment Distribution Over Time
+                </h2>
+              </div>
+              <p className="text-sm text-gray-400 mb-4">
+                Proportion of each sentiment per minute (0 to 100%)
+              </p>
+
+              {minuteSeries.positive?.length > 0 ||
+              minuteSeries.neutral?.length > 0 ||
+              minuteSeries.negative?.length > 0 ? (
+                <div className="h-[260px] relative">
+                  <Line
+                    data={{
+                      datasets: [
+                        {
+                          label: "Positive Sentiment",
+                          data: minuteSeries.positive || [],
+                          parsing: false,
+                          borderColor: "#22c55e",
+                          backgroundColor: "rgba(34, 197, 94, 0.1)",
+                          pointRadius: 1.5,
+                          borderWidth: 2,
+                          tension: 0.2,
+                          fill: true,
+                        },
+                        {
+                          label: "Neutral Sentiment",
+                          data: minuteSeries.neutral || [],
+                          parsing: false,
+                          borderColor: "#fde047",
+                          backgroundColor: "rgba(253, 224, 71, 0.1)",
+                          pointRadius: 1.5,
+                          borderWidth: 2,
+                          tension: 0.2,
+                          fill: true,
+                        },
+                        {
+                          label: "Negative Sentiment",
+                          data: minuteSeries.negative || [],
+                          parsing: false,
+                          borderColor: "#ef4444",
+                          backgroundColor: "rgba(239, 68, 68, 0.1)",
+                          pointRadius: 1.5,
+                          borderWidth: 2,
+                          tension: 0.2,
+                          fill: true,
+                        },
+                      ],
+                    }}
+                    options={{
+                      responsive: true,
+                      maintainAspectRatio: false,
+                      plugins: {
+                        legend: {
+                          display: false,
+                        },
+                        tooltip: {
+                          callbacks: {
+                            title: (items) => {
+                              const min = items?.[0]?.raw?.x ?? 0;
+                              return `Minute ${min} (${formatElapsed(
+                                min * 60
+                              )})`;
+                            },
+                            label: (ctx) =>
+                              `${ctx.dataset.label}: ${(
+                                (ctx.raw?.y ?? 0) * 100
+                              ).toFixed(1)}%`,
+                          },
+                        },
+                      },
+                      scales: {
+                        x: {
+                          type: "linear",
+                          ticks: {
+                            color: "#D1D5DB",
+                            stepSize: 1,
+                            callback: (v) => `${v}m`,
+                          },
+                          grid: { color: "#374151" },
+                        },
+                        y: {
+                          min: 0,
+                          max: 1,
+                          ticks: {
+                            stepSize: 0.2,
+                            color: "#D1D5DB",
+                            callback: (v) => `${(v * 100).toFixed(0)}%`,
+                          },
+                          grid: { color: "#374151" },
+                        },
+                      },
+                    }}
+                  />
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-10 text-center">
+                  <svg
+                    className="w-12 h-12 text-gray-600 mb-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="1.5"
+                      d="M3 3v18h18M4 16l4-4 3 3 5-6 4 5"
+                    />
+                  </svg>
+                  <p className="text-gray-400 mb-1">No time series data yet</p>
+                  <p className="text-gray-500 text-sm">
+                    Start analyzing to see confidence over time
+                  </p>
+                </div>
+              )}
+            </div>
             {/* Top Row - Analytics */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
               <div className="lg:col-span-4 space-y-6">

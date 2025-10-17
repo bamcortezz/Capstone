@@ -1,28 +1,47 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { format } from 'date-fns';
-import Swal from 'sweetalert2';
-import { ClipLoader } from 'react-spinners';
-import { useAuth } from '../../contexts/AuthContext';
-import { useHistory } from '../../contexts/HistoryContext';
-import { useNavigate } from 'react-router-dom';
-import { Pie } from 'react-chartjs-2';
-import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
+import React, { useState, useEffect, useMemo } from "react";
+import { format } from "date-fns";
+import Swal from "sweetalert2";
+import { ClipLoader } from "react-spinners";
+import { useAuth } from "../../contexts/AuthContext";
+import { useHistory } from "../../contexts/HistoryContext";
+import { useNavigate } from "react-router-dom";
+import { Pie, Line } from "react-chartjs-2";
+import {
+  Chart as ChartJS,
+  ArcElement,
+  Tooltip,
+  Legend,
+  LinearScale,
+  PointElement,
+  LineElement,
+  CategoryScale,
+  Filler,
+} from "chart.js";
 
 // Register ChartJS components
-ChartJS.register(ArcElement, Tooltip, Legend);
+ChartJS.register(
+  ArcElement,
+  Tooltip,
+  Legend,
+  LinearScale,
+  PointElement,
+  LineElement,
+  CategoryScale,
+  Filler
+);
 
 // API URL
 const API_URL = import.meta.env.VITE_API_URL;
 
 const formatNumber = (num) => {
-  if (typeof num !== 'number') return num;
+  if (typeof num !== "number") return num;
   return num.toLocaleString();
 };
 
 function formatDuration(seconds) {
-  const h = String(Math.floor(seconds / 3600)).padStart(2, '0');
-  const m = String(Math.floor((seconds % 3600) / 60)).padStart(2, '0');
-  const s = String(seconds % 60).padStart(2, '0');
+  const h = String(Math.floor(seconds / 3600)).padStart(2, "0");
+  const m = String(Math.floor((seconds % 3600) / 60)).padStart(2, "0");
+  const s = String(seconds % 60).padStart(2, "0");
   return `${h}:${m}:${s}`;
 }
 
@@ -32,61 +51,208 @@ const SentimentPieChart = React.memo(({ sentimentCounts }) => {
     const neutral = sentimentCounts.neutral || 0;
     const negative = sentimentCounts.negative || 0;
     const total = positive + neutral + negative;
-    
+
     // If no data, show a placeholder
     if (total === 0) {
       return {
-        labels: ['No Data'],
+        labels: ["No Data"],
         datasets: [
           {
             data: [1],
-            backgroundColor: ['#6B7280'],
-            borderColor: ['#4B5563'],
+            backgroundColor: ["#6B7280"],
+            borderColor: ["#4B5563"],
             borderWidth: 1,
           },
         ],
       };
     }
-    
+
     return {
-      labels: ['Positive', 'Neutral', 'Negative'],
+      labels: ["Positive", "Neutral", "Negative"],
       datasets: [
         {
           data: [positive, neutral, negative],
-          backgroundColor: ['#22c55e', '#fde047', '#ef4444'],
-          borderColor: ['#16a34a', '#facc15', '#b91c1c'],
+          backgroundColor: ["#22c55e", "#fde047", "#ef4444"],
+          borderColor: ["#16a34a", "#facc15", "#b91c1c"],
           borderWidth: 1,
         },
       ],
     };
   }, [sentimentCounts]);
 
-  const chartOptions = useMemo(() => ({
-    plugins: {
-      legend: {
-        position: 'bottom',
-        labels: {
-          color: '#D1D5DB',
-          font: { size: 12 }
-        }
+  const chartOptions = useMemo(
+    () => ({
+      plugins: {
+        legend: {
+          position: "bottom",
+          labels: {
+            color: "#D1D5DB",
+            font: { size: 12 },
+          },
+        },
+        tooltip: {
+          callbacks: {
+            label: function (context) {
+              const label = context.label || "";
+              const value = context.parsed || 0;
+              const total = context.dataset.data.reduce((a, b) => a + b, 0);
+              const percentage =
+                total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+              return `${label}: ${value} (${percentage}%)`;
+            },
+          },
+        },
       },
-      tooltip: {
-        callbacks: {
-          label: function(context) {
-            const label = context.label || '';
-            const value = context.parsed || 0;
-            const total = context.dataset.data.reduce((a, b) => a + b, 0);
-            const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
-            return `${label}: ${value} (${percentage}%)`;
-          }
-        }
-      }
-    },
-    maintainAspectRatio: false,
-    responsive: true
-  }), []);
+      maintainAspectRatio: false,
+      responsive: true,
+    }),
+    []
+  );
 
   return <Pie data={chartData} options={chartOptions} />;
+});
+
+const TimeSeriesChart = React.memo(({ timeSeries, duration }) => {
+  const minuteSeries = useMemo(() => {
+    if (!timeSeries || timeSeries.length === 0) {
+      return { positive: [], neutral: [], negative: [] };
+    }
+
+    // Group data by sentiment
+    const sentimentData = {
+      positive: [],
+      neutral: [],
+      negative: [],
+    };
+
+    // Find the earliest timestamp to calculate minute offsets
+    const startTime = Math.min(...timeSeries.map((p) => p.x));
+
+    // Group by sentiment and minute
+    const minuteBuckets = {
+      positive: new Map(),
+      neutral: new Map(),
+      negative: new Map(),
+    };
+
+    for (const point of timeSeries) {
+      const sentiment = point.sentiment || "neutral";
+      const minute = Math.floor((point.x - startTime) / 60000);
+      const yVal = typeof point.y === "number" ? point.y : 0;
+
+      if (minuteBuckets[sentiment]) {
+        minuteBuckets[sentiment].set(minute, yVal);
+      }
+    }
+
+    // Convert to arrays
+    for (const [sentiment, bucket] of Object.entries(minuteBuckets)) {
+      sentimentData[sentiment] = Array.from(bucket.entries())
+        .sort((a, b) => a[0] - b[0])
+        .map(([minute, yVal]) => ({ x: minute, y: yVal }));
+    }
+
+    return sentimentData;
+  }, [timeSeries]);
+
+  const chartData = useMemo(
+    () => ({
+      datasets: [
+        {
+          label: "Positive Sentiment",
+          data: minuteSeries.positive || [],
+          parsing: false,
+          borderColor: "#22c55e",
+          backgroundColor: "rgba(34, 197, 94, 0.1)",
+          pointRadius: 1.5,
+          borderWidth: 2,
+          tension: 0.2,
+          fill: true,
+        },
+        {
+          label: "Neutral Sentiment",
+          data: minuteSeries.neutral || [],
+          parsing: false,
+          borderColor: "#fde047",
+          backgroundColor: "rgba(253, 224, 71, 0.1)",
+          pointRadius: 1.5,
+          borderWidth: 2,
+          tension: 0.2,
+          fill: true,
+        },
+        {
+          label: "Negative Sentiment",
+          data: minuteSeries.negative || [],
+          parsing: false,
+          borderColor: "#ef4444",
+          backgroundColor: "rgba(239, 68, 68, 0.1)",
+          pointRadius: 1.5,
+          borderWidth: 2,
+          tension: 0.2,
+          fill: true,
+        },
+      ],
+    }),
+    [minuteSeries]
+  );
+
+  const chartOptions = useMemo(
+    () => ({
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          display: false,
+        },
+        tooltip: {
+          callbacks: {
+            title: (items) => {
+              const minute = items?.[0]?.raw?.x ?? 0;
+              return `Minute ${minute}`;
+            },
+            label: (ctx) =>
+              `${ctx.dataset.label}: ${((ctx.raw?.y ?? 0) * 100).toFixed(1)}%`,
+          },
+        },
+      },
+      scales: {
+        x: {
+          type: "linear",
+          ticks: {
+            stepSize: 1,
+            color: "#D1D5DB",
+            callback: (v) => `${v}m`,
+          },
+          grid: { color: "#374151" },
+        },
+        y: {
+          min: 0,
+          max: 1,
+          ticks: {
+            stepSize: 0.2,
+            color: "#D1D5DB",
+            callback: (v) => `${(v * 100).toFixed(0)}%`,
+          },
+          grid: { color: "#374151" },
+        },
+      },
+    }),
+    []
+  );
+
+  if (
+    minuteSeries.positive.length === 0 &&
+    minuteSeries.neutral.length === 0 &&
+    minuteSeries.negative.length === 0
+  ) {
+    return (
+      <div className="flex items-center justify-center py-8 text-gray-400">
+        <p>No time series data available</p>
+      </div>
+    );
+  }
+
+  return <Line data={chartData} options={chartOptions} />;
 });
 
 const AnalysisModal = ({ analysis, onClose }) => {
@@ -100,8 +266,18 @@ const AnalysisModal = ({ analysis, onClose }) => {
           onClick={onClose}
           className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors cursor-pointer"
         >
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+          <svg
+            className="w-6 h-6"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              d="M6 18L18 6M6 6l12 12"
+            />
           </svg>
         </button>
 
@@ -111,30 +287,95 @@ const AnalysisModal = ({ analysis, onClose }) => {
           <div className="text-center mb-8">
             <h2 className="text-3xl font-bold text-white mb-2 flex items-center justify-center">
               <span className="text-twitch mr-3">
-                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                <svg
+                  className="w-8 h-8"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                  />
                 </svg>
               </span>
               {analysis.streamer_name}
             </h2>
             <div className="flex flex-col md:flex-row items-center justify-center gap-2 md:gap-6 mt-2">
               <div className="flex items-center rounded px-4 py-2 text-gray-300 text-sm font-medium shadow">
-                <svg className="w-5 h-5 mr-2 text-twitch" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                <svg
+                  className="w-5 h-5 mr-2 text-twitch"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                  />
                 </svg>
                 <span>Analysis from&nbsp;</span>
-                <span className="text-white font-semibold">{format(new Date(analysis.created_at), 'MMMM d, yyyy HH:mm')}</span>
+                <span className="text-white font-semibold">
+                  {format(new Date(analysis.created_at), "MMMM d, yyyy HH:mm")}
+                </span>
               </div>
             </div>
           </div>
 
           <div className="space-y-6">
+            {/* Time Series Chart */}
+            {analysis.time_series && analysis.time_series.length > 0 && (
+              <div className="mb-6 bg-black/50 p-6 rounded-lg border border-gray-700">
+                <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
+                  <span className="text-twitch mr-2">
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"
+                      />
+                    </svg>
+                  </span>
+                  Sentiment Distribution Over Time
+                </h3>
+                <p className="text-sm text-gray-400 mb-4">
+                  Proportion of each sentiment per minute (0 to 100%)
+                </p>
+                <div className="h-64">
+                  <TimeSeriesChart
+                    timeSeries={analysis.time_series}
+                    duration={analysis.duration}
+                  />
+                </div>
+              </div>
+            )}
+
             {/* Sentiment Overview */}
             <div className="mb-6 bg-black/50 p-6 rounded-lg border border-gray-700">
               <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
                 <span className="text-twitch mr-2">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                    />
                   </svg>
                 </span>
                 Sentiment Distribution
@@ -143,7 +384,7 @@ const AnalysisModal = ({ analysis, onClose }) => {
                 <SentimentPieChart sentimentCounts={analysis.sentiment_count} />
               </div>
             </div>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="bg-black/50 p-4 rounded-lg border border-gray-700">
                 <div className="flex items-center justify-between mb-2">
@@ -176,18 +417,40 @@ const AnalysisModal = ({ analysis, onClose }) => {
               <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4">
                 <h3 className="text-xl font-semibold text-white flex items-center">
                   <span className="text-twitch mr-2">
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                    <svg
+                      className="w-6 h-6"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
+                      />
                     </svg>
                   </span>
                   AI Analysis Summary
                 </h3>
                 <div className="flex items-center mt-2 md:mt-0 md:ml-4">
-                  <svg className="w-5 h-5 mr-2 text-twitch" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  <svg
+                    className="w-5 h-5 mr-2 text-twitch"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
                   </svg>
                   <span className="text-gray-400 text-sm">Duration:&nbsp;</span>
-                  <span className="text-white font-semibold text-base">{formatDuration(analysis.duration || 0)}</span>
+                  <span className="text-white font-semibold text-base">
+                    {formatDuration(analysis.duration || 0)}
+                  </span>
                 </div>
               </div>
               <p className="text-gray-300 whitespace-pre-line text-justify">
@@ -197,32 +460,52 @@ const AnalysisModal = ({ analysis, onClose }) => {
 
             {/* Top Contributors */}
             <div className="bg-black/50 p-6 rounded-lg border border-gray-700">
-              <h3 className="text-xl font-semibold text-white mb-4">Top Contributors</h3>
+              <h3 className="text-xl font-semibold text-white mb-4">
+                Top Contributors
+              </h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <h4 className="font-medium text-green-400 mb-2">Top Positive</h4>
+                  <h4 className="font-medium text-green-400 mb-2">
+                    Top Positive
+                  </h4>
                   {analysis.top_positive.map((contributor, index) => (
                     <div key={index} className="text-sm py-1">
-                      <span className="text-twitch">{contributor.username}</span>
-                      <span className="text-gray-300">: {formatNumber(contributor.count)} messages</span>
+                      <span className="text-twitch">
+                        {contributor.username}
+                      </span>
+                      <span className="text-gray-300">
+                        : {formatNumber(contributor.count)} messages
+                      </span>
                     </div>
                   ))}
                 </div>
                 <div>
-                  <h4 className="font-medium text-yellow-400 mb-2">Top Neutral</h4>
+                  <h4 className="font-medium text-yellow-400 mb-2">
+                    Top Neutral
+                  </h4>
                   {analysis.top_neutral.map((contributor, index) => (
                     <div key={index} className="text-sm py-1">
-                      <span className="text-twitch">{contributor.username}</span>
-                      <span className="text-white">: {formatNumber(contributor.count)} messages</span>
+                      <span className="text-twitch">
+                        {contributor.username}
+                      </span>
+                      <span className="text-white">
+                        : {formatNumber(contributor.count)} messages
+                      </span>
                     </div>
                   ))}
                 </div>
                 <div>
-                  <h4 className="font-medium text-red-400 mb-2">Top Negative</h4>
+                  <h4 className="font-medium text-red-400 mb-2">
+                    Top Negative
+                  </h4>
                   {analysis.top_negative.map((contributor, index) => (
                     <div key={index} className="text-sm py-1">
-                      <span className="text-twitch">{contributor.username}</span>
-                      <span className="text-gray-300">: {formatNumber(contributor.count)} messages</span>
+                      <span className="text-twitch">
+                        {contributor.username}
+                      </span>
+                      <span className="text-gray-300">
+                        : {formatNumber(contributor.count)} messages
+                      </span>
                     </div>
                   ))}
                 </div>
@@ -238,11 +521,12 @@ const AnalysisModal = ({ analysis, onClose }) => {
 const History = () => {
   const navigate = useNavigate();
   const { getAuthHeaders } = useAuth();
-  const { analyses, loading, getAnalyses, removeAnalysis, refreshAnalyses } = useHistory();
+  const { analyses, loading, getAnalyses, removeAnalysis, refreshAnalyses } =
+    useHistory();
   const [selectedAnalysis, setSelectedAnalysis] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
     // Load analyses using the context (will use cache if available)
@@ -251,16 +535,19 @@ const History = () => {
 
   const handleItemsPerPageChange = (newItemsPerPage) => {
     setItemsPerPage(Number(newItemsPerPage));
-    setCurrentPage(1); 
+    setCurrentPage(1);
   };
 
-  const filteredAnalyses = analyses.filter(analysis =>
+  const filteredAnalyses = analyses.filter((analysis) =>
     analysis.streamer_name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = filteredAnalyses.slice(indexOfFirstItem, indexOfLastItem);
+  const currentItems = filteredAnalyses.slice(
+    indexOfFirstItem,
+    indexOfLastItem
+  );
   const totalPages = Math.ceil(filteredAnalyses.length / itemsPerPage);
 
   const paginate = (pageNumber) => {
@@ -273,28 +560,28 @@ const History = () => {
     e.stopPropagation();
 
     const result = await Swal.fire({
-      title: 'Delete Analysis?',
+      title: "Delete Analysis?",
       text: "Are you sure you want to delete the analysis?",
-      icon: 'warning',
+      icon: "warning",
       showCancelButton: true,
-      confirmButtonColor: '#9147ff',
-      cancelButtonColor: '#374151',
-      confirmButtonText: 'Yes, delete',
-      background: '#18181b',
-      color: '#fff',
-      showConfirmButton: true
+      confirmButtonColor: "#9147ff",
+      cancelButtonColor: "#374151",
+      confirmButtonText: "Yes, delete",
+      background: "#18181b",
+      color: "#fff",
+      showConfirmButton: true,
     });
 
     if (result.isConfirmed) {
       try {
         const response = await fetch(`${API_URL}/api/history/${analysisId}`, {
-          method: 'DELETE',
+          method: "DELETE",
           headers: getAuthHeaders(),
-          credentials: 'include'
+          credentials: "include",
         });
 
         if (!response.ok) {
-          throw new Error('Failed to delete analysis');
+          throw new Error("Failed to delete analysis");
         }
 
         // Remove from cache using context
@@ -304,28 +591,28 @@ const History = () => {
         }
 
         await Swal.fire({
-          title: 'Deleted!',
-          text: 'Analysis has been deleted.',
-          icon: 'success',
+          title: "Deleted!",
+          text: "Analysis has been deleted.",
+          icon: "success",
           timer: 2000,
           timerProgressBar: true,
           showConfirmButton: false,
-          position: 'top-end',
+          position: "top-end",
           toast: true,
-          confirmButtonColor: '#9147ff'
+          confirmButtonColor: "#9147ff",
         });
       } catch (error) {
-        console.error('Delete failed:', error);
+        console.error("Delete failed:", error);
         Swal.fire({
-          title: 'Error',
-          text: 'Failed to delete analysis',
-          icon: 'error',
+          title: "Error",
+          text: "Failed to delete analysis",
+          icon: "error",
           timer: 3000,
           timerProgressBar: true,
           showConfirmButton: false,
-          position: 'top-end',
+          position: "top-end",
           toast: true,
-          confirmButtonColor: '#9147ff'
+          confirmButtonColor: "#9147ff",
         });
       }
     }
@@ -335,19 +622,19 @@ const History = () => {
     e.stopPropagation();
     try {
       const response = await fetch(`${API_URL}/api/history/${analysisId}/pdf`, {
-        method: 'GET',
+        method: "GET",
         headers: getAuthHeaders(),
-        credentials: 'include'
+        credentials: "include",
       });
 
       if (!response.ok) {
-        throw new Error('Failed to download PDF');
+        throw new Error("Failed to download PDF");
       }
 
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
 
-      const link = document.createElement('a');
+      const link = document.createElement("a");
       link.href = url;
       link.download = `chat_analysis_${analysisId}.pdf`;
 
@@ -357,19 +644,19 @@ const History = () => {
 
       window.URL.revokeObjectURL(url);
     } catch (error) {
-      console.error('Download failed:', error);
+      console.error("Download failed:", error);
       Swal.fire({
-        title: 'Error',
-        text: 'Failed to download PDF',
-        icon: 'error',
+        title: "Error",
+        text: "Failed to download PDF",
+        icon: "error",
         timer: 1000,
         timerProgressBar: true,
         showConfirmButton: false,
-        position: 'top-end',
+        position: "top-end",
         toast: true,
-        background: '#18181b',
-        color: '#fff',
-        confirmButtonColor: '#9147ff'
+        background: "#18181b",
+        color: "#fff",
+        confirmButtonColor: "#9147ff",
       });
     }
   };
@@ -389,18 +676,43 @@ const History = () => {
           {analyses.length === 0 ? (
             <div className="text-center py-16 bg-gray-900/50 rounded-lg border border-gray-800">
               <div className="mx-auto w-16 h-16 mb-4 text-gray-500">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={1.5}
+                    d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                  />
                 </svg>
               </div>
-              <h3 className="text-lg font-medium text-white">No analysis history found</h3>
-              <p className="mt-1 text-gray-400 mb-6">Your analysis history will appear here</p>
+              <h3 className="text-lg font-medium text-white">
+                No analysis history found
+              </h3>
+              <p className="mt-1 text-gray-400 mb-6">
+                Your analysis history will appear here
+              </p>
               <button
-                onClick={() => navigate('/archive')}
+                onClick={() => navigate("/archive")}
                 className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-twitch hover:bg-twitch/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-twitch transition-colors"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-5 w-5 mr-2"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"
+                  />
                 </svg>
                 View Archived Analyses
               </button>
@@ -441,37 +753,37 @@ const History = () => {
                       className="flex items-center gap-2 bg-twitch hover:bg-twitch/80 disabled:bg-gray-600 disabled:cursor-not-allowed text-white px-4 py-3 rounded-lg transition-colors cursor-pointer"
                       title="Refresh data"
                     >
-                      <svg 
-                        className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} 
-                        fill="none" 
-                        stroke="currentColor" 
+                      <svg
+                        className={`w-4 h-4 ${loading ? "animate-spin" : ""}`}
+                        fill="none"
+                        stroke="currentColor"
                         viewBox="0 0 24 24"
                       >
-                        <path 
-                          strokeLinecap="round" 
-                          strokeLinejoin="round" 
-                          strokeWidth="2" 
-                          d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" 
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="2"
+                          d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
                         />
                       </svg>
-                      {loading ? 'Refreshing...' : 'Refresh'}
+                      {loading ? "Refreshing..." : "Refresh"}
                     </button>
                     <button
-                      onClick={() => navigate('/archive')}
+                      onClick={() => navigate("/archive")}
                       className="flex items-center gap-2 bg-gray-700 hover:bg-gray-600 text-white px-4 py-3 rounded-lg transition-colors cursor-pointer"
                       title="View archived analyses"
                     >
-                      <svg 
-                        className="w-4 h-4 md:mr-1" 
-                        fill="none" 
-                        stroke="currentColor" 
+                      <svg
+                        className="w-4 h-4 md:mr-1"
+                        fill="none"
+                        stroke="currentColor"
                         viewBox="0 0 24 24"
                       >
-                        <path 
-                          strokeLinecap="round" 
-                          strokeLinejoin="round" 
-                          strokeWidth="2" 
-                          d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" 
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="2"
+                          d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"
                         />
                       </svg>
                       <span className="hidden md:inline">Trash</span>
@@ -496,22 +808,40 @@ const History = () => {
                 <table className="min-w-full divide-y divide-gray-700">
                   <thead className="bg-gray-900">
                     <tr>
-                      <th scope="col" className="px-4 md:px-6 py-4 text-left text-sm font-semibold text-white w-16 md:w-20">
+                      <th
+                        scope="col"
+                        className="px-4 md:px-6 py-4 text-left text-sm font-semibold text-white w-16 md:w-20"
+                      >
                         #
                       </th>
-                      <th scope="col" className="px-4 md:px-6 py-4 text-left text-sm font-semibold text-white">
+                      <th
+                        scope="col"
+                        className="px-4 md:px-6 py-4 text-left text-sm font-semibold text-white"
+                      >
                         Streamer
                       </th>
-                      <th scope="col" className="px-4 md:px-6 py-4 text-left text-sm font-semibold text-white">
+                      <th
+                        scope="col"
+                        className="px-4 md:px-6 py-4 text-left text-sm font-semibold text-white"
+                      >
                         Date
                       </th>
-                      <th scope="col" className="px-4 md:px-6 py-4 text-left text-sm font-semibold text-white">
+                      <th
+                        scope="col"
+                        className="px-4 md:px-6 py-4 text-left text-sm font-semibold text-white"
+                      >
                         Duration
                       </th>
-                      <th scope="col" className="px-4 md:px-6 py-4 text-left text-sm font-semibold text-white">
+                      <th
+                        scope="col"
+                        className="px-4 md:px-6 py-4 text-left text-sm font-semibold text-white"
+                      >
                         Messages
                       </th>
-                      <th scope="col" className="px-4 md:px-6 py-4 text-center text-sm font-semibold text-white w-20 md:w-24">
+                      <th
+                        scope="col"
+                        className="px-4 md:px-6 py-4 text-center text-sm font-semibold text-white w-20 md:w-24"
+                      >
                         Actions
                       </th>
                     </tr>
@@ -534,11 +864,16 @@ const History = () => {
                         </td>
                         <td className="px-4 md:px-6 py-4 whitespace-nowrap">
                           <div className="text-sm text-gray-300">
-                            {format(new Date(analysis.created_at), 'MMM d, yyyy HH:mm')}
+                            {format(
+                              new Date(analysis.created_at),
+                              "MMM d, yyyy HH:mm"
+                            )}
                           </div>
                         </td>
                         <td className="px-4 md:px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-300">{formatDuration(analysis.duration || 0)}</div>
+                          <div className="text-sm text-gray-300">
+                            {formatDuration(analysis.duration || 0)}
+                          </div>
                         </td>
                         <td className="px-4 md:px-6 py-4 whitespace-nowrap">
                           <div className="text-sm text-twitch">
@@ -552,18 +887,45 @@ const History = () => {
                               onClick={() => setSelectedAnalysis(analysis)}
                               title="View Analysis"
                             >
-                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                              <svg
+                                className="w-5 h-5"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth="2"
+                                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                                />
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth="2"
+                                  d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                                />
                               </svg>
                             </button>
                             <button
                               className="text-green-500 hover:text-green-400 transition-colors p-1.5 rounded-full hover:bg-green-500/10 cursor-pointer"
-                              onClick={(e) => handleDownloadPDF(analysis._id, e)}
+                              onClick={(e) =>
+                                handleDownloadPDF(analysis._id, e)
+                              }
                               title="Download PDF"
                             >
-                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                              <svg
+                                className="w-5 h-5"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth="2"
+                                  d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                                />
                               </svg>
                             </button>
                             <button
@@ -571,8 +933,18 @@ const History = () => {
                               onClick={(e) => handleDelete(analysis._id, e)}
                               title="Delete Analysis"
                             >
-                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              <svg
+                                className="w-5 h-5"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth="2"
+                                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                />
                               </svg>
                             </button>
                           </div>
@@ -588,13 +960,19 @@ const History = () => {
                 <div className="flex flex-col md:flex-row items-center justify-between gap-4">
                   <div>
                     <p className="text-sm text-gray-400 text-center md:text-left">
-                      Showing <span className="font-medium text-white">
+                      Showing{" "}
+                      <span className="font-medium text-white">
                         {indexOfFirstItem + 1}
-                      </span> to{' '}
+                      </span>{" "}
+                      to{" "}
                       <span className="font-medium text-white">
                         {Math.min(indexOfLastItem, filteredAnalyses.length)}
-                      </span> of{' '}
-                      <span className="font-medium text-white">{formatNumber(filteredAnalyses.length)}</span> results
+                      </span>{" "}
+                      of{" "}
+                      <span className="font-medium text-white">
+                        {formatNumber(filteredAnalyses.length)}
+                      </span>{" "}
+                      results
                     </p>
                   </div>
                   <div>
@@ -602,14 +980,25 @@ const History = () => {
                       <button
                         onClick={() => paginate(currentPage - 1)}
                         disabled={currentPage === 1}
-                        className={`relative inline-flex items-center px-3 py-2 rounded-l-md border border-gray-700 text-sm font-medium ${currentPage === 1
-                          ? 'bg-gray-800 text-gray-400 cursor-not-allowed'
-                          : 'text-gray-300 hover:bg-gray-800 cursor-pointer'
-                          }`}
+                        className={`relative inline-flex items-center px-3 py-2 rounded-l-md border border-gray-700 text-sm font-medium ${
+                          currentPage === 1
+                            ? "bg-gray-800 text-gray-400 cursor-not-allowed"
+                            : "text-gray-300 hover:bg-gray-800 cursor-pointer"
+                        }`}
                       >
                         <span className="sr-only">Previous</span>
-                        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
+                        <svg
+                          className="h-5 w-5"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth="2"
+                            d="M15 19l-7-7 7-7"
+                          />
                         </svg>
                       </button>
                       {[...Array(totalPages)].map((_, index) => {
@@ -621,7 +1010,10 @@ const History = () => {
                           pageNumber === totalPages;
 
                         if (!isNearCurrentPage) {
-                          if (pageNumber === 2 || pageNumber === totalPages - 1) {
+                          if (
+                            pageNumber === 2 ||
+                            pageNumber === totalPages - 1
+                          ) {
                             return (
                               <span
                                 key={pageNumber}
@@ -638,10 +1030,11 @@ const History = () => {
                           <button
                             key={pageNumber}
                             onClick={() => paginate(pageNumber)}
-                            className={`relative inline-flex items-center px-4 py-2 border border-gray-700 text-sm font-medium cursor-pointer ${isCurrentPage
-                              ? 'z-10 bg-twitch text-white border-twitch'
-                              : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
-                              }`}
+                            className={`relative inline-flex items-center px-4 py-2 border border-gray-700 text-sm font-medium cursor-pointer ${
+                              isCurrentPage
+                                ? "z-10 bg-twitch text-white border-twitch"
+                                : "bg-gray-800 text-gray-300 hover:bg-gray-700"
+                            }`}
                           >
                             {pageNumber}
                           </button>
@@ -650,14 +1043,25 @@ const History = () => {
                       <button
                         onClick={() => paginate(currentPage + 1)}
                         disabled={currentPage === totalPages}
-                        className={`relative inline-flex items-center px-3 py-2 rounded-r-md border border-gray-700 text-sm font-medium ${currentPage === totalPages
-                          ? 'bg-gray-800 text-gray-400 cursor-not-allowed'
-                          : 'text-gray-300 hover:bg-gray-800 cursor-pointer'
-                          }`}
+                        className={`relative inline-flex items-center px-3 py-2 rounded-r-md border border-gray-700 text-sm font-medium ${
+                          currentPage === totalPages
+                            ? "bg-gray-800 text-gray-400 cursor-not-allowed"
+                            : "text-gray-300 hover:bg-gray-800 cursor-pointer"
+                        }`}
                       >
                         <span className="sr-only">Next</span>
-                        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+                        <svg
+                          className="h-5 w-5"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth="2"
+                            d="M9 5l7 7-7 7"
+                          />
                         </svg>
                       </button>
                     </nav>

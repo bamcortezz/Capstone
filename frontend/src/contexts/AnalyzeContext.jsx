@@ -43,6 +43,7 @@ export const AnalyzeProvider = ({ children }) => {
     neutral: {},
     negative: {},
   });
+  const [timeSeries, setTimeSeries] = useState([]); // [{ x: msEpoch, y: confidence }]
   const processedMessages = useRef(new Set());
   const [sessionStart, setSessionStart] = useState(null);
   const sessionStartRef = useRef(null);
@@ -328,6 +329,21 @@ export const AnalyzeProvider = ({ children }) => {
             return updated;
           });
         }
+
+        // Append to time series for line chart (x: timestamp ms, y: confidence 0-1, sentiment: type)
+        const rawTs = msg.timestamp;
+        const tsMs = rawTs ? Date.parse(rawTs) : Date.now();
+        const y = typeof msg.confidence === "number" ? msg.confidence : 0;
+        if (!Number.isNaN(tsMs)) {
+          setTimeSeries((prev) => [
+            ...prev,
+            {
+              x: tsMs,
+              y,
+              sentiment: msg.sentiment,
+            },
+          ]);
+        }
       }
     }
   }, []); // Remove dependencies to avoid stale closures
@@ -343,6 +359,7 @@ export const AnalyzeProvider = ({ children }) => {
       setMessages([]);
       setSentimentCounts({ positive: 0, neutral: 0, negative: 0 });
       setUserSentiments({ positive: {}, neutral: {}, negative: {} });
+      setTimeSeries([]);
 
       const headers = {
         "Content-Type": "application/json",
@@ -416,6 +433,7 @@ export const AnalyzeProvider = ({ children }) => {
               setUserSentiments({ positive: {}, neutral: {}, negative: {} });
               setWordFrequencies({ positive: {}, neutral: {}, negative: {} });
               processedMessages.current.clear();
+              setTimeSeries([]);
             }
           } catch (error) {
             console.error("Error processing WebSocket message:", error);
@@ -464,6 +482,7 @@ export const AnalyzeProvider = ({ children }) => {
     setUserSentiments({ positive: {}, neutral: {}, negative: {} });
     setWordFrequencies({ positive: {}, neutral: {}, negative: {} });
     processedMessages.current.clear();
+    setTimeSeries([]);
 
     setSessionStart(null);
     sessionStartRef.current = null;
@@ -536,6 +555,7 @@ export const AnalyzeProvider = ({ children }) => {
         sentimentCounts,
         userSentiments,
         wordFrequencies,
+        timeSeries,
         connectToChannel,
         disconnectFromChannel,
         topUsers,

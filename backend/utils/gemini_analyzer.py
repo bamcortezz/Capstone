@@ -2,8 +2,121 @@ import os
 from dotenv import load_dotenv
 import google.generativeai as genai
 import json
+from datetime import datetime
 
 load_dotenv()
+
+def analyze_time_series(time_series, duration_seconds):
+    """
+    Analyze time series data to extract temporal sentiment distribution patterns.
+    
+    Args:
+        time_series: List of dicts with 'x' (timestamp ms), 'y' (proportion 0-1), and 'sentiment' (positive/neutral/negative)
+        duration_seconds: Total duration of the stream in seconds
+    
+    Returns:
+        String with formatted temporal insights
+    """
+    if not time_series or len(time_series) < 2:
+        return "- Insufficient data for temporal analysis"
+    
+    try:
+        # Separate data by sentiment
+        sentiment_data = {
+            'positive': [],
+            'neutral': [],
+            'negative': []
+        }
+        
+        for point in time_series:
+            sentiment = point.get('sentiment', 'neutral')
+            y_val = point.get('y')
+            if isinstance(y_val, (int, float)) and sentiment in sentiment_data:
+                sentiment_data[sentiment].append(y_val)
+        
+        # Check if we have valid data
+        total_points = sum(len(values) for values in sentiment_data.values())
+        if total_points == 0:
+            return "- No valid distribution data available"
+        
+        # Analyze each sentiment separately
+        sentiment_insights = {}
+        for sentiment, values in sentiment_data.items():
+            if not values:
+                continue
+                
+            avg_proportion = sum(values) / len(values)
+            
+            # Analyze trend (first half vs second half)
+            if len(values) >= 2:
+                mid_point = len(values) // 2
+                first_half = sum(values[:mid_point]) / mid_point if mid_point > 0 else avg_proportion
+                second_half = sum(values[mid_point:]) / (len(values) - mid_point) if mid_point < len(values) else avg_proportion
+                trend = second_half - first_half
+            else:
+                trend = 0
+            
+            sentiment_insights[sentiment] = {
+                'avg': avg_proportion,
+                'count': len(values),
+                'trend': trend
+            }
+        
+        # Calculate overall statistics
+        all_values = [v for values in sentiment_data.values() for v in values]
+        avg_distribution = sum(all_values) / len(all_values)
+        max_proportion = max(all_values)
+        min_proportion = min(all_values)
+        
+        # Calculate volatility (how much sentiment distribution varies over time)
+        variance = sum((x - avg_distribution) ** 2 for x in all_values) / len(all_values)
+        volatility = variance ** 0.5
+        
+        # Determine volatility level
+        if volatility < 0.1:
+            volatility_level = "very stable"
+        elif volatility < 0.15:
+            volatility_level = "stable"
+        elif volatility < 0.25:
+            volatility_level = "moderate"
+        else:
+            volatility_level = "volatile"
+        
+        # Format insights with sentiment-specific data
+        insights_parts = [
+            f"- Average Sentiment Distribution: {avg_distribution:.1%} per sentiment category",
+            f"- Distribution Range: {min_proportion:.1%} to {max_proportion:.1%}",
+            f"- Sentiment Consistency: {volatility_level} (volatility: {volatility:.2f})",
+            ""
+        ]
+        
+        # Add sentiment-specific insights
+        insights_parts.append("Sentiment Distribution by Type:")
+        for sentiment in ['positive', 'neutral', 'negative']:
+            if sentiment in sentiment_insights:
+                data = sentiment_insights[sentiment]
+                trend_desc = "steady"
+                if abs(data['trend']) >= 0.05:
+                    if data['trend'] > 0:
+                        trend_desc = f"increasing (+{data['trend']:.1%})"
+                    else:
+                        trend_desc = f"decreasing ({data['trend']:.1%})"
+                
+                sentiment_cap = sentiment.capitalize()
+                insights_parts.append(
+                    f"  • {sentiment_cap}: {data['avg']:.1%} average proportion per minute, {data['count']} data points, {trend_desc}"
+                )
+        
+        insights_parts.append("")
+        insights_parts.append(f"- Total Data Points: {total_points} minute-level samples over {duration_seconds // 60:.0f} minutes")
+        
+        return "\n        ".join(insights_parts)
+        
+    except Exception as e:
+        print(f"Error analyzing time series: {e}")
+        import traceback
+        traceback.print_exc()
+        return f"- Time series analysis error: {str(e)}"
 
 def generate_analysis_summary(analysis_data):
     try:
@@ -24,7 +137,11 @@ def generate_analysis_summary(analysis_data):
         duration_val = analysis_data.get('duration', 0)
         formatted_duration = format_duration(duration_val)
 
-        # Create the analysis content
+        # Analyze time series data for temporal patterns
+        time_series = analysis_data.get('time_series', [])
+        time_series_insights = analyze_time_series(time_series, duration_val)
+
+        # Create the analysis content with enhanced time series insights
         content = f"""
         Generate a concise summary of the following Twitch chat analysis:
 
@@ -42,11 +159,22 @@ def generate_analysis_summary(analysis_data):
         - Most Neutral: {', '.join([c['username'] for c in analysis_data['top_neutral'][:5]])}
         - Most Negative: {', '.join([c['username'] for c in analysis_data['top_negative'][:5]])}
 
+        Temporal Analysis (Sentiment Distribution Over Time):
+        {time_series_insights}
+
         Instructions:
         1. Calculate and include the percentage distribution of positive, neutral, and negative messages.
-        2. Provide a brief insight or takeaway for the streamer based on this sentiment data.
-        3. Keep the tone informative and the summary short and clear.
-        4. Based on the results of the TwitchInsights using the RoBERTa Model, act as an  professional AI live stream coach and give simple and personalized suggestions to help the Twitch streamer engage and enhance their livestream performance.
+        2. Analyze the temporal patterns to identify how sentiment proportions changed throughout the stream.
+        3. Provide insights on whether positive, neutral, or negative sentiments increased or decreased over time.
+        4. Comment on sentiment consistency - did one sentiment dominate, or was there balanced distribution?
+        5. Identify key moments where sentiment distribution shifted significantly (e.g., from 30% positive to 60% positive).
+        6. Based on the RoBERTa Model results and temporal distribution patterns, act as a professional AI live stream coach.
+        7. Give specific, actionable suggestions to help the Twitch streamer:
+           - Capitalize on moments when positive sentiment increased
+           - Address causes of negative sentiment spikes
+           - Maintain engagement during neutral-heavy periods
+           - Enhance overall livestream performance based on sentiment trends
+        8. Keep the tone informative, encouraging, and the summary concise but insightful.
         """
 
         print("Creating Gemini model...")

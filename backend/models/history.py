@@ -27,6 +27,7 @@ async def save_analysis(db: AsyncIOMotorDatabase, analysis_data: dict) -> str:
             'top_neutral': analysis_data['top_neutral'],
             'duration': analysis_data.get('duration', 0),
             'summary': analysis_data.get('summary', ''),
+            'time_series': analysis_data.get('time_series', []),
             'status': 'active',
             'created_at': now,
             'updated_at': now
