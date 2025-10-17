@@ -32,7 +32,7 @@ def generate_analysis_summary(analysis_data):
         Total Messages: {analysis_data['total_chats']}
         Duration: {formatted_duration}
 
-        Sentiment Breakdown:
+        Sentiment Breakdown: 
         - Positive: {analysis_data['sentiment_count']['positive']}
         - Neutral: {analysis_data['sentiment_count']['neutral']}
         - Negative: {analysis_data['sentiment_count']['negative']}
@@ -46,7 +46,7 @@ def generate_analysis_summary(analysis_data):
         1. Calculate and include the percentage distribution of positive, neutral, and negative messages.
         2. Provide a brief insight or takeaway for the streamer based on this sentiment data.
         3. Keep the tone informative and the summary short and clear.
-        4. Make an insight of the chat, what the streamer is doing well and what they could improve on.
+        4. Based on the results of the TwitchInsights using the RoBERTa Model, act as an  professional AI live stream coach and give simple and personalized suggestions to help the Twitch streamer engage and enhance their livestream performance.
         """
 
         print("Creating Gemini model...")
