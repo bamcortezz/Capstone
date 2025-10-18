@@ -141,40 +141,42 @@ def generate_analysis_summary(analysis_data):
         time_series = analysis_data.get('time_series', [])
         time_series_insights = analyze_time_series(time_series, duration_val)
 
+        # Calculate percentages for cleaner presentation
+        total_messages = analysis_data['total_chats']
+        positive_pct = (analysis_data['sentiment_count']['positive'] / total_messages * 100) if total_messages > 0 else 0
+        neutral_pct = (analysis_data['sentiment_count']['neutral'] / total_messages * 100) if total_messages > 0 else 0
+        negative_pct = (analysis_data['sentiment_count']['negative'] / total_messages * 100) if total_messages > 0 else 0
+
         # Create the analysis content with enhanced time series insights
         content = f"""
-        Generate a concise summary of the following Twitch chat analysis:
+        Generate a professional analysis summary for the following Twitch stream data:
 
+        STREAM DATA:
         Channel: {analysis_data['streamer_name']}
-        Total Messages: {analysis_data['total_chats']}
         Duration: {formatted_duration}
+        Total Messages: {total_messages:,}
 
-        Sentiment Breakdown: 
-        - Positive: {analysis_data['sentiment_count']['positive']}
-        - Neutral: {analysis_data['sentiment_count']['neutral']}
-        - Negative: {analysis_data['sentiment_count']['negative']}
+        SENTIMENT DISTRIBUTION:
+        - Positive: {analysis_data['sentiment_count']['positive']:,} ({positive_pct:.1f}%)
+        - Neutral: {analysis_data['sentiment_count']['neutral']:,} ({neutral_pct:.1f}%)
+        - Negative: {analysis_data['sentiment_count']['negative']:,} ({negative_pct:.1f}%)
 
-        Top Chatters:
-        - Most Positive: {', '.join([c['username'] for c in analysis_data['top_positive'][:5]])}
-        - Most Neutral: {', '.join([c['username'] for c in analysis_data['top_neutral'][:5]])}
-        - Most Negative: {', '.join([c['username'] for c in analysis_data['top_negative'][:5]])}
+        TOP CONTRIBUTORS:
+        - Most Positive: {', '.join([c['username'] for c in analysis_data['top_positive'][:3]]) if analysis_data['top_positive'] else 'None'}
+        - Most Neutral: {', '.join([c['username'] for c in analysis_data['top_neutral'][:3]]) if analysis_data['top_neutral'] else 'None'}
+        - Most Negative: {', '.join([c['username'] for c in analysis_data['top_negative'][:3]]) if analysis_data['top_negative'] else 'None'}
 
-        Temporal Analysis (Sentiment Distribution Over Time):
+        TEMPORAL ANALYSIS:
         {time_series_insights}
 
-        Instructions:
-        1. Calculate and include the percentage distribution of positive, neutral, and negative messages.
-        2. Analyze the temporal patterns to identify how sentiment proportions changed throughout the stream.
-        3. Provide insights on whether positive, neutral, or negative sentiments increased or decreased over time.
-        4. Comment on sentiment consistency - did one sentiment dominate, or was there balanced distribution?
-        5. Identify key moments where sentiment distribution shifted significantly (e.g., from 30% positive to 60% positive).
-        6. Based on the RoBERTa Model results and temporal distribution patterns, act as a professional AI live stream coach.
-        7. Give specific, actionable suggestions to help the Twitch streamer:
-           - Capitalize on moments when positive sentiment increased
-           - Address causes of negative sentiment spikes
-           - Maintain engagement during neutral-heavy periods
-           - Enhance overall livestream performance based on sentiment trends
-        8. Keep the tone informative, encouraging, and the summary concise but insightful.
+        ANALYSIS REQUIREMENTS:
+        1. Provide a concise executive summary (2-3 sentences) of overall sentiment performance
+        2. Based on the temporal data above, identify specific trends and patterns in sentiment distribution
+        3. Reference actual data points from the temporal analysis (volatility levels, trend directions, distribution ranges)
+        4. Provide 2-3 actionable recommendations based on the observed patterns
+        5. Maintain a professional, data-driven tone
+        6. Keep the summary under 150 words
+        7. Focus on insights derived from the chart data, not assumptions
         """
 
         print("Creating Gemini model...")
