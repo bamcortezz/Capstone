@@ -88,36 +88,135 @@ class SentimentAnalyzer:
                     'method': 'empty'
                 }
             
-            # First, check for Twitch-specific slang
+            # ALWAYS run both methods for better accuracy
+            # 1. Check for Twitch-specific slang
             twitch_result = self.detect_twitch_slang(text)
             
-            if twitch_result:
-                sentiment, confidence, matched_patterns = twitch_result
-                return {
-                    'sentiment': sentiment,
-                    'confidence': confidence,
-                    'text': text,
-                    'method': 'twitch_slang',
-                    'matched_patterns': matched_patterns
-                }
+            # 2. ALWAYS run RoBERTa for context understanding
+            roberta_result = self.analyzer(text)[0]
+            roberta_label = roberta_result['label']
+            roberta_score = roberta_result['score']
             
-            # If no Twitch slang detected, use RoBERTa
-            result = self.analyzer(text)[0]
-            label = result['label']
-            score = result['score']
-
             sentiment_map = {
                 'LABEL_0': 'negative',
                 'LABEL_1': 'neutral',
                 'LABEL_2': 'positive'
             }
-
-            return {
-                'sentiment': sentiment_map.get(label, label),
-                'confidence': score,
-                'text': text,
-                'method': 'roberta'
+            roberta_sentiment = sentiment_map.get(roberta_label, roberta_label)
+            
+            # If no Twitch slang detected, trust RoBERTa completely
+            if not twitch_result:
+                return {
+                    'sentiment': roberta_sentiment,
+                    'confidence': roberta_score,
+                    'text': text,
+                    'method': 'roberta'
+                }
+            
+            # Both methods ran - now combine intelligently
+            slang_sentiment, slang_confidence, matched_patterns = twitch_result
+            
+            # Count words to determine message complexity
+            word_count = len(text.split())
+            
+            # === INTELLIGENT WEIGHTING LOGIC ===
+            
+            # Case 1: Very short messages (1-2 words) - trust slang more
+            if word_count <= 2:
+                # Pure emote/slang - use slang detection
+                return {
+                    'sentiment': slang_sentiment,
+                    'confidence': slang_confidence,
+                    'text': text,
+                    'method': 'slang_short_message',
+                    'matched_patterns': matched_patterns,
+                    'roberta_sentiment': roberta_sentiment,
+                    'roberta_confidence': roberta_score
+                }
+            
+            # Case 2: Sentiments AGREE - boost confidence
+            if slang_sentiment == roberta_sentiment:
+                # Both methods agree, high confidence
+                combined_confidence = min((slang_confidence + roberta_score) / 2 * 1.15, 0.99)
+                return {
+                    'sentiment': roberta_sentiment,
+                    'confidence': combined_confidence,
+                    'text': text,
+                    'method': 'hybrid_agreement',
+                    'matched_patterns': matched_patterns,
+                    'roberta_confidence': roberta_score,
+                    'slang_confidence': slang_confidence
+                }
+            
+            # Case 3: Sentiments DISAGREE - need smart resolution
+            # This is where "I hate you lol" gets handled correctly
+            
+            # Check if RoBERTa has strong conviction
+            roberta_strong = roberta_score > 0.75
+            slang_strong = slang_confidence > 0.85
+            
+            # Sub-case 3a: Short message (3-5 words) with strong slang
+            if word_count <= 5 and slang_strong and not roberta_strong:
+                # Likely emote-heavy message, lean towards slang
+                # But reduce confidence due to disagreement
+                confidence = slang_confidence * 0.7
+                return {
+                    'sentiment': slang_sentiment,
+                    'confidence': confidence,
+                    'text': text,
+                    'method': 'hybrid_slang_weighted',
+                    'matched_patterns': matched_patterns,
+                    'roberta_sentiment': roberta_sentiment,
+                    'roberta_confidence': roberta_score
+                }
+            
+            # Sub-case 3b: RoBERTa has strong conviction (likely sarcasm/toxicity)
+            # Example: "I hate you lol" - RoBERTa sees "hate" strongly
+            if roberta_strong:
+                # Trust RoBERTa's context understanding
+                # This handles: toxic message + laughing emote = still toxic
+                return {
+                    'sentiment': roberta_sentiment,
+                    'confidence': roberta_score * 0.95,  # Slight reduction for disagreement
+                    'text': text,
+                    'method': 'hybrid_roberta_strong',
+                    'matched_patterns': matched_patterns,
+                    'slang_sentiment': slang_sentiment,
+                    'slang_confidence': slang_confidence
+                }
+            
+            # Sub-case 3c: Both weak or medium - weighted average
+            # Weight RoBERTa more for longer messages
+            roberta_weight = min(0.5 + (word_count * 0.05), 0.8)  # 50%-80% based on length
+            slang_weight = 1 - roberta_weight
+            
+            # Calculate weighted confidence for each sentiment
+            sentiment_scores = {
+                'positive': 0.0,
+                'neutral': 0.0,
+                'negative': 0.0
             }
+            
+            sentiment_scores[roberta_sentiment] += roberta_score * roberta_weight
+            sentiment_scores[slang_sentiment] += slang_confidence * slang_weight
+            
+            # Pick the highest weighted score
+            final_sentiment = max(sentiment_scores.items(), key=lambda x: x[1])[0]
+            final_confidence = sentiment_scores[final_sentiment]
+            
+            return {
+                'sentiment': final_sentiment,
+                'confidence': final_confidence,
+                'text': text,
+                'method': 'hybrid_weighted',
+                'matched_patterns': matched_patterns,
+                'roberta_sentiment': roberta_sentiment,
+                'roberta_confidence': roberta_score,
+                'slang_sentiment': slang_sentiment,
+                'slang_confidence': slang_confidence,
+                'weights': {'roberta': roberta_weight, 'slang': slang_weight}
+            }
+            
         except Exception as e:
             print(f"Error analyzing sentiment: {e}")
             return {

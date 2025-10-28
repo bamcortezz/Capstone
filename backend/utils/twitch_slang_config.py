@@ -1,26 +1,4 @@
-"""
-Twitch Slang Configuration
----------------------------
-This file contains all Twitch-specific slang patterns for sentiment analysis.
-You can easily add, modify, or remove patterns here without touching the main analyzer.
 
-Pattern Format:
-{
-    'pattern_id': {
-        'pattern': r'regex_pattern',  # Regular expression to match
-        'sentiment': 'positive|negative|neutral',  # Sentiment classification
-        'confidence': 0.0-1.0,  # Confidence score (0.0 to 1.0)
-        'description': 'Human readable description'
-    }
-}
-
-Regex Tips:
-- \b = word boundary (prevents matching inside words)
-- {2,} = 2 or more repetitions (for spam detection)
-- | = OR operator
-- (?:) = non-capturing group
-- Use re.IGNORECASE for case-insensitive matching
-"""
 
 TWITCH_SLANG_PATTERNS = {
     # ============================================
