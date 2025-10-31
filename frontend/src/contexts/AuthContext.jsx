@@ -1,5 +1,11 @@
-import React, { createContext, useState, useContext, useEffect, useRef } from 'react';
-import Swal from 'sweetalert2';
+import React, {
+  createContext,
+  useState,
+  useContext,
+  useEffect,
+  useRef,
+} from "react";
+import Swal from "sweetalert2";
 
 // API URL
 const API_URL = import.meta.env.VITE_API_URL;
@@ -15,25 +21,25 @@ export const AuthProvider = ({ children }) => {
 
   // Get token from localStorage
   const getToken = () => {
-    return localStorage.getItem('token');
+    return localStorage.getItem("token");
   };
 
   // Set token in localStorage
   const setToken = (token) => {
-    localStorage.setItem('token', token);
+    localStorage.setItem("token", token);
   };
 
   // Remove token from localStorage
   const removeToken = () => {
-    localStorage.removeItem('token');
+    localStorage.removeItem("token");
   };
 
   // Get authorization headers
   const getAuthHeaders = () => {
     const token = getToken();
     return {
-      'Content-Type': 'application/json',
-      ...(token && { 'Authorization': `Bearer ${token}` })
+      "Content-Type": "application/json",
+      ...(token && { Authorization: `Bearer ${token}` }),
     };
   };
 
@@ -41,25 +47,25 @@ export const AuthProvider = ({ children }) => {
   const refreshToken = async () => {
     const token = getToken();
     if (!token) {
-      throw new Error('No authentication token found');
+      throw new Error("No authentication token found");
     }
 
     try {
       const response = await fetch(`${API_URL}/api/refresh-token`, {
-        method: 'POST',
-        headers: getAuthHeaders()
+        method: "POST",
+        headers: getAuthHeaders(),
       });
 
       if (!response.ok) {
-        throw new Error('Failed to refresh token');
+        throw new Error("Failed to refresh token");
       }
 
       const data = await response.json();
       setToken(data.access_token);
-      
+
       // Set up the next automatic refresh (90 minutes from now)
       setupTokenRefresh();
-      
+
       return data.access_token;
     } catch (error) {
       removeToken();
@@ -72,13 +78,13 @@ export const AuthProvider = ({ children }) => {
   // Set up automatic token refresh
   const setupTokenRefresh = () => {
     clearTokenRefresh(); // Clear any existing timer
-    
+
     // Refresh token every 90 minutes (before 2-hour expiry)
     refreshTimerRef.current = setTimeout(async () => {
       try {
         await refreshToken();
       } catch (error) {
-        console.error('Automatic token refresh failed:', error);
+        console.error("Automatic token refresh failed:", error);
         // Don't clear user state here, let the next API call handle it
       }
     }, 90 * 60 * 1000); // 90 minutes in milliseconds
@@ -96,12 +102,12 @@ export const AuthProvider = ({ children }) => {
   const ensureValidToken = async () => {
     const token = getToken();
     if (!token) {
-      throw new Error('No authentication token found');
+      throw new Error("No authentication token found");
     }
 
     try {
       const response = await fetch(`${API_URL}/api/authenticate`, {
-        headers: getAuthHeaders()
+        headers: getAuthHeaders(),
       });
 
       if (!response.ok) {
@@ -113,13 +119,13 @@ export const AuthProvider = ({ children }) => {
           // Refresh failed, user needs to log in again
           removeToken();
           setUser(null);
-          throw new Error('Authentication token expired. Please log in again.');
+          throw new Error("Authentication token expired. Please log in again.");
         }
       }
 
       return true;
     } catch (error) {
-      if (error.message.includes('Authentication token expired')) {
+      if (error.message.includes("Authentication token expired")) {
         throw error;
       }
       // For other errors, try to refresh the token
@@ -129,7 +135,7 @@ export const AuthProvider = ({ children }) => {
       } catch (refreshError) {
         removeToken();
         setUser(null);
-        throw new Error('Authentication failed. Please log in again.');
+        throw new Error("Authentication failed. Please log in again.");
       }
     }
   };
@@ -145,7 +151,7 @@ export const AuthProvider = ({ children }) => {
         }
 
         const response = await fetch(`${API_URL}/api/authenticate`, {
-          headers: getAuthHeaders()
+          headers: getAuthHeaders(),
         });
 
         if (response.ok) {
@@ -160,7 +166,7 @@ export const AuthProvider = ({ children }) => {
           clearTokenRefresh();
         }
       } catch (error) {
-        console.error('Auth error:', error);
+        console.error("Auth error:", error);
         removeToken();
         setUser(null);
         clearTokenRefresh();
@@ -170,7 +176,7 @@ export const AuthProvider = ({ children }) => {
     };
 
     initializeAuth();
-    
+
     // Cleanup on unmount
     return () => {
       clearTokenRefresh();
@@ -182,60 +188,60 @@ export const AuthProvider = ({ children }) => {
     // Set up automatic token refresh after login
     setupTokenRefresh();
   };
-  
+
   const logout = async () => {
     try {
       // Clean up any global references
-      if (typeof window !== 'undefined') {
+      if (typeof window !== "undefined") {
         window.userSocket = null;
       }
-      
+
       const response = await fetch(`${API_URL}/api/logout`, {
-        method: 'POST',
-        headers: getAuthHeaders()
+        method: "POST",
+        headers: getAuthHeaders(),
       });
 
       if (!response.ok) {
-        throw new Error('Logout failed');
+        throw new Error("Logout failed");
       }
 
       removeToken();
       setUser(null);
       clearTokenRefresh();
-      
+
       // Clear any cached data (this will be handled by the HistoryProvider)
       // The HistoryProvider will listen to user changes and clear cache when user becomes null
-      
+
       await Swal.fire({
-        position: 'top-end',
-        icon: 'success',
-        title: 'Logged out successfully',
+        position: "top-end",
+        icon: "success",
+        title: "Logged out successfully",
         toast: true,
         timerProgressBar: true,
         showConfirmButton: false,
         timer: 1000,
-        confirmButtonColor: '#9147ff',
-        background: '#18181b',
-        color: '#fff'
+        confirmButtonColor: "#9147ff",
+        background: "#18181b",
+        color: "#fff",
       });
     } catch (error) {
-      console.error('Logout error:', error);
+      console.error("Logout error:", error);
       // Even if logout fails on server, clear local state
       removeToken();
       setUser(null);
-      
+
       await Swal.fire({
-        position: 'top-end',
-        icon: 'error',
-        title: 'Logout failed',
+        position: "top-end",
+        icon: "error",
+        title: "Logout failed",
         text: error.message,
         toast: true,
         timerProgressBar: true,
         showConfirmButton: false,
         timer: 1000,
-        confirmButtonColor: '#9147ff',
-        background: '#18181b',
-        color: '#fff'
+        confirmButtonColor: "#9147ff",
+        background: "#18181b",
+        color: "#fff",
       });
     }
   };
@@ -243,21 +249,21 @@ export const AuthProvider = ({ children }) => {
   const updateProfile = async (profileData) => {
     try {
       const response = await fetch(`${API_URL}/api/user/profile`, {
-        method: 'PUT',
+        method: "PUT",
         headers: getAuthHeaders(),
-        body: JSON.stringify(profileData)
+        body: JSON.stringify(profileData),
       });
 
       if (!response.ok) {
         const data = await response.json();
-        throw new Error(data.detail || 'Failed to update profile');
+        throw new Error(data.detail || "Failed to update profile");
       }
 
       const data = await response.json();
       setUser(data.user);
       return data;
     } catch (error) {
-      console.error('Profile update error:', error);
+      console.error("Profile update error:", error);
       throw error;
     }
   };
@@ -265,21 +271,21 @@ export const AuthProvider = ({ children }) => {
   const updateProfileImage = async (imageData) => {
     try {
       const response = await fetch(`${API_URL}/api/user/profile-image`, {
-        method: 'PUT',
+        method: "PUT",
         headers: getAuthHeaders(),
-        body: JSON.stringify({ image: imageData })
+        body: JSON.stringify({ image: imageData }),
       });
 
       if (!response.ok) {
         const data = await response.json();
-        throw new Error(data.detail || 'Failed to update profile image');
+        throw new Error(data.detail || "Failed to update profile image");
       }
 
       const data = await response.json();
       setUser(data.user);
       return data;
     } catch (error) {
-      console.error('Profile image update error:', error);
+      console.error("Profile image update error:", error);
       throw error;
     }
   };
@@ -287,20 +293,20 @@ export const AuthProvider = ({ children }) => {
   const removeProfileImage = async () => {
     try {
       const response = await fetch(`${API_URL}/api/user/profile-image`, {
-        method: 'DELETE',
-        headers: getAuthHeaders()
+        method: "DELETE",
+        headers: getAuthHeaders(),
       });
 
       if (!response.ok) {
         const data = await response.json();
-        throw new Error(data.detail || 'Failed to remove profile image');
+        throw new Error(data.detail || "Failed to remove profile image");
       }
 
       const data = await response.json();
       setUser(data.user);
       return data;
     } catch (error) {
-      console.error('Error removing profile image:', error);
+      console.error("Error removing profile image:", error);
       throw error;
     }
   };
@@ -308,18 +314,21 @@ export const AuthProvider = ({ children }) => {
   const changePassword = async (oldPassword, newPassword) => {
     try {
       const response = await fetch(`${API_URL}/api/user/change-password`, {
-        method: 'POST',
+        method: "POST",
         headers: getAuthHeaders(),
-        body: JSON.stringify({ old_password: oldPassword, new_password: newPassword })
+        body: JSON.stringify({
+          old_password: oldPassword,
+          new_password: newPassword,
+        }),
       });
-      
+
       const data = await response.json();
       if (!response.ok) {
-        throw new Error(data.detail || 'Failed to change password');
+        throw new Error(data.detail || "Failed to change password");
       }
       return data;
     } catch (error) {
-      console.error('Change password error:', error);
+      console.error("Change password error:", error);
       throw error;
     }
   };
@@ -327,42 +336,49 @@ export const AuthProvider = ({ children }) => {
   const deleteAccount = async (password) => {
     try {
       const response = await fetch(`${API_URL}/api/user/delete-account`, {
-        method: 'DELETE',
+        method: "DELETE",
         headers: getAuthHeaders(),
-        body: JSON.stringify({ password })
+        body: JSON.stringify({ password }),
       });
-      
+
       const data = await response.json();
       if (!response.ok) {
-        throw new Error(data.detail || 'Failed to delete account');
+        throw new Error(data.detail || "Failed to delete account");
       }
       removeToken();
       setUser(null);
       return data;
     } catch (error) {
-      console.error('Delete account error:', error);
+      console.error("Delete account error:", error);
       throw error;
     }
   };
 
+  const updateUserData = (userData) => {
+    setUser(userData);
+  };
+
   return (
-    <AuthContext.Provider value={{ 
-      user, 
-      loading, 
-      login, 
-      logout,
-      updateProfile,
-      updateProfileImage,
-      removeProfileImage,
-      changePassword,
-      deleteAccount,
-      getToken,
-      setToken,
-      removeToken,
-      getAuthHeaders,
-      ensureValidToken,
-      refreshToken
-    }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        loading,
+        login,
+        logout,
+        updateProfile,
+        updateProfileImage,
+        removeProfileImage,
+        changePassword,
+        deleteAccount,
+        updateUserData,
+        getToken,
+        setToken,
+        removeToken,
+        getAuthHeaders,
+        ensureValidToken,
+        refreshToken,
+      }}
+    >
       {!loading && children}
     </AuthContext.Provider>
   );

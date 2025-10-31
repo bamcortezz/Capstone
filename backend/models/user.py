@@ -164,7 +164,6 @@ async def update_profile(db: AsyncIOMotorDatabase, user_id: str, profile_data: d
         update_fields = {
             'first_name': profile_data.get('first_name'),
             'last_name': profile_data.get('last_name'),
-            'email': profile_data.get('email'),
             'updated_at': now
         }
         
@@ -173,15 +172,6 @@ async def update_profile(db: AsyncIOMotorDatabase, user_id: str, profile_data: d
         
         if not update_fields:
             return False
-            
-        # Check if email is being updated and if it's already taken
-        if 'email' in update_fields:
-            existing_user = await db.users.find_one({
-                'email': update_fields['email'],
-                '_id': {'$ne': ObjectId(user_id)}
-            })
-            if existing_user:
-                raise ValueError('Email is already taken')
             
         result = await db.users.update_one(
             {'_id': ObjectId(user_id)},
@@ -367,3 +357,162 @@ async def update_user_by_admin(db: AsyncIOMotorDatabase, user_id: str, user_data
     except Exception as e:
         print(f"Error updating user by admin: {e}")
         return None
+
+async def save_email_change_request(db: AsyncIOMotorDatabase, user_id: str, new_email: str) -> Tuple[str, str]:
+    """Save email change request with OTP for current email verification"""
+    try:
+        secret, otp = generate_otp()
+        now = datetime.utcnow()
+        
+        # Store the email change request temporarily
+        result = await db.users.update_one(
+            {'_id': ObjectId(user_id)},
+            {
+                '$set': {
+                    'email_change_otp': secret,
+                    'email_change_otp_created_at': now,
+                    'pending_new_email': new_email,
+                    'updated_at': now
+                }
+            }
+        )
+        
+        if result.modified_count > 0:
+            return secret, otp
+        return None, None
+    except Exception as e:
+        print(f"Error saving email change request: {e}")
+        return None, None
+
+async def verify_current_email_otp(db: AsyncIOMotorDatabase, user_id: str, otp: str) -> bool:
+    """Verify OTP for current email"""
+    try:
+        user = await db.users.find_one({'_id': ObjectId(user_id)})
+        if not user or 'email_change_otp' not in user:
+            return False
+        
+        # Check if OTP is expired (10 minutes)
+        if 'email_change_otp_created_at' in user:
+            created_at = user['email_change_otp_created_at']
+            if datetime.utcnow() - created_at > timedelta(minutes=10):
+                # Clear expired OTP
+                await db.users.update_one(
+                    {'_id': ObjectId(user_id)},
+                    {
+                        '$unset': {
+                            'email_change_otp': '',
+                            'email_change_otp_created_at': ''
+                        }
+                    }
+                )
+                return False
+        
+        return verify_otp(user['email_change_otp'], otp)
+    except Exception as e:
+        print(f"Error verifying current email OTP: {e}")
+        return False
+
+async def save_new_email_verification(db: AsyncIOMotorDatabase, user_id: str) -> Tuple[str, str]:
+    """Generate OTP for new email verification"""
+    try:
+        user = await db.users.find_one({'_id': ObjectId(user_id)})
+        if not user or 'pending_new_email' not in user:
+            return None, None
+        
+        secret, otp = generate_otp()
+        now = datetime.utcnow()
+        
+        result = await db.users.update_one(
+            {'_id': ObjectId(user_id)},
+            {
+                '$set': {
+                    'new_email_otp': secret,
+                    'new_email_otp_created_at': now,
+                    'updated_at': now
+                }
+            }
+        )
+        
+        if result.modified_count > 0:
+            return secret, otp
+        return None, None
+    except Exception as e:
+        print(f"Error saving new email verification: {e}")
+        return None, None
+
+async def complete_email_change(db: AsyncIOMotorDatabase, user_id: str, otp: str) -> bool:
+    """Complete email change after verifying new email OTP"""
+    try:
+        user = await db.users.find_one({'_id': ObjectId(user_id)})
+        if not user or 'new_email_otp' not in user or 'pending_new_email' not in user:
+            return False
+        
+        # Check if OTP is expired (10 minutes)
+        if 'new_email_otp_created_at' in user:
+            created_at = user['new_email_otp_created_at']
+            if datetime.utcnow() - created_at > timedelta(minutes=10):
+                # Clear expired OTP
+                await db.users.update_one(
+                    {'_id': ObjectId(user_id)},
+                    {
+                        '$unset': {
+                            'new_email_otp': '',
+                            'new_email_otp_created_at': '',
+                            'email_change_otp': '',
+                            'email_change_otp_created_at': '',
+                            'pending_new_email': ''
+                        }
+                    }
+                )
+                return False
+        
+        # Verify OTP
+        if not verify_otp(user['new_email_otp'], otp):
+            return False
+        
+        # Update email and clear temporary fields
+        new_email = user['pending_new_email']
+        result = await db.users.update_one(
+            {'_id': ObjectId(user_id)},
+            {
+                '$set': {
+                    'email': new_email,
+                    'updated_at': datetime.utcnow()
+                },
+                '$unset': {
+                    'email_change_otp': '',
+                    'email_change_otp_created_at': '',
+                    'new_email_otp': '',
+                    'new_email_otp_created_at': '',
+                    'pending_new_email': ''
+                }
+            }
+        )
+        
+        return result.modified_count > 0
+    except Exception as e:
+        print(f"Error completing email change: {e}")
+        return False
+
+async def cancel_email_change(db: AsyncIOMotorDatabase, user_id: str) -> bool:
+    """Cancel email change request"""
+    try:
+        result = await db.users.update_one(
+            {'_id': ObjectId(user_id)},
+            {
+                '$unset': {
+                    'email_change_otp': '',
+                    'email_change_otp_created_at': '',
+                    'new_email_otp': '',
+                    'new_email_otp_created_at': '',
+                    'pending_new_email': ''
+                },
+                '$set': {
+                    'updated_at': datetime.utcnow()
+                }
+            }
+        )
+        return result.modified_count > 0
+    except Exception as e:
+        print(f"Error canceling email change: {e}")
+        return False

@@ -26,7 +26,9 @@ from models.user import (
     verify_password, get_user_by_email, get_user_by_id,
     update_profile, update_profile_image, remove_profile_image,
     save_reset_token, validate_reset_token, reset_password,
-    update_user_by_admin, is_valid_password_hash, fix_corrupted_password_hash
+    update_user_by_admin, is_valid_password_hash, fix_corrupted_password_hash,
+    save_email_change_request, verify_current_email_otp, save_new_email_verification,
+    complete_email_change, cancel_email_change
 )
 from models.history import create_history_schema, save_analysis, get_user_history, get_user_deleted_history, get_history_by_id, delete_history, restore_history
 from models.log import create_logs_schema, add_log, get_logs, clear_old_logs
@@ -1165,18 +1167,12 @@ async def update_user_profile(profile_data: dict, current_user: dict = Depends(g
             raise HTTPException(status_code=400, detail='No data provided')
         
         # Validate required fields with detailed messages
-        required_fields = ['first_name', 'last_name', 'email']
+        required_fields = ['first_name', 'last_name']
         for field in required_fields:
             if field not in profile_data or not profile_data[field] or not str(profile_data[field]).strip():
                 field_name = field.replace('_', ' ').title()
                 raise HTTPException(status_code=400, detail=f'{field_name} is required')
-        
-        # Validate email format
-        import re
-        email_pattern = r'^[^\s@]+@[^\s@]+\.[^\s@]+$'
-        if not re.match(email_pattern, profile_data['email']):
-            raise HTTPException(status_code=400, detail='Please enter a valid email address')
-        
+                
         # Validate name fields (no special characters, reasonable length)
         if len(profile_data['first_name'].strip()) < 2:
             raise HTTPException(status_code=400, detail='First name must be at least 2 characters long')
@@ -1187,7 +1183,7 @@ async def update_user_profile(profile_data: dict, current_user: dict = Depends(g
         if len(profile_data['last_name'].strip()) > 50:
             raise HTTPException(status_code=400, detail='Last name must not exceed 50 characters')
             
-        # Update profile
+        # Update profile (email excluded)
         try:
             success = await update_profile(mongo_db, str(current_user['_id']), profile_data)
             if not success:
@@ -1748,10 +1744,178 @@ async def change_password(password_data: dict, current_user: dict = Depends(get_
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+# Email change endpoints
+@app.post("/api/user/change-email/request")
+async def request_email_change(email_data: dict, current_user: dict = Depends(get_current_user)):
+    """Step 1: Request email change - sends OTP to current email"""
+    try:
+        new_email = email_data.get('new_email')
+        password = email_data.get('password')
+        
+        if not new_email or not password:
+            raise HTTPException(status_code=400, detail='New email and password are required')
+        
+        # Verify password
+        if not verify_password(current_user, password):
+            raise HTTPException(status_code=401, detail='Incorrect password')
+        
+        # Validate new email format
+        import re
+        email_pattern = r'^[^\s@]+@[^\s@]+\.[^\s@]+$'
+        if not re.match(email_pattern, new_email):
+            raise HTTPException(status_code=400, detail='Please enter a valid email address')
+        
+        # Check if new email is same as current
+        if new_email.lower() == current_user['email'].lower():
+            raise HTTPException(status_code=400, detail='New email cannot be the same as current email')
+        
+        # Check if new email already exists
+        existing_user = await get_user_by_email(mongo_db, new_email)
+        if existing_user:
+            raise HTTPException(status_code=400, detail='Email address already in use')
+        
+        # Save email change request and generate OTP for current email
+        secret, otp = await save_email_change_request(mongo_db, str(current_user['_id']), new_email)
+        
+        if not secret or not otp:
+            raise HTTPException(status_code=500, detail='Failed to initiate email change')
+        
+        # Send OTP to current email
+        email_sent = send_otp_email(current_user['email'], otp)
+        
+        if not email_sent:
+            # Rollback the email change request
+            await cancel_email_change(mongo_db, str(current_user['_id']))
+            raise HTTPException(status_code=500, detail='Failed to send verification email')
+        
+        return {
+            'message': 'Verification code sent to your current email',
+            'current_email': current_user['email']
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error requesting email change: {str(e)}")
+        raise HTTPException(status_code=500, detail='An unexpected error occurred')
+
+@app.post("/api/user/change-email/verify-current")
+async def verify_current_email_for_change(otp_data: dict, current_user: dict = Depends(get_current_user)):
+    """Step 2: Verify OTP from current email - sends OTP to new email"""
+    try:
+        otp = otp_data.get('otp')
+        
+        if not otp:
+            raise HTTPException(status_code=400, detail='OTP is required')
+        
+        user_id = str(current_user['_id'])
+        
+        # Verify OTP for current email
+        is_valid = await verify_current_email_otp(mongo_db, user_id, otp)
+        
+        if not is_valid:
+            raise HTTPException(status_code=400, detail='Invalid or expired OTP')
+        
+        # Generate OTP for new email
+        secret, new_otp = await save_new_email_verification(mongo_db, user_id)
+        
+        if not secret or not new_otp:
+            raise HTTPException(status_code=500, detail='Failed to generate verification for new email')
+        
+        # Get the pending new email
+        user = await get_user_by_id(mongo_db, user_id)
+        new_email = user.get('pending_new_email')
+        
+        if not new_email:
+            raise HTTPException(status_code=400, detail='Email change request not found')
+        
+        # Send OTP to new email
+        email_sent = send_otp_email(new_email, new_otp)
+        
+        if not email_sent:
+            raise HTTPException(status_code=500, detail='Failed to send verification email to new address')
+        
+        return {
+            'message': 'Current email verified. Verification code sent to new email',
+            'new_email': new_email
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error verifying current email: {str(e)}")
+        raise HTTPException(status_code=500, detail='An unexpected error occurred')
+
+@app.post("/api/user/change-email/verify-new")
+async def verify_new_email_and_complete(otp_data: dict, current_user: dict = Depends(get_current_user)):
+    """Step 3: Verify OTP from new email and complete email change"""
+    try:
+        otp = otp_data.get('otp')
+        
+        if not otp:
+            raise HTTPException(status_code=400, detail='OTP is required')
+        
+        user_id = str(current_user['_id'])
+        
+        # Complete email change
+        success = await complete_email_change(mongo_db, user_id, otp)
+        
+        if not success:
+            raise HTTPException(status_code=400, detail='Invalid or expired OTP')
+        
+        # Get updated user
+        updated_user = await get_user_by_id(mongo_db, user_id)
+        
+        # Log the email change
+        user_name = f"{updated_user['first_name']} {updated_user['last_name']}"
+        await add_log(
+            mongo_db,
+            user_id,
+            'Email changed',
+            f'Email changed to {updated_user["email"]}',
+            user_name=user_name
+        )
+        
+        return {
+            'message': 'Email changed successfully',
+            'user': {
+                'id': str(updated_user['_id']),
+                'email': updated_user['email'],
+                'first_name': updated_user['first_name'],
+                'last_name': updated_user['last_name'],
+                'role': updated_user['role'],
+                'profile_image': updated_user.get('profile_image')
+            }
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error completing email change: {str(e)}")
+        raise HTTPException(status_code=500, detail='An unexpected error occurred')
+
+@app.post("/api/user/change-email/cancel")
+async def cancel_email_change_request(current_user: dict = Depends(get_current_user)):
+    """Cancel email change request"""
+    try:
+        user_id = str(current_user['_id'])
+        
+        success = await cancel_email_change(mongo_db, user_id)
+        
+        if not success:
+            raise HTTPException(status_code=400, detail='No active email change request found')
+        
+        return {'message': 'Email change request cancelled'}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 # Delete account endpoint
 @app.delete("/api/user/delete-account")
 async def delete_account(delete_data: dict, current_user: dict = Depends(get_current_user)):
-    """Soft delete user account by setting status to not_active"""
+    """Permanently delete user account and all associated data"""
     try:
         password = delete_data.get('password')
         if not password:
@@ -1760,30 +1924,34 @@ async def delete_account(delete_data: dict, current_user: dict = Depends(get_cur
         if not verify_password(current_user, password):
             raise HTTPException(status_code=401, detail='Incorrect password')
         
-        # Soft delete: Set user status to not_active instead of deleting
-        result = await mongo_db.users.update_one(
-            {'_id': current_user['_id']},
-            {
-                '$set': {
-                    'status': 'not_active',
-                    'updated_at': datetime.utcnow()
-                }
-            }
-        )
-        if result.modified_count == 0:
-            raise HTTPException(status_code=500, detail='Failed to deactivate account')
-        
-        # Log the account deactivation
+        user_id = str(current_user['_id'])
         user_name = f"{current_user['first_name']} {current_user['last_name']}"
+        
+        # Log the account deletion before deleting (so we have a record)
         await add_log(
             mongo_db,
-            str(current_user['_id']),
-            'Account deactivated',
-            'User account was deactivated (soft delete)',
+            user_id,
+            'Account deleted',
+            f'User {user_name} permanently deleted their account',
             user_name=user_name
         )
         
-        return {'message': 'Account deactivated successfully'}
+        # Delete all user's history records
+        history_result = await mongo_db.history.delete_many({'user_id': user_id})
+        
+        # Delete the user account
+        user_result = await mongo_db.users.delete_one({'_id': current_user['_id']})
+        
+        if user_result.deleted_count == 0:
+            raise HTTPException(status_code=500, detail='Failed to delete account')
+        
+        # Note: Logs are kept for audit trail purposes
+        # If you want to delete logs too, add: await mongo_db.logs.delete_many({'user_id': user_id})
+        
+        return {
+            'message': 'Account deleted successfully',
+            'deleted_history_count': history_result.deleted_count
+        }
     except HTTPException:
         raise
     except Exception as e:
