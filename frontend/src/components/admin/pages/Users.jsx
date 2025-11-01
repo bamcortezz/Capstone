@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { ClipLoader } from 'react-spinners';
-import Swal from 'sweetalert2';
-import axios from 'axios';
-import { useAuth } from '../../../contexts/AuthContext';
-import { useAdmin } from '../../../contexts/AdminContext';
+import React, { useState, useEffect } from "react";
+import { ClipLoader } from "react-spinners";
+import Swal from "sweetalert2";
+import axios from "axios";
+import { useAuth } from "../../../contexts/AuthContext";
+import { useAdmin } from "../../../contexts/AdminContext";
 
 // API URL
 const API_URL = import.meta.env.VITE_API_URL;
@@ -12,69 +12,73 @@ const API_URL = import.meta.env.VITE_API_URL;
 const EditUserModal = ({ user, onClose, onSave }) => {
   const { getAuthHeaders } = useAuth();
   const [formData, setFormData] = useState({
-    first_name: '',
-    last_name: '',
-    email: '',
-    role: '',
-    status: ''
+    first_name: "",
+    last_name: "",
+    email: "",
+    role: "",
+    status: "",
   });
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
 
   useEffect(() => {
     if (user) {
       setFormData({
-        first_name: user.first_name || '',
-        last_name: user.last_name || '',
-        email: user.email || '',
-        role: user.role || 'user',
-        status: user.status || 'active'
+        first_name: user.first_name || "",
+        last_name: user.last_name || "",
+        email: user.email || "",
+        role: user.role || "user",
+        status: user.status || "active",
       });
     }
   }, [user]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setError('');
+    setError("");
 
     try {
-      const response = await axios.put(`${API_URL}/api/admin/users/${user._id}`, formData, {
-        headers: getAuthHeaders()
-      });
+      const response = await axios.put(
+        `${API_URL}/api/admin/users/${user._id}`,
+        formData,
+        {
+          headers: getAuthHeaders(),
+        }
+      );
 
       if (response.status === 200) {
         onSave(response.data);
         Swal.fire({
-          position: 'top-end',
-          icon: 'success',
-          title: 'Success',
-          text: 'User updated successfully',
+          position: "top-end",
+          icon: "success",
+          title: "Success",
+          text: "User updated successfully",
           toast: true,
           timerProgressBar: true,
           showConfirmButton: false,
           timer: 3000,
-          background: '#18181b',
-          color: '#fff',
-          confirmButtonColor: '#9147ff'
+          background: "#18181b",
+          color: "#fff",
+          confirmButtonColor: "#9147ff",
         });
       }
     } catch (error) {
-      console.error('Error updating user:', error);
-      let errorMessage = 'Failed to update user';
+      console.error("Error updating user:", error);
+      let errorMessage = "Failed to update user";
       if (error.response) {
         if (error.response.status === 401) {
-          errorMessage = 'Authentication required';
+          errorMessage = "Authentication required";
         } else if (error.response.status === 403) {
-          errorMessage = 'Admin privileges required';
+          errorMessage = "Admin privileges required";
         } else if (error.response.data && error.response.data.detail) {
           errorMessage = error.response.data.detail;
         } else if (error.response.data && error.response.data.error) {
@@ -97,8 +101,18 @@ const EditUserModal = ({ user, onClose, onSave }) => {
           onClick={onClose}
           className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors"
         >
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+          <svg
+            className="w-6 h-6"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              d="M6 18L18 6M6 6l12 12"
+            />
           </svg>
         </button>
 
@@ -108,8 +122,18 @@ const EditUserModal = ({ user, onClose, onSave }) => {
           <div className="text-center mb-6">
             <h2 className="text-2xl font-bold text-white mb-2 flex items-center justify-center">
               <span className="text-twitch mr-3">
-                <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                <svg
+                  className="w-7 h-7"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                  />
                 </svg>
               </span>
               Edit User
@@ -126,47 +150,67 @@ const EditUserModal = ({ user, onClose, onSave }) => {
             <div className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label htmlFor="first_name" className="block text-sm font-medium text-gray-300 mb-1">First Name</label>
+                  <label
+                    htmlFor="first_name"
+                    className="block text-sm font-medium text-gray-300 mb-1"
+                  >
+                    First Name
+                  </label>
                   <input
                     type="text"
                     id="first_name"
                     name="first_name"
                     value={formData.first_name}
                     onChange={handleChange}
-                    required
-                    className="w-full bg-gray-800 text-white placeholder-gray-400 border border-gray-700 rounded-lg py-2 px-4 focus:outline-none focus:border-twitch"
+                    disabled
+                    className="w-full bg-gray-800 text-gray-400 placeholder-gray-400 border border-gray-700 rounded-lg py-2 px-4 cursor-not-allowed"
                   />
                 </div>
                 <div>
-                  <label htmlFor="last_name" className="block text-sm font-medium text-gray-300 mb-1">Last Name</label>
+                  <label
+                    htmlFor="last_name"
+                    className="block text-sm font-medium text-gray-300 mb-1"
+                  >
+                    Last Name
+                  </label>
                   <input
                     type="text"
                     id="last_name"
                     name="last_name"
                     value={formData.last_name}
                     onChange={handleChange}
-                    required
-                    className="w-full bg-gray-800 text-white placeholder-gray-400 border border-gray-700 rounded-lg py-2 px-4 focus:outline-none focus:border-twitch"
+                    disabled
+                    className="w-full bg-gray-800 text-gray-400 placeholder-gray-400 border border-gray-700 rounded-lg py-2 px-4 cursor-not-allowed"
                   />
                 </div>
               </div>
 
               <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-1">Email</label>
+                <label
+                  htmlFor="email"
+                  className="block text-sm font-medium text-gray-300 mb-1"
+                >
+                  Email
+                </label>
                 <input
                   type="email"
                   id="email"
                   name="email"
                   value={formData.email}
                   onChange={handleChange}
-                  required
-                  className="w-full bg-gray-800 text-white placeholder-gray-400 border border-gray-700 rounded-lg py-2 px-4 focus:outline-none focus:border-twitch"
+                  disabled
+                  className="w-full bg-gray-800 text-gray-400 placeholder-gray-400 border border-gray-700 rounded-lg py-2 px-4 cursor-not-allowed"
                 />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label htmlFor="role" className="block text-sm font-medium text-gray-300 mb-1">Role</label>
+                  <label
+                    htmlFor="role"
+                    className="block text-sm font-medium text-gray-300 mb-1"
+                  >
+                    Role
+                  </label>
                   <select
                     id="role"
                     name="role"
@@ -179,7 +223,12 @@ const EditUserModal = ({ user, onClose, onSave }) => {
                   </select>
                 </div>
                 <div>
-                  <label htmlFor="status" className="block text-sm font-medium text-gray-300 mb-1">Status</label>
+                  <label
+                    htmlFor="status"
+                    className="block text-sm font-medium text-gray-300 mb-1"
+                  >
+                    Status
+                  </label>
                   <select
                     id="status"
                     name="status"
@@ -207,7 +256,7 @@ const EditUserModal = ({ user, onClose, onSave }) => {
                   disabled={loading}
                   className="px-4 py-2 bg-twitch text-white rounded-md hover:bg-twitch/80 transition-colors flex items-center justify-center min-w-[80px]"
                 >
-                  {loading ? <ClipLoader color="#ffffff" size={20} /> : 'Save'}
+                  {loading ? <ClipLoader color="#ffffff" size={20} /> : "Save"}
                 </button>
               </div>
             </div>
@@ -220,12 +269,16 @@ const EditUserModal = ({ user, onClose, onSave }) => {
 
 const Users = () => {
   const { getAuthHeaders } = useAuth();
-  const { users, loading, fetchUsers, updateUserInCache, refreshAllData } = useAdmin();
+  const { users, loading, fetchUsers, updateUserInCache, refreshAllData } =
+    useAdmin();
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [sortConfig, setSortConfig] = useState({ key: 'name', direction: 'asc' });
-  const [selectedRole, setSelectedRole] = useState('all');
+  const [searchTerm, setSearchTerm] = useState("");
+  const [sortConfig, setSortConfig] = useState({
+    key: "name",
+    direction: "asc",
+  });
+  const [selectedRole, setSelectedRole] = useState("all");
   const [editingUser, setEditingUser] = useState(null);
 
   // Add handler for items per page change
@@ -243,34 +296,38 @@ const Users = () => {
   const handleSort = (key) => {
     setSortConfig({
       key,
-      direction: sortConfig.key === key && sortConfig.direction === 'asc' ? 'desc' : 'asc'
+      direction:
+        sortConfig.key === key && sortConfig.direction === "asc"
+          ? "desc"
+          : "asc",
     });
   };
 
   // Filter and sort users
   const filteredAndSortedUsers = users
-    .filter(user => {
-      const matchesSearch = (
+    .filter((user) => {
+      const matchesSearch =
         user.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         user.last_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.email.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-      const matchesRole = selectedRole === 'all' || user.role === selectedRole;
+        user.email.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesRole = selectedRole === "all" || user.role === selectedRole;
       return matchesSearch && matchesRole;
     })
     .sort((a, b) => {
-      if (sortConfig.key === 'name') {
+      if (sortConfig.key === "name") {
         const nameA = `${a.first_name} ${a.last_name}`.toLowerCase();
         const nameB = `${b.first_name} ${b.last_name}`.toLowerCase();
-        return sortConfig.direction === 'asc' ? nameA.localeCompare(nameB) : nameB.localeCompare(nameA);
+        return sortConfig.direction === "asc"
+          ? nameA.localeCompare(nameB)
+          : nameB.localeCompare(nameA);
       }
-      if (sortConfig.key === 'email') {
-        return sortConfig.direction === 'asc'
+      if (sortConfig.key === "email") {
+        return sortConfig.direction === "asc"
           ? a.email.localeCompare(b.email)
           : b.email.localeCompare(a.email);
       }
-      if (sortConfig.key === 'role') {
-        return sortConfig.direction === 'asc'
+      if (sortConfig.key === "role") {
+        return sortConfig.direction === "asc"
           ? a.role.localeCompare(b.role)
           : b.role.localeCompare(a.role);
       }
@@ -280,7 +337,10 @@ const Users = () => {
   // Pagination
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = filteredAndSortedUsers.slice(indexOfFirstItem, indexOfLastItem);
+  const currentItems = filteredAndSortedUsers.slice(
+    indexOfFirstItem,
+    indexOfLastItem
+  );
   const totalPages = Math.ceil(filteredAndSortedUsers.length / itemsPerPage);
 
   const paginate = (pageNumber) => {
@@ -291,7 +351,7 @@ const Users = () => {
 
   // Handle user actions
   const handleEditUser = (userId) => {
-    const userToEdit = users.find(user => user._id === userId);
+    const userToEdit = users.find((user) => user._id === userId);
     if (userToEdit) {
       setEditingUser(userToEdit);
     }
@@ -304,7 +364,6 @@ const Users = () => {
     setEditingUser(null);
   };
 
-
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -315,20 +374,20 @@ const Users = () => {
           className="flex items-center gap-2 bg-twitch hover:bg-twitch/80 disabled:bg-gray-600 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg transition-colors"
           title="Refresh all data"
         >
-          <svg 
-            className={`w-4 h-4 ${loading.users ? 'animate-spin' : ''}`} 
-            fill="none" 
-            stroke="currentColor" 
+          <svg
+            className={`w-4 h-4 ${loading.users ? "animate-spin" : ""}`}
+            fill="none"
+            stroke="currentColor"
             viewBox="0 0 24 24"
           >
-            <path 
-              strokeLinecap="round" 
-              strokeLinejoin="round" 
-              strokeWidth="2" 
-              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" 
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
             />
           </svg>
-          {loading.users ? 'Refreshing...' : 'Refresh'}
+          {loading.users ? "Refreshing..." : "Refresh"}
         </button>
       </div>
 
@@ -396,13 +455,27 @@ const Users = () => {
                     <th
                       scope="col"
                       className="px-6 py-4 text-left text-xs font-medium text-gray-300 uppercase tracking-wider cursor-pointer hover:text-white"
-                      onClick={() => handleSort('name')}
+                      onClick={() => handleSort("name")}
                     >
                       <div className="flex items-center space-x-1">
                         <span>Name</span>
-                        {sortConfig.key === 'name' && (
-                          <svg className={`w-4 h-4 ${sortConfig.direction === 'desc' ? 'transform rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 15l7-7 7 7" />
+                        {sortConfig.key === "name" && (
+                          <svg
+                            className={`w-4 h-4 ${
+                              sortConfig.direction === "desc"
+                                ? "transform rotate-180"
+                                : ""
+                            }`}
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth="2"
+                              d="M5 15l7-7 7 7"
+                            />
                           </svg>
                         )}
                       </div>
@@ -410,13 +483,27 @@ const Users = () => {
                     <th
                       scope="col"
                       className="px-6 py-4 text-left text-xs font-medium text-gray-300 uppercase tracking-wider cursor-pointer hover:text-white"
-                      onClick={() => handleSort('email')}
+                      onClick={() => handleSort("email")}
                     >
                       <div className="flex items-center space-x-1">
                         <span>Email</span>
-                        {sortConfig.key === 'email' && (
-                          <svg className={`w-4 h-4 ${sortConfig.direction === 'desc' ? 'transform rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 15l7-7 7 7" />
+                        {sortConfig.key === "email" && (
+                          <svg
+                            className={`w-4 h-4 ${
+                              sortConfig.direction === "desc"
+                                ? "transform rotate-180"
+                                : ""
+                            }`}
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth="2"
+                              d="M5 15l7-7 7 7"
+                            />
                           </svg>
                         )}
                       </div>
@@ -424,21 +511,41 @@ const Users = () => {
                     <th
                       scope="col"
                       className="px-6 py-4 text-left text-xs font-medium text-gray-300 uppercase tracking-wider cursor-pointer hover:text-white"
-                      onClick={() => handleSort('role')}
+                      onClick={() => handleSort("role")}
                     >
                       <div className="flex items-center space-x-1">
                         <span>Role</span>
-                        {sortConfig.key === 'role' && (
-                          <svg className={`w-4 h-4 ${sortConfig.direction === 'desc' ? 'transform rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 15l7-7 7 7" />
+                        {sortConfig.key === "role" && (
+                          <svg
+                            className={`w-4 h-4 ${
+                              sortConfig.direction === "desc"
+                                ? "transform rotate-180"
+                                : ""
+                            }`}
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth="2"
+                              d="M5 15l7-7 7 7"
+                            />
                           </svg>
                         )}
                       </div>
                     </th>
-                    <th scope="col" className="px-6 py-4 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                    <th
+                      scope="col"
+                      className="px-6 py-4 text-left text-xs font-medium text-gray-300 uppercase tracking-wider"
+                    >
                       Status
                     </th>
-                    <th scope="col" className="px-6 py-4 text-right text-xs font-medium text-gray-300 uppercase tracking-wider">
+                    <th
+                      scope="col"
+                      className="px-6 py-4 text-right text-xs font-medium text-gray-300 uppercase tracking-wider"
+                    >
                       Actions
                     </th>
                   </tr>
@@ -455,26 +562,33 @@ const Users = () => {
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-300">{user.email}</div>
+                        <div className="text-sm text-gray-300">
+                          {user.email}
+                        </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-md ${user.role === 'admin'
-                          ? 'bg-purple-900 text-purple-200 border border-purple-700'
-                          : 'bg-blue-900 text-blue-200 border border-blue-700'
-                          }`}>
+                        <span
+                          className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-md ${
+                            user.role === "admin"
+                              ? "bg-purple-900 text-purple-200 border border-purple-700"
+                              : "bg-blue-900 text-blue-200 border border-blue-700"
+                          }`}
+                        >
                           {user.role}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-md ${
-                          user.status === 'active' 
-                            ? 'bg-green-900 text-green-200 border border-green-700'
-                            : user.status === 'not_active' 
-                              ? 'bg-yellow-900 text-yellow-200 border border-yellow-700'
-                              : user.status === 'suspended' 
-                                ? 'bg-red-900 text-red-200 border border-red-700'
-                                : 'bg-gray-800 text-gray-300 border border-gray-700'
-                        }`}>
+                        <span
+                          className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-md ${
+                            user.status === "active"
+                              ? "bg-green-900 text-green-200 border border-green-700"
+                              : user.status === "not_active"
+                              ? "bg-yellow-900 text-yellow-200 border border-yellow-700"
+                              : user.status === "suspended"
+                              ? "bg-red-900 text-red-200 border border-red-700"
+                              : "bg-gray-800 text-gray-300 border border-gray-700"
+                          }`}
+                        >
                           {user.status}
                         </span>
                       </td>
@@ -483,8 +597,18 @@ const Users = () => {
                           onClick={() => handleEditUser(user._id)}
                           className="text-twitch hover:text-twitch/80 transition-colors"
                         >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          <svg
+                            className="w-5 h-5"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth="2"
+                              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                            />
                           </svg>
                         </button>
                       </td>
@@ -501,20 +625,22 @@ const Users = () => {
                   <button
                     onClick={() => paginate(currentPage - 1)}
                     disabled={currentPage === 1}
-                    className={`relative inline-flex items-center px-4 py-2 text-sm font-medium rounded-md ${currentPage === 1
-                      ? 'bg-gray-800 text-gray-400 cursor-not-allowed'
-                      : 'text-white bg-twitch hover:bg-twitch/80'
-                      }`}
+                    className={`relative inline-flex items-center px-4 py-2 text-sm font-medium rounded-md ${
+                      currentPage === 1
+                        ? "bg-gray-800 text-gray-400 cursor-not-allowed"
+                        : "text-white bg-twitch hover:bg-twitch/80"
+                    }`}
                   >
                     Previous
                   </button>
                   <button
                     onClick={() => paginate(currentPage + 1)}
                     disabled={currentPage === totalPages}
-                    className={`relative inline-flex items-center px-4 py-2 text-sm font-medium rounded-md ${currentPage === totalPages
-                      ? 'bg-gray-800 text-gray-400 cursor-not-allowed'
-                      : 'text-white bg-twitch hover:bg-twitch/80'
-                      }`}
+                    className={`relative inline-flex items-center px-4 py-2 text-sm font-medium rounded-md ${
+                      currentPage === totalPages
+                        ? "bg-gray-800 text-gray-400 cursor-not-allowed"
+                        : "text-white bg-twitch hover:bg-twitch/80"
+                    }`}
                   >
                     Next
                   </button>
@@ -522,10 +648,15 @@ const Users = () => {
                 <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
                   <div>
                     <p className="text-sm text-gray-400">
-                      Showing <span className="font-medium text-white">
+                      Showing{" "}
+                      <span className="font-medium text-white">
                         {Math.min(itemsPerPage, filteredAndSortedUsers.length)}
-                      </span> of{' '}
-                      <span className="font-medium text-white">{filteredAndSortedUsers.length}</span> results
+                      </span>{" "}
+                      of{" "}
+                      <span className="font-medium text-white">
+                        {filteredAndSortedUsers.length}
+                      </span>{" "}
+                      results
                     </p>
                   </div>
                   <div>
@@ -533,14 +664,25 @@ const Users = () => {
                       <button
                         onClick={() => paginate(currentPage - 1)}
                         disabled={currentPage === 1}
-                        className={`relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-700 text-sm font-medium ${currentPage === 1
-                          ? 'bg-gray-800 text-gray-400 cursor-not-allowed'
-                          : 'text-gray-300 hover:bg-gray-800'
-                          }`}
+                        className={`relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-700 text-sm font-medium ${
+                          currentPage === 1
+                            ? "bg-gray-800 text-gray-400 cursor-not-allowed"
+                            : "text-gray-300 hover:bg-gray-800"
+                        }`}
                       >
                         <span className="sr-only">Previous</span>
-                        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
+                        <svg
+                          className="h-5 w-5"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth="2"
+                            d="M15 19l-7-7 7-7"
+                          />
                         </svg>
                       </button>
                       {[...Array(totalPages)].map((_, index) => {
@@ -552,7 +694,10 @@ const Users = () => {
                           pageNumber === totalPages;
 
                         if (!isNearCurrentPage) {
-                          if (pageNumber === 2 || pageNumber === totalPages - 1) {
+                          if (
+                            pageNumber === 2 ||
+                            pageNumber === totalPages - 1
+                          ) {
                             return (
                               <span
                                 key={pageNumber}
@@ -569,10 +714,11 @@ const Users = () => {
                           <button
                             key={pageNumber}
                             onClick={() => paginate(pageNumber)}
-                            className={`relative inline-flex items-center px-4 py-2 border border-gray-700 text-sm font-medium ${isCurrentPage
-                              ? 'z-10 bg-twitch text-white border-twitch'
-                              : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
-                              }`}
+                            className={`relative inline-flex items-center px-4 py-2 border border-gray-700 text-sm font-medium ${
+                              isCurrentPage
+                                ? "z-10 bg-twitch text-white border-twitch"
+                                : "bg-gray-800 text-gray-300 hover:bg-gray-700"
+                            }`}
                           >
                             {pageNumber}
                           </button>
@@ -581,14 +727,25 @@ const Users = () => {
                       <button
                         onClick={() => paginate(currentPage + 1)}
                         disabled={currentPage === totalPages}
-                        className={`relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-700 text-sm font-medium ${currentPage === totalPages
-                          ? 'bg-gray-800 text-gray-400 cursor-not-allowed'
-                          : 'text-gray-300 hover:bg-gray-800'
-                          }`}
+                        className={`relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-700 text-sm font-medium ${
+                          currentPage === totalPages
+                            ? "bg-gray-800 text-gray-400 cursor-not-allowed"
+                            : "text-gray-300 hover:bg-gray-800"
+                        }`}
                       >
                         <span className="sr-only">Next</span>
-                        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+                        <svg
+                          className="h-5 w-5"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth="2"
+                            d="M9 5l7 7-7 7"
+                          />
                         </svg>
                       </button>
                     </nav>
@@ -611,4 +768,4 @@ const Users = () => {
   );
 };
 
-export default Users; 
+export default Users;
