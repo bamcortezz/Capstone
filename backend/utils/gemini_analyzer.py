@@ -177,10 +177,11 @@ def generate_analysis_summary(analysis_data):
         5. Maintain a professional, data-driven tone
         6. Keep the summary under 150 words
         7. Focus on insights derived from the chart data, not assumptions
+        8. Make words simple and easy to understand, but at the same time make it formal and direct.
         """
 
         print("Creating Gemini model...")
-        model = genai.GenerativeModel('gemini-2.0-flash')
+        model = genai.GenerativeModel('gemini-2.5-flash')
         
         print("Generating content with Gemini API...")
         response = model.generate_content(content)
