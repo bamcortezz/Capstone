@@ -1,8 +1,6 @@
-from transformers import pipeline
-import torch
+from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 import warnings
 import re
-from transformers import logging
 
 # Import Twitch slang configuration
 try:
@@ -12,16 +10,12 @@ except ImportError:
     def get_all_patterns():
         return {}
 
-logging.set_verbosity_error()
-warnings.filterwarnings('ignore', message='Some weights of the model checkpoint')
+warnings.filterwarnings('ignore')
 
 class SentimentAnalyzer:
     def __init__(self):
-        self.analyzer = pipeline(
-            "sentiment-analysis",
-            model="cardiffnlp/twitter-roberta-base-sentiment-latest",
-            device=0 if torch.cuda.is_available() else -1 
-        )
+        # Initialize VADER sentiment analyzer
+        self.analyzer = SentimentIntensityAnalyzer()
         
         # Load Twitch-specific slang patterns from config
         self.twitch_patterns = get_all_patterns()
@@ -74,11 +68,6 @@ class SentimentAnalyzer:
 
     def analyze_text(self, text):
         try:
-            # Truncate text to prevent tensor size issues
-            max_length = 512
-            if len(text) > max_length:
-                text = text[:max_length]
-            
             # Skip empty or very short text
             if len(text.strip()) < 2:
                 return {
@@ -92,25 +81,31 @@ class SentimentAnalyzer:
             # 1. Check for Twitch-specific slang
             twitch_result = self.detect_twitch_slang(text)
             
-            # 2. ALWAYS run RoBERTa for context understanding
-            roberta_result = self.analyzer(text)[0]
-            roberta_label = roberta_result['label']
-            roberta_score = roberta_result['score']
+            # 2. ALWAYS run VADER for sentiment analysis
+            vader_scores = self.analyzer.polarity_scores(text)
+            # VADER returns: {'neg': 0.0, 'neu': 0.0, 'pos': 0.0, 'compound': 0.0}
+            # compound score ranges from -1 (most negative) to +1 (most positive)
             
-            sentiment_map = {
-                'LABEL_0': 'negative',
-                'LABEL_1': 'neutral',
-                'LABEL_2': 'positive'
-            }
-            roberta_sentiment = sentiment_map.get(roberta_label, roberta_label)
+            # Convert VADER compound score to sentiment and confidence
+            compound = vader_scores['compound']
+            if compound >= 0.05:
+                vader_sentiment = 'positive'
+                vader_confidence = min(abs(compound), 0.99)
+            elif compound <= -0.05:
+                vader_sentiment = 'negative'
+                vader_confidence = min(abs(compound), 0.99)
+            else:
+                vader_sentiment = 'neutral'
+                vader_confidence = 1.0 - abs(compound)
             
-            # If no Twitch slang detected, trust RoBERTa completely
+            # If no Twitch slang detected, trust VADER completely
             if not twitch_result:
                 return {
-                    'sentiment': roberta_sentiment,
-                    'confidence': roberta_score,
+                    'sentiment': vader_sentiment,
+                    'confidence': vader_confidence,
                     'text': text,
-                    'method': 'roberta'
+                    'method': 'vader',
+                    'vader_scores': vader_scores
                 }
             
             # Both methods ran - now combine intelligently
@@ -130,33 +125,35 @@ class SentimentAnalyzer:
                     'text': text,
                     'method': 'slang_short_message',
                     'matched_patterns': matched_patterns,
-                    'roberta_sentiment': roberta_sentiment,
-                    'roberta_confidence': roberta_score
+                    'vader_sentiment': vader_sentiment,
+                    'vader_confidence': vader_confidence,
+                    'vader_scores': vader_scores
                 }
             
             # Case 2: Sentiments AGREE - boost confidence
-            if slang_sentiment == roberta_sentiment:
+            if slang_sentiment == vader_sentiment:
                 # Both methods agree, high confidence
-                combined_confidence = min((slang_confidence + roberta_score) / 2 * 1.15, 0.99)
+                combined_confidence = min((slang_confidence + vader_confidence) / 2 * 1.15, 0.99)
                 return {
-                    'sentiment': roberta_sentiment,
+                    'sentiment': vader_sentiment,
                     'confidence': combined_confidence,
                     'text': text,
                     'method': 'hybrid_agreement',
                     'matched_patterns': matched_patterns,
-                    'roberta_confidence': roberta_score,
+                    'vader_confidence': vader_confidence,
+                    'vader_scores': vader_scores,
                     'slang_confidence': slang_confidence
                 }
             
             # Case 3: Sentiments DISAGREE - need smart resolution
             # This is where "I hate you lol" gets handled correctly
             
-            # Check if RoBERTa has strong conviction
-            roberta_strong = roberta_score > 0.75
+            # Check if VADER has strong conviction
+            vader_strong = vader_confidence > 0.75
             slang_strong = slang_confidence > 0.85
             
             # Sub-case 3a: Short message (3-5 words) with strong slang
-            if word_count <= 5 and slang_strong and not roberta_strong:
+            if word_count <= 5 and slang_strong and not vader_strong:
                 # Likely emote-heavy message, lean towards slang
                 # But reduce confidence due to disagreement
                 confidence = slang_confidence * 0.7
@@ -166,29 +163,31 @@ class SentimentAnalyzer:
                     'text': text,
                     'method': 'hybrid_slang_weighted',
                     'matched_patterns': matched_patterns,
-                    'roberta_sentiment': roberta_sentiment,
-                    'roberta_confidence': roberta_score
+                    'vader_sentiment': vader_sentiment,
+                    'vader_confidence': vader_confidence,
+                    'vader_scores': vader_scores
                 }
             
-            # Sub-case 3b: RoBERTa has strong conviction (likely sarcasm/toxicity)
-            # Example: "I hate you lol" - RoBERTa sees "hate" strongly
-            if roberta_strong:
-                # Trust RoBERTa's context understanding
+            # Sub-case 3b: VADER has strong conviction (likely sarcasm/toxicity)
+            # Example: "I hate you lol" - VADER sees "hate" strongly
+            if vader_strong:
+                # Trust VADER's context understanding
                 # This handles: toxic message + laughing emote = still toxic
                 return {
-                    'sentiment': roberta_sentiment,
-                    'confidence': roberta_score * 0.95,  # Slight reduction for disagreement
+                    'sentiment': vader_sentiment,
+                    'confidence': vader_confidence * 0.95,  # Slight reduction for disagreement
                     'text': text,
-                    'method': 'hybrid_roberta_strong',
+                    'method': 'hybrid_vader_strong',
                     'matched_patterns': matched_patterns,
+                    'vader_scores': vader_scores,
                     'slang_sentiment': slang_sentiment,
                     'slang_confidence': slang_confidence
                 }
             
             # Sub-case 3c: Both weak or medium - weighted average
-            # Weight RoBERTa more for longer messages
-            roberta_weight = min(0.5 + (word_count * 0.05), 0.8)  # 50%-80% based on length
-            slang_weight = 1 - roberta_weight
+            # Weight VADER more for longer messages
+            vader_weight = min(0.5 + (word_count * 0.05), 0.8)  # 50%-80% based on length
+            slang_weight = 1 - vader_weight
             
             # Calculate weighted confidence for each sentiment
             sentiment_scores = {
@@ -197,7 +196,7 @@ class SentimentAnalyzer:
                 'negative': 0.0
             }
             
-            sentiment_scores[roberta_sentiment] += roberta_score * roberta_weight
+            sentiment_scores[vader_sentiment] += vader_confidence * vader_weight
             sentiment_scores[slang_sentiment] += slang_confidence * slang_weight
             
             # Pick the highest weighted score
@@ -210,11 +209,12 @@ class SentimentAnalyzer:
                 'text': text,
                 'method': 'hybrid_weighted',
                 'matched_patterns': matched_patterns,
-                'roberta_sentiment': roberta_sentiment,
-                'roberta_confidence': roberta_score,
+                'vader_sentiment': vader_sentiment,
+                'vader_confidence': vader_confidence,
+                'vader_scores': vader_scores,
                 'slang_sentiment': slang_sentiment,
                 'slang_confidence': slang_confidence,
-                'weights': {'roberta': roberta_weight, 'slang': slang_weight}
+                'weights': {'vader': vader_weight, 'slang': slang_weight}
             }
             
         except Exception as e:
